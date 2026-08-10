@@ -40,16 +40,14 @@ public class GooglePushListenerServiceProvider implements PushListenerController
     public void onRequestPushToken() {
         final String currentPushString = SharedConfig.pushString;
         if (!TextUtils.isEmpty(currentPushString)) {
-            if (BuildVars.DEBUG_PRIVATE_VERSION && BuildVars.LOGS_ENABLED) {
+            if (BuildVars.DEBUG_PRIVATE_VERSION) {
                 FileLog.d("FCM regId = " + currentPushString);
             }
             // Re-assert the last known-good token immediately. A transient Firebase failure below
             // must never replace a working registration with an empty value.
             PushListenerController.sendRegistrationToServer(getPushType(), currentPushString);
         } else {
-            if (BuildVars.LOGS_ENABLED) {
-                FileLog.d("FCM Registration not found.");
-            }
+            FileLog.d("FCM Registration not found.");
         }
         requestToken(0L);
     }
