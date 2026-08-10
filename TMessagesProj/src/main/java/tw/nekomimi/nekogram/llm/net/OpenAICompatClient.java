@@ -27,8 +27,6 @@ public final class OpenAICompatClient {
 
     private static final OkHttpClient httpClient = HttpClient.INSTANCE.getLlmInstance();
     private static final OkHttpClient testHttpClient = httpClient.newBuilder()
-            .readTimeout(15, TimeUnit.SECONDS)
-            .writeTimeout(15, TimeUnit.SECONDS)
             .callTimeout(20, TimeUnit.SECONDS)
             .build();
     private static final Set<String> optionalParametersDisabledModels = ConcurrentHashMap.newKeySet();
