@@ -44,6 +44,8 @@ import android.view.HapticFeedbackConstants;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewConfiguration;
+import android.view.VelocityTracker;
 import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.view.accessibility.AccessibilityNodeInfo;
@@ -116,6 +118,7 @@ import org.telegram.ui.Components.Forum.ForumUtilities;
 import org.telegram.ui.Components.blur3.BlurredBackgroundDrawableViewFactory;
 import org.telegram.ui.Components.blur3.BlurredBackgroundWithFadeDrawable;
 import org.telegram.ui.Components.blur3.DownscaleScrollableNoiseSuppressor;
+import org.telegram.ui.Components.blur3.CompositeViewGroupPartRenderer;
 import org.telegram.ui.Components.blur3.RenderNodeWithHash;
 import org.telegram.ui.Components.blur3.ViewGroupPartRenderer;
 import org.telegram.ui.Components.blur3.capture.IBlur3Capture;
@@ -231,6 +234,38 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
     private ArrayList<DialogsSearchAdapter.RecentSearchObject> recentSearchObjects = new ArrayList<>();
     private LongSparseArray<DialogsSearchAdapter.RecentSearchObject> recentSearchObjectsById = new LongSparseArray<>();
     TL_stories.StoryItem storyItem;
+
+    private FilterTabsView filterTabsView;
+    private FrameLayout gridContainer;
+    private int currentFilterId = NaConfig.INSTANCE.getShareForwardLastFolder().Int();
+    private boolean isFolderReloadPending;
+    private RecyclerListView reserveGridView;
+    private GridLayoutManager reserveLayoutManager;
+    private ShareDialogsAdapter reserveListAdapter;
+    private boolean isAnimatingForward;
+    private boolean isFolderSlideInProgress;
+    private int slideStartScrollOffsetY;
+    private int folderSlideTargetScrollOffsetY;
+    private boolean isFolderDragTracking;
+    private boolean isFolderDragPending;
+    private int folderDragStartX;
+    private int folderDragStartY;
+    private int folderDragStartPointerId;
+    private VelocityTracker folderDragVelocityTracker;
+    private ValueAnimator folderDragSettleAnimator;
+    private int targetFilterId;
+    private int folderDragPreviousFilterId;
+
+    private static final int FOLDER_DRAG_SETTLE_FLING_VELOCITY = 3500;
+    private static final int FOLDER_DRAG_SETTLE_DURATION_MIN_MS = 150;
+    private static final int FOLDER_DRAG_SETTLE_DURATION_MAX_MS = 600;
+    private int maxDialogsCount = 0;
+
+    private LinearLayout toggleContainer;
+    private RLottieImageView toggleAuthorButton;
+    private RLottieImageView toggleCaptionButton;
+    private RLottieImageView toggleNotifyButton;
+    private HintView2 currentToggleHint;
 
     public void setStoryToShare(TL_stories.StoryItem storyItem) {
         this.storyItem = storyItem;
@@ -579,6 +614,9 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
                         gridView.setTopGlowOffset((int) (currentPanTranslationY + scrollOffsetY));
                         frameLayout.setTranslationY(currentPanTranslationY + scrollOffsetY);
                         searchEmptyView.setTranslationY(currentPanTranslationY + scrollOffsetY);
+                        if (filterTabsView != null) {
+                            filterTabsView.setTranslationY(currentPanTranslationY + scrollOffsetY);
+                        }
                         invalidate();
                     }
 
@@ -591,7 +629,10 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
                         gridView.setTopGlowOffset(scrollOffsetY);
                         frameLayout.setTranslationY(scrollOffsetY);
                         searchEmptyView.setTranslationY(scrollOffsetY);
-                        gridView.setTranslationY(0);
+                        if (filterTabsView != null) {
+                            filterTabsView.setTranslationY(scrollOffsetY);
+                        }
+                        setGridViewsTranslationY(0);
                         searchGridView.setTranslationY(0);
                         updateBottomOverlay();
                     }
@@ -602,16 +643,17 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
                         super.onPanTranslationUpdate(y, progress, keyboardVisible);
                         for (int i = 0; i < containerView.getChildCount(); i++) {
                             final View child = containerView.getChildAt(i);
-                            if (child != pickerBottom && child != bulletinContainer && child != shadow[1] && child != sharesCountLayout && child != frameLayout2 && child != timestampFrameLayout && child != writeButtonContainer) {
+                            if (child != pickerBottom && child != bulletinContainer && child != shadow[1] && child != sharesCountLayout && child != frameLayout2 && child != timestampFrameLayout && child != writeButtonContainer && child != gridContainer) {
                                 child.setTranslationY(y);
                             }
                         }
                         currentPanTranslationY = y;
+                        setGridViewsTranslationY(y);
                         if (fromScrollY != -1) {
                             float p = keyboardVisible ? progress : (1f - progress);
                             scrollOffsetY = (int) (fromScrollY * (1f - p) + toScrollY * p);
                             float translationY = currentPanTranslationY + (fromScrollY - toScrollY) * (1f - p);
-                            gridView.setTranslationY(translationY);
+                            setGridViewsTranslationY(translationY);
                             if (keyboardVisible) {
                                 searchGridView.setTranslationY(translationY);
                             } else {
@@ -621,14 +663,17 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
                             scrollOffsetY = (int) (fromOffsetTop * (1f - progress) + toOffsetTop * progress);
                             float p = keyboardVisible ? (1f - progress) : progress;
                             if (keyboardVisible) {
-                                gridView.setTranslationY(currentPanTranslationY - (fromOffsetTop - toOffsetTop) * progress);
+                                setGridViewsTranslationY(currentPanTranslationY - (fromOffsetTop - toOffsetTop) * progress);
                             } else {
-                                gridView.setTranslationY(currentPanTranslationY + (toOffsetTop - fromOffsetTop) * p);
+                                setGridViewsTranslationY(currentPanTranslationY + (toOffsetTop - fromOffsetTop) * p);
                             }
                         }
                         gridView.setTopGlowOffset((int) (scrollOffsetY + currentPanTranslationY));
                         frameLayout.setTranslationY(scrollOffsetY + currentPanTranslationY);
                         searchEmptyView.setTranslationY(scrollOffsetY + currentPanTranslationY);
+                        if (filterTabsView != null) {
+                            filterTabsView.setTranslationY(scrollOffsetY + currentPanTranslationY);
+                        }
                         frameLayout2.invalidate();
                         setCurrentPanTranslationY(currentPanTranslationY);
                         updateBottomOverlay();
@@ -647,7 +692,7 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
 
             @Override
             protected void drawList(Canvas blurCanvas, boolean top, ArrayList<IViewWithInvalidateCallback> views) {
-                if (gridView.getVisibility() == View.VISIBLE && gridView.getAlpha() >= 0.0f) {
+                if (gridView.isShown() && gridView.getAlpha() > 0.01f && gridContainer.getAlpha() > 0.01f) {
                     blurCanvas.save();
                     blurCanvas.translate(gridView.getX(), gridView.getY());
                     gridView.draw(blurCanvas);
@@ -696,6 +741,9 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
 
                 layoutManager.setNeedFixGap(getLayoutParams().height <= 0);
                 searchLayoutManager.setNeedFixGap(getLayoutParams().height <= 0);
+                if (reserveLayoutManager != null) {
+                    reserveLayoutManager.setNeedFixGap(getLayoutParams().height <= 0);
+                }
                 if (!isFullscreen) {
                     ignoreLayout = true;
                     setPadding(backgroundPaddingLeft, systemInsets.top, backgroundPaddingLeft, 0);
@@ -717,6 +765,9 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
                     ignoreLayout = true;
                     gridView.setPadding(0, padding, 0, bottomPadding);
                     topicsGridView.setPadding(0, padding, 0, bottomPadding);
+                    if (reserveGridView != null) {
+                        reserveGridView.setPadding(0, padding, 0, bottomPadding);
+                    }
                     ignoreLayout = false;
                 }
 
@@ -1089,7 +1140,122 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
             AndroidUtilities.showKeyboard(searchView.editText);
         });
 
-        frameLayout.addView(searchView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 40, Gravity.BOTTOM | Gravity.LEFT, 11, 7, 11, 11));
+        // Toggle buttons beside search bar
+        toggleContainer = new LinearLayout(context);
+        toggleContainer.setOrientation(LinearLayout.HORIZONTAL);
+        toggleContainer.setGravity(Gravity.CENTER_VERTICAL);
+        toggleContainer.setPadding(dp(2), 0, dp(2), 0);
+
+        int toggleSize = AndroidUtilities.dp(28);
+
+        if (sendingMessageObjects != null && !sendingMessageObjects.isEmpty()) {
+            toggleAuthorButton = createToggleButton(R.raw.name_hide, 0);
+            toggleContainer.addView(toggleAuthorButton, new LinearLayout.LayoutParams(toggleSize, toggleSize));
+
+            toggleCaptionButton = createToggleButton(R.raw.caption_hide, 1);
+            toggleContainer.addView(toggleCaptionButton, new LinearLayout.LayoutParams(toggleSize, toggleSize));
+        }
+
+        toggleNotifyButton = createToggleButton(R.raw.notify_toggle, 2);
+        toggleContainer.addView(toggleNotifyButton, new LinearLayout.LayoutParams(toggleSize, toggleSize));
+
+        LinearLayout searchRow = new LinearLayout(context);
+        searchRow.setOrientation(LinearLayout.HORIZONTAL);
+        searchRow.setGravity(Gravity.CENTER_VERTICAL);
+        searchRow.addView(searchView, new LinearLayout.LayoutParams(0, LayoutHelper.WRAP_CONTENT, 1f));
+        searchRow.addView(toggleContainer, new LinearLayout.LayoutParams(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT));
+
+        frameLayout.addView(searchRow, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 40, Gravity.BOTTOM | Gravity.LEFT, 11, 7, 11, 11));
+        updateAllToggleIcons();
+
+        ArrayList<MessagesController.DialogFilter> filters = MessagesController.getInstance(currentAccount).getDialogFilters();
+        if (!filters.isEmpty()) {
+            filterTabsView = new FilterTabsView(context, resourcesProvider);
+            filterTabsView.setVisibility(filters.size() > 1 ? View.VISIBLE : View.GONE);
+
+            filterTabsView.setDelegate(new FilterTabsView.FilterTabsViewDelegate() {
+                @Override
+                public void onPageSelected(FilterTabsView.Tab tab, boolean forward) {
+                    currentFilterId = tab.id;
+                    NaConfig.INSTANCE.getShareForwardLastFolder().setConfigInt(tab.id);
+                    if (reserveGridView != null && gridView.getAdapter() == listAdapter && gridView.isShown()) {
+                        prepareReservePage(forward);
+                    } else {
+                        isFolderReloadPending = true;
+                    }
+                }
+
+                @Override
+                public void onPageScrolled(float progress) {
+                    if (isFolderSlideInProgress) {
+                        applyFolderSlideProgress(progress);
+                        if (progress >= 1.0f) {
+                            swapGridPages();
+                        }
+                    } else if (progress >= 1.0f && isFolderReloadPending) {
+                        isFolderReloadPending = false;
+                        if (listAdapter != null) {
+                            listAdapter.fetchDialogs();
+                            listAdapter.notifyDataSetChanged();
+                            gridView.scrollToPosition(0);
+                        }
+                    }
+                }
+
+                @Override
+                public void onSamePageSelected() {
+                }
+
+                @Override
+                public int getTabCounter(int tabId) {
+                    return 0;
+                }
+
+                @Override
+                public boolean didSelectTab(FilterTabsView.TabView tabView, boolean selected) {
+                    return true;
+                }
+
+                @Override
+                public boolean isTabMenuVisible() {
+                    return false;
+                }
+
+                @Override
+                public void onDeletePressed(int id) {
+                }
+
+                @Override
+                public void onPageReorder(int fromId, int toId) {
+                }
+
+                @Override
+                public boolean canPerformActions() {
+                    return true;
+                }
+            });
+
+            filterTabsView.removeTabs();
+            for (int a = 0, N = filters.size(); a < N; a++) {
+                MessagesController.DialogFilter filter = filters.get(a);
+                if (filter.isDefault()) {
+                    if (filterTabsView.showAllChatsTab) {
+                        filterTabsView.addTab(0, 0, LocaleController.getString(R.string.FilterAllChats), filter.emoticon, null, false, true, filter.locked);
+                    }
+                } else {
+                    filterTabsView.addTab(filter.localId, filter.localId, filter.name, filter.emoticon, filter.entities, filter.title_noanimate, false, filter.locked);
+                }
+            }
+            if (currentFilterId != 0) {
+                if (!filterTabsView.selectTabWithStableId(currentFilterId)) {
+                    currentFilterId = 0;
+                    NaConfig.INSTANCE.getShareForwardLastFolder().setConfigInt(0);
+                } else {
+                    filterTabsView.scrollToCurrentTab();
+                }
+            }
+        }
+
         topicsBackActionBar = new ActionBar(context);
         topicsBackActionBar.setOccupyStatusBar(false);
         topicsBackActionBar.setBackButtonImage(R.drawable.ic_ab_back);
@@ -1171,12 +1337,15 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
 
             @Override
             public void draw(Canvas canvas) {
-                if (topicsGridView.getVisibility() != View.GONE) {
+                int filterTabsHeight = (filterTabsView != null && filterTabsView.getVisibility() == View.VISIBLE) ? dp(44) : 0;
+                boolean shouldClip = topicsGridView.getVisibility() != View.GONE || filterTabsHeight > 0;
+                if (shouldClip) {
                     canvas.save();
-                    canvas.clipRect(0, scrollOffsetY + dp(darkTheme && linkToCopy[1] != null ? 111 : 58), getWidth(), getHeight());
+                    int clipScrollOffset = isFolderSlideInProgress ? (this == gridView ? slideStartScrollOffsetY : folderSlideTargetScrollOffsetY) : scrollOffsetY;
+                    canvas.clipRect(0, clipScrollOffset + dp(darkTheme && linkToCopy[1] != null ? 111 : 58) + filterTabsHeight, getWidth(), getHeight() - frameLayout2.getHeight() - dp(12));
                 }
                 super.draw(canvas);
-                if (topicsGridView.getVisibility() != View.GONE) {
+                if (shouldClip) {
                     canvas.restore();
                 }
             }
@@ -1216,11 +1385,68 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
                 }
             }
         });
-        containerView.addView(gridView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.TOP | Gravity.LEFT, 0, 0, 0, 0));
+        gridContainer = new FrameLayout(context) {
+            @Override
+            public boolean onInterceptTouchEvent(MotionEvent ev) {
+                int action = ev.getActionMasked();
+                if (action == MotionEvent.ACTION_DOWN) {
+                    if (folderDragVelocityTracker == null) {
+                        folderDragVelocityTracker = VelocityTracker.obtain();
+                    }
+                    folderDragVelocityTracker.clear();
+                    folderDragVelocityTracker.addMovement(ev);
+                    boolean onFilterTabs = filterTabsView != null && filterTabsView.getVisibility() == View.VISIBLE
+                            && ev.getY() >= filterTabsView.getTop() + filterTabsView.getTranslationY()
+                            && ev.getY() <= filterTabsView.getBottom() + filterTabsView.getTranslationY();
+                    if (isFolderDragAllowed() && !onFilterTabs) {
+                        isFolderDragPending = true;
+                        isFolderDragTracking = false;
+                        folderDragStartX = (int) ev.getX();
+                        folderDragStartY = (int) ev.getY();
+                        folderDragStartPointerId = ev.getPointerId(0);
+                    } else {
+                        isFolderDragPending = false;
+                    }
+                } else if (isFolderDragPending && !isFolderDragTracking) {
+                    folderDragVelocityTracker.addMovement(ev);
+                    if (action == MotionEvent.ACTION_MOVE && ev.getPointerCount() == 1
+                            && ev.getPointerId(0) == folderDragStartPointerId) {
+                        tryClaimFolderDrag(ev);
+                    } else if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+                        isFolderDragPending = false;
+                    }
+                }
+                return isFolderDragTracking;
+            }
+
+            @Override
+            public boolean onTouchEvent(MotionEvent ev) {
+                if (!isFolderDragTracking) {
+                    return super.onTouchEvent(ev);
+                }
+                folderDragVelocityTracker.addMovement(ev);
+                int action = ev.getActionMasked();
+                if (action == MotionEvent.ACTION_MOVE) {
+                    driveFolderDrag(ev);
+                } else if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+                    settleFolderDrag();
+                    isFolderDragTracking = false;
+                    isFolderDragPending = false;
+                }
+                return true;
+            }
+        };
+        gridContainer.setClipChildren(false);
+        containerView.addView(gridContainer, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.TOP | Gravity.LEFT, 0, 0, 0, 0));
+        gridContainer.addView(gridView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.TOP | Gravity.LEFT, 0, 0, 0, 0));
+        if (filterTabsView != null) {
+            gridContainer.addView(filterTabsView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 44, Gravity.TOP | Gravity.LEFT, 0, darkTheme && linkToCopy[1] != null ? 109 : 56, 0, 0));
+        }
         gridView.setAdapter(listAdapter = new ShareDialogsAdapter(context));
+        prewarmMaxDialogsCount();
         gridView.setGlowColor(getThemedColor(Theme.key_dialogScrollGlow));
         gridView.setOnItemClickListener((view, position) -> {
-            if (position < 0) {
+            if (isFolderSlideInProgress || position < 0) {
                 return;
             }
             TLRPC.Dialog dialog = listAdapter.getItem(position);
@@ -1245,6 +1471,94 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
                 }
             }
         });
+
+        reserveGridView = new RecyclerListView(context, resourcesProvider) {
+
+            @Override
+            protected boolean allowSelectChildAtPosition(float x, float y) {
+                int filterTabsHeight = (filterTabsView != null && filterTabsView.getVisibility() == View.VISIBLE) ? dp(44) : 0;
+                return y >= dp(darkTheme && linkToCopy[1] != null ? 111 : 58) + filterTabsHeight + systemInsets.top;
+            }
+
+            @Override
+            public void draw(Canvas canvas) {
+                int filterTabsHeight = (filterTabsView != null && filterTabsView.getVisibility() == View.VISIBLE) ? dp(44) : 0;
+                boolean shouldClip = topicsGridView.getVisibility() != View.GONE || filterTabsHeight > 0;
+                if (shouldClip) {
+                    canvas.save();
+                    int clipScrollOffset = isFolderSlideInProgress ? (this == gridView ? slideStartScrollOffsetY : folderSlideTargetScrollOffsetY) : scrollOffsetY;
+                    canvas.clipRect(0, clipScrollOffset + dp(darkTheme && linkToCopy[1] != null ? 111 : 58) + filterTabsHeight, getWidth(), getHeight() - frameLayout2.getHeight() - dp(12));
+                }
+                super.draw(canvas);
+                if (shouldClip) {
+                    canvas.restore();
+                }
+            }
+        };
+        reserveGridView.setSelectorDrawableColor(0);
+        reserveGridView.setItemSelectorColorProvider(i -> 0);
+        reserveGridView.setPadding(0, 0, 0, dp(48));
+        reserveGridView.setClipToPadding(false);
+        reserveGridView.setLayoutManager(reserveLayoutManager = new GridLayoutManager(getContext(), 4));
+        reserveLayoutManager.setSpanSizeLookup(new GridLayoutManager.SpanSizeLookup() {
+            @Override
+            public int getSpanSize(int position) {
+                if (position == 0) {
+                    return reserveLayoutManager.getSpanCount();
+                }
+                if (position == 1 && filterTabsView != null && filterTabsView.getVisibility() == View.VISIBLE) {
+                    return reserveLayoutManager.getSpanCount();
+                }
+                return 1;
+            }
+        });
+        reserveGridView.setHorizontalScrollBarEnabled(false);
+        reserveGridView.setVerticalScrollBarEnabled(false);
+        reserveGridView.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        reserveGridView.addItemDecoration(new RecyclerView.ItemDecoration() {
+            @Override
+            public void getItemOffsets(android.graphics.Rect outRect, View view, RecyclerView parent, RecyclerView.State state) {
+                RecyclerListView.Holder holder = (RecyclerListView.Holder) parent.getChildViewHolder(view);
+                if (holder != null) {
+                    int pos = holder.getAdapterPosition();
+                    outRect.left = pos % 4 == 0 ? 0 : dp(4);
+                    outRect.right = pos % 4 == 3 ? 0 : dp(4);
+                } else {
+                    outRect.left = dp(4);
+                    outRect.right = dp(4);
+                }
+            }
+        });
+        gridContainer.addView(reserveGridView, 1, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.TOP | Gravity.LEFT, 0, 0, 0, 0));
+        reserveGridView.setAdapter(reserveListAdapter = new ShareDialogsAdapter(context));
+        reserveGridView.setGlowColor(getThemedColor(Theme.key_dialogScrollGlow));
+        reserveGridView.setOnItemClickListener((view, position) -> {
+            if (isFolderSlideInProgress || position < 0) {
+                return;
+            }
+            TLRPC.Dialog dialog = reserveListAdapter.getItem(position);
+            if (dialog == null) {
+                return;
+            }
+            selectDialog(view, dialog);
+        });
+        reserveGridView.setOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
+                if (dy != 0) {
+                    updateLayout();
+                    previousScrollOffsetY = scrollOffsetY;
+                }
+                if (Bulletin.getVisibleBulletin() != null && Bulletin.getVisibleBulletin().getLayout() != null && Bulletin.getVisibleBulletin().getLayout().getParent() instanceof View && ((View) Bulletin.getVisibleBulletin().getLayout().getParent()).getParent() == bulletinContainer2) {
+                    Bulletin.hideVisible();
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && scrollableViewNoiseSuppressor != null) {
+                    scrollableViewNoiseSuppressor.onScrolled(dx, dy);
+                    blur3_InvalidateBlur();
+                }
+            }
+        });
+        reserveGridView.setVisibility(View.GONE);
 
         searchGridView = new RecyclerListView(context, resourcesProvider) {
 
@@ -1882,7 +2196,7 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
         });
         MediaDataController.getInstance(currentAccount).loadHints(true);
 
-        AndroidUtilities.updateViewVisibilityAnimated(gridView, true, 1f, false);
+        AndroidUtilities.updateViewVisibilityAnimated(gridContainer, true, 1f, false);
         AndroidUtilities.updateViewVisibilityAnimated(searchGridView, false, 1f, false);
 
         ViewCompat.setOnApplyWindowInsetsListener(getContainer(), this::onApplyWindowInsets);
@@ -2062,7 +2376,7 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
                                     invalidateTopicsAnimation(cell, loc, value);
                                 });
                                 topicsAnimation.addEndListener((animation, canceled, value, velocity) -> {
-                                    gridView.setVisibility(View.GONE);
+                                    AndroidUtilities.updateViewVisibilityAnimated(gridContainer, false, 0.98f, true, false);
                                     searchGridView.setVisibility(View.GONE);
                                     searchView.setVisibility(View.GONE);
 
@@ -2679,6 +2993,25 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
     int lastOffset = Integer.MAX_VALUE;
 
     @SuppressLint("NewApi")
+    private void applyScrollOffsetY() {
+        gridView.setTopGlowOffset(scrollOffsetY);
+        searchGridView.setTopGlowOffset(scrollOffsetY);
+        topicsGridView.setTopGlowOffset(scrollOffsetY);
+        frameLayout.setTranslationY(scrollOffsetY + currentPanTranslationY);
+        searchEmptyView.setTranslationY(scrollOffsetY + currentPanTranslationY);
+        if (filterTabsView != null) {
+            filterTabsView.setTranslationY(scrollOffsetY + currentPanTranslationY);
+        }
+        containerView.invalidate();
+    }
+
+    private void setGridViewsTranslationY(float translationY) {
+        gridView.setTranslationY(translationY);
+        if (isFolderSlideInProgress && reserveGridView != null) {
+            reserveGridView.setTranslationY(translationY);
+        }
+    }
+
     private void updateLayout() {
         if (panTranslationMoveLayout) {
             return;
@@ -2738,12 +3071,8 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
 
         if (scrollOffsetY != newOffset) {
             previousScrollOffsetY = scrollOffsetY;
-            gridView.setTopGlowOffset(scrollOffsetY = (int) (newOffset + currentPanTranslationY));
-            searchGridView.setTopGlowOffset(scrollOffsetY = (int) (newOffset + currentPanTranslationY));
-            topicsGridView.setTopGlowOffset(scrollOffsetY = (int) (newOffset + currentPanTranslationY));
-            frameLayout.setTranslationY(scrollOffsetY + currentPanTranslationY);
-            searchEmptyView.setTranslationY(scrollOffsetY + currentPanTranslationY);
-            containerView.invalidate();
+            scrollOffsetY = (int) (newOffset + currentPanTranslationY);
+            applyScrollOffsetY();
         }
     }
 
@@ -3031,6 +3360,11 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
                         }
                     };
                     view.setLayoutParams(new RecyclerView.LayoutParams(RecyclerView.LayoutParams.MATCH_PARENT, dp(100)));
+                    break;
+                }
+                case 2: {
+                    view = new View(context);
+                    view.setLayoutParams(new RecyclerView.LayoutParams(RecyclerView.LayoutParams.MATCH_PARENT, dp(44)));
                     break;
                 }
                 case 1:
@@ -3816,12 +4150,12 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
             searchVisibleLocal = true;
             updateSearchAdapter = true;
             if (selectedTopicDialog == null) {
-                AndroidUtilities.updateViewVisibilityAnimated(gridView, false, 0.98f, true);
+                AndroidUtilities.updateViewVisibilityAnimated(gridContainer, false, 0.98f, true);
                 AndroidUtilities.updateViewVisibilityAnimated(searchGridView, true);
             }
         } else {
             if (selectedTopicDialog == null) {
-                AndroidUtilities.updateViewVisibilityAnimated(gridView, true, 0.98f, true);
+                AndroidUtilities.updateViewVisibilityAnimated(gridContainer, true, 0.98f, true);
                 AndroidUtilities.updateViewVisibilityAnimated(searchGridView, false);
             }
         }
@@ -4007,6 +4341,69 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
         iBlur3Positions.add(iBlur3PositionMainTabs);
     }
 
+    private void prewarmMaxDialogsCount() {
+        int savedFilterId = currentFilterId;
+        currentFilterId = 0;
+        listAdapter.fetchDialogs();
+        currentFilterId = savedFilterId;
+        listAdapter.fetchDialogs();
+    }
+
+    private void prepareReservePage(boolean forward) {
+        if (reserveGridView == null || reserveListAdapter == null) {
+            return;
+        }
+        if (folderDragSettleAnimator != null) {
+            ValueAnimator animator = folderDragSettleAnimator;
+            folderDragSettleAnimator = null;
+            animator.cancel();
+        }
+        if (isFolderSlideInProgress) {
+            swapGridPages();
+        }
+        isAnimatingForward = forward;
+        isFolderSlideInProgress = true;
+        slideStartScrollOffsetY = scrollOffsetY;
+        folderSlideTargetScrollOffsetY = slideStartScrollOffsetY;
+        reserveListAdapter.fetchDialogs();
+        reserveListAdapter.notifyDataSetChanged();
+        reserveGridView.scrollToPosition(0);
+        reserveGridView.setTranslationY(gridView.getTranslationY());
+        int pageWidth = gridView.getWidth();
+        if (pageWidth <= 0) {
+            pageWidth = containerView.getMeasuredWidth();
+        }
+        reserveGridView.setTranslationX(forward ? pageWidth : -pageWidth);
+        reserveGridView.setVisibility(View.VISIBLE);
+        reserveGridView.setAlpha(1f);
+        iBlur3Capture = new CompositeViewGroupPartRenderer(
+                new ViewGroupPartRenderer(gridView, containerView, gridView::drawChild),
+                new ViewGroupPartRenderer(reserveGridView, containerView, reserveGridView::drawChild));
+    }
+
+    private void swapGridPages() {
+        isFolderSlideInProgress = false;
+        RecyclerListView previousGridView = gridView;
+        gridView = reserveGridView;
+        reserveGridView = previousGridView;
+
+        GridLayoutManager previousLayoutManager = layoutManager;
+        layoutManager = reserveLayoutManager;
+        reserveLayoutManager = previousLayoutManager;
+
+        ShareDialogsAdapter previousListAdapter = listAdapter;
+        listAdapter = reserveListAdapter;
+        reserveListAdapter = previousListAdapter;
+
+        reserveGridView.setTranslationX(0);
+        reserveGridView.setTranslationY(currentPanTranslationY);
+        reserveGridView.setVisibility(View.GONE);
+        gridView.setTranslationX(0);
+        gridView.setTranslationY(currentPanTranslationY);
+        iBlur3Capture = new ViewGroupPartRenderer(gridView, containerView, gridView::drawChild);
+        blur3_InvalidateBlur();
+    }
+
     private void blur3_InvalidateBlur() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || scrollableViewNoiseSuppressor == null) {
             return;
@@ -4017,5 +4414,145 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
 
         scrollableViewNoiseSuppressor.setupRenderNodes(iBlur3Positions, 1);
         scrollableViewNoiseSuppressor.invalidateResultRenderNodes(iBlur3Capture, containerView.getMeasuredWidth(), containerView.getMeasuredHeight());
+    }
+
+    private boolean isFolderDragAllowed() {
+        return filterTabsView != null
+                && filterTabsView.getVisibility() == View.VISIBLE
+                && gridContainer != null
+                && gridContainer.getAlpha() > 0.01f
+                && !isDismissed()
+                && fullyShown
+                && folderDragSettleAnimator == null
+                && !filterTabsView.isAnimatingIndicator();
+    }
+
+    private void tryClaimFolderDrag(MotionEvent ev) {
+        float touchSlop = AndroidUtilities.getPixelsInCM(0.3f, true);
+        float dx = ev.getX() - folderDragStartX;
+        float dy = ev.getY() - folderDragStartY;
+        if (Math.abs(dx) >= touchSlop && Math.abs(dx) > Math.abs(dy)) {
+            boolean forward = dx < 0;
+            int nextId = filterTabsView.getNextPageId(forward);
+            if (nextId >= 0 && gridView.getWidth() > 0) {
+                targetFilterId = nextId;
+                folderDragPreviousFilterId = currentFilterId;
+                currentFilterId = nextId;
+                prepareReservePage(forward);
+                gridContainer.requestDisallowInterceptTouchEvent(true);
+                isFolderDragTracking = true;
+            } else {
+                isFolderDragPending = false;
+            }
+        }
+    }
+
+    private void driveFolderDrag(MotionEvent ev) {
+        int pageWidth = gridView.getWidth();
+        if (pageWidth <= 0) {
+            return;
+        }
+        int dx = (int) ev.getX() - folderDragStartX;
+        float progress = Math.min(Math.abs(dx) / (float) pageWidth, 1f);
+        applyFolderSlideProgress(progress);
+        if (filterTabsView != null) {
+            filterTabsView.selectTabWithId(targetFilterId, progress);
+        }
+    }
+
+    private void applyFolderSlideProgress(float progress) {
+        int pageWidth = gridView.getWidth();
+        if (isAnimatingForward) {
+            gridView.setTranslationX(-progress * pageWidth);
+            reserveGridView.setTranslationX(pageWidth - progress * pageWidth);
+        } else {
+            gridView.setTranslationX(progress * pageWidth);
+            reserveGridView.setTranslationX(progress * pageWidth - pageWidth);
+        }
+        int targetScrollOffsetY = gridView.getPaddingTop() - AndroidUtilities.dp(8) + (int) currentPanTranslationY;
+        folderSlideTargetScrollOffsetY = targetScrollOffsetY;
+        scrollOffsetY = (int) (slideStartScrollOffsetY + (targetScrollOffsetY - slideStartScrollOffsetY) * progress);
+        applyScrollOffsetY();
+        gridView.setTranslationY(currentPanTranslationY + scrollOffsetY - slideStartScrollOffsetY);
+        if (reserveGridView != null) {
+            float slideDelta = targetScrollOffsetY - slideStartScrollOffsetY;
+            reserveGridView.setTranslationY(currentPanTranslationY - slideDelta * (1f - progress));
+        }
+    }
+
+    private void cancelFolderDrag() {
+        isFolderSlideInProgress = false;
+        currentFilterId = folderDragPreviousFilterId;
+        if (reserveGridView != null) {
+            reserveGridView.setVisibility(View.GONE);
+            reserveGridView.setTranslationX(0);
+            reserveGridView.setTranslationY(currentPanTranslationY);
+        }
+        gridView.setTranslationX(0);
+        gridView.setTranslationY(currentPanTranslationY);
+        if (filterTabsView != null) {
+            filterTabsView.selectTabWithId(currentFilterId, 0f);
+        }
+        iBlur3Capture = new ViewGroupPartRenderer(gridView, containerView, gridView::drawChild);
+        blur3_InvalidateBlur();
+    }
+
+    private void settleFolderDrag() {
+        int pageWidth = gridView.getWidth();
+        if (pageWidth <= 0) {
+            cancelFolderDrag();
+            return;
+        }
+        float velocityX = 0;
+        float velocityY = 0;
+        if (folderDragVelocityTracker != null) {
+            folderDragVelocityTracker.computeCurrentVelocity(1000, ViewConfiguration.getMaximumFlingVelocity());
+            velocityX = folderDragVelocityTracker.getXVelocity();
+            velocityY = folderDragVelocityTracker.getYVelocity();
+        }
+        float progress = Math.min(Math.abs(gridView.getTranslationX()) / pageWidth, 1f);
+        boolean backAnimation = progress < 0.5f && (Math.abs(velocityX) < FOLDER_DRAG_SETTLE_FLING_VELOCITY || Math.abs(velocityX) < Math.abs(velocityY));
+        if (folderDragSettleAnimator != null) {
+            folderDragSettleAnimator.cancel();
+        }
+        float targetProgress = backAnimation ? 0f : 1f;
+        ValueAnimator animator = ValueAnimator.ofFloat(progress, targetProgress);
+        folderDragSettleAnimator = animator;
+        float distance = Math.abs(targetProgress - progress);
+        int duration;
+        if (Math.abs(velocityX) > 100) {
+            duration = (int) (4 * Math.round(1000 * distance * pageWidth / Math.abs(velocityX)));
+        } else {
+            duration = (int) ((distance + 0.1f) * FOLDER_DRAG_SETTLE_DURATION_MAX_MS);
+        }
+        animator.setDuration(Math.max(FOLDER_DRAG_SETTLE_DURATION_MIN_MS, Math.min(FOLDER_DRAG_SETTLE_DURATION_MAX_MS, duration)));
+        animator.setInterpolator(new DecelerateInterpolator());
+        animator.addUpdateListener(animation -> {
+            float value = (float) animation.getAnimatedValue();
+            applyFolderSlideProgress(value);
+            if (filterTabsView != null) {
+                filterTabsView.selectTabWithId(targetFilterId, value);
+            }
+        });
+        animator.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                boolean wasCurrent = folderDragSettleAnimator == animator;
+                folderDragSettleAnimator = null;
+                if (!wasCurrent || isDismissed()) {
+                    return;
+                }
+                if (backAnimation) {
+                    cancelFolderDrag();
+                } else {
+                    NaConfig.INSTANCE.getShareForwardLastFolder().setConfigInt(targetFilterId);
+                    if (filterTabsView != null) {
+                        filterTabsView.selectTabWithId(targetFilterId, 1.0f);
+                    }
+                    swapGridPages();
+                }
+            }
+        });
+        animator.start();
     }
 }
