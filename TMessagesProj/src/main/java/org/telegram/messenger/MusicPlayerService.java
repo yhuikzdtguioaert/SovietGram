@@ -422,7 +422,9 @@ public class MusicPlayerService extends Service implements NotificationCenter.No
                 }
             }
 
-            mediaSession.setPlaybackState(playbackState.build());
+            PlaybackStateCompat currentPlaybackState = playbackState.build();
+            mediaSession.setPlaybackState(currentPlaybackState);
+            TelegramMediaSession.getInstance(this).publishPlaybackState(currentPlaybackState);
             updateRepeatMode();
             updateShuffleMode();
             MediaMetadataCompat.Builder meta = new MediaMetadataCompat.Builder()
@@ -436,6 +438,7 @@ public class MusicPlayerService extends Service implements NotificationCenter.No
             }
 
             mediaSession.setMetadata(meta.build());
+            TelegramMediaSession.getInstance(this).publishMetadata(messageObject, audioInfo, fullAlbumArt);
 
             bldr.setVisibility(Notification.VISIBILITY_PUBLIC);
 
@@ -645,7 +648,9 @@ public class MusicPlayerService extends Service implements NotificationCenter.No
                         NOTIFY_REPEAT, LocaleController.getString(R.string.RepeatSong), repeatIcon).build());
             }
         }
-        mediaSession.setPlaybackState(playbackState.build());
+        PlaybackStateCompat currentPlaybackState = playbackState.build();
+        mediaSession.setPlaybackState(currentPlaybackState);
+        TelegramMediaSession.getInstance(this).publishPlaybackState(currentPlaybackState);
     }
 
     private void updateRepeatMode() {
@@ -715,7 +720,15 @@ public class MusicPlayerService extends Service implements NotificationCenter.No
             metadataEditor.apply();
             audioManager.unregisterRemoteControlClient(remoteControlClient);
         }
-        // mediaSession is owned by TelegramMediaSession (process singleton) — do NOT release here.
+        if (mediaSession != null) {
+            mediaSession.release();
+        }
+        TelegramMediaSession sessionHolder = TelegramMediaSession.peekInstance();
+        if (sessionHolder != null && MediaController.getInstance().getPlayingMessageObject() == null) {
+            sessionHolder.publishPlaybackState(new PlaybackStateCompat.Builder()
+                    .setState(PlaybackStateCompat.STATE_STOPPED, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 0)
+                    .build());
+        }
         for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {
             NotificationCenter.getInstance(a).removeObserver(this, NotificationCenter.messagePlayingDidSeek);
             NotificationCenter.getInstance(a).removeObserver(this, NotificationCenter.messagePlayingPlayStateChanged);
