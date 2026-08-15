@@ -270,6 +270,26 @@ public class ChatActivityEnterView extends FrameLayout implements
     protected float attachLayoutPaddingTranslationX;
     private float attachLayoutAlpha = 1f;
     private float attachLayoutPaddingAlpha = 1f;
+    private int attachGravity;
+    private int fieldLeftDp;
+    private int attachLayoutRightDp;
+    private int emojiGravity;
+    private int fieldRightDp;
+    private int emojiLeftDp;
+    private int emojiRightDp;
+    private int iosGapDp;
+    private int aiButtonGravity;
+    private int aiButtonRightMarginDp;
+    private static final int IOS_LEFT_EDGE_MARGIN_DP = 0;
+    private static final int CAPSULE_INSET_DP = 4;
+    private static final int NO_ICON_TEXT_INSET_DP = 8;
+    private static final int COMPACT_TEXT_INSET_DP = 4;
+    private static final int RIGHT_CLUSTER_GAP_DP = 4;
+    private static final int IOS_BUBBLE_RADIUS_DP = 22;
+    private static final int SENDER_SELECT_WIDTH_DP = 36;
+    private static final int BOT_BUTTON_WIDTH_DP = 36;
+    private static final int BOT_COMMANDS_MIN_WIDTH_DP = 40;
+    private static final int AI_RICH_LINE_THRESHOLD = 3;
     private float messageTextTranslationX;
     private float messageTextPaddingTranslationX;
     private float horizontalPadding = 0;
@@ -9893,6 +9913,88 @@ public class ChatActivityEnterView extends FrameLayout implements
     }
 
     private int lastAttachVisible;
+
+    private void updateIosLayoutSeeds() {
+        iosGapDp = isCompactInputSize() ? 2 : 8;
+        attachGravity = isIosButtonPlacement() ? (Gravity.BOTTOM | Gravity.LEFT) : (Gravity.BOTTOM | Gravity.RIGHT);
+        fieldLeftDp = isIosButtonPlacement() ? (IOS_LEFT_EDGE_MARGIN_DP + DEFAULT_HEIGHT + iosGapDp) : 52;
+        attachLayoutRightDp = isIosButtonPlacement() ? 0 : DEFAULT_HEIGHT;
+        emojiGravity = isIosButtonPlacement() ? (Gravity.BOTTOM | Gravity.RIGHT) : (Gravity.BOTTOM | Gravity.LEFT);
+        fieldRightDp = isIosButtonPlacement() ? (DEFAULT_HEIGHT + iosGapDp * 2) : (isChat ? 50 : 2);
+        emojiLeftDp = isIosButtonPlacement() ? 0 : 2;
+        emojiRightDp = isIosButtonPlacement() ? iosGapDp : 0;
+        aiButtonGravity = isIosButtonPlacement() ? (Gravity.TOP | Gravity.RIGHT) : (Gravity.TOP | Gravity.LEFT);
+        aiButtonRightMarginDp = isIosButtonPlacement() ? (DEFAULT_HEIGHT + iosGapDp) : 0;
+    }
+
+    private void updateFieldLeftIos() {
+        if (messageEditText == null) {
+            return;
+        }
+        if (!isIosButtonPlacement() && editingMessageObject != null && !editingMessageObject.needResendWhenEdit()) {
+            return;
+        }
+        int cursorDp = IOS_LEFT_EDGE_MARGIN_DP;
+        boolean hasLeftAttach = false;
+        if (attachButton != null && attachButton.getVisibility() == VISIBLE && (attachButton.getAlpha() > 0 || isAttachRestorePending)) {
+            setLeftMarginDp(attachButton, IOS_LEFT_EDGE_MARGIN_DP);
+            cursorDp += DEFAULT_HEIGHT + iosGapDp;
+            hasLeftAttach = true;
+        } else if (editingMessageObject != null) {
+            cursorDp += iosGapDp;
+        } else if (!isIosInputAppearance()) {
+            cursorDp += NO_ICON_TEXT_INSET_DP;
+        }
+        if (isIosInputAppearance() && !(isStories && isIosButtonPlacement() && hasLeftAttach)) {
+            cursorDp += CAPSULE_INSET_DP;
+        }
+        if (senderSelectView != null && (senderSelectView.getVisibility() == VISIBLE || isSenderSelectSlotReserved)) {
+            if (senderSelectView.getVisibility() == VISIBLE) {
+                setLeftMarginDp(senderSelectView, cursorDp);
+            }
+            cursorDp += SENDER_SELECT_WIDTH_DP + iosGapDp;
+        }
+        int attachGroupWidthDp = 0;
+        if (attachLayout != null && attachLayout.getVisibility() == VISIBLE) {
+            for (int i = 0; i < attachLayout.getChildCount(); i++) {
+                View child = attachLayout.getChildAt(i);
+                if (child.getVisibility() == VISIBLE && child.getAlpha() > 0) {
+                    attachGroupWidthDp += child == botButton ? BOT_BUTTON_WIDTH_DP : DEFAULT_HEIGHT;
+                }
+            }
+            if (attachGroupWidthDp > 0) {
+                setLeftMarginDp(attachLayout, cursorDp);
+                cursorDp += attachGroupWidthDp + iosGapDp;
+            }
+        }
+        if (botCommandsMenuButton != null && botCommandsMenuButton.getVisibility() == VISIBLE) {
+            int botCommandsWidthDp = botCommandsMenuButton.getMeasuredWidth() > 0
+                    ? Math.round(botCommandsMenuButton.getMeasuredWidth() / AndroidUtilities.density)
+                    : BOT_COMMANDS_MIN_WIDTH_DP;
+            setLeftMarginDp(botCommandsMenuButton, cursorDp);
+            cursorDp += botCommandsWidthDp + (isCompactInputSize() ? COMPACT_TEXT_INSET_DP : NO_ICON_TEXT_INSET_DP);
+        }
+        boolean hasInsideIcon = attachGroupWidthDp > 0
+                || (senderSelectView != null && (senderSelectView.getVisibility() == VISIBLE || isSenderSelectSlotReserved))
+                || (botCommandsMenuButton != null && botCommandsMenuButton.getVisibility() == VISIBLE);
+        if (isIosInputAppearance() && !hasInsideIcon) {
+            cursorDp += NO_ICON_TEXT_INSET_DP;
+        }
+        setLeftMarginDp(messageEditText, cursorDp);
+        if (richDraftPreview != null) {
+            setLeftMarginDp(richDraftPreview, cursorDp - 8);
+        }
+    }
+
+    private void setLeftMarginDp(View view, int leftMarginDp) {
+        MarginLayoutParams layoutParams = (MarginLayoutParams) view.getLayoutParams();
+        int leftMarginPx = dp(leftMarginDp);
+        if (layoutParams.leftMargin != leftMarginPx) {
+            layoutParams.leftMargin = leftMarginPx;
+            view.setLayoutParams(layoutParams);
+        }
+    }
+
     private void updateFieldRight(int attachVisible) {
         lastAttachVisible = attachVisible;
         if (messageEditText == null || (editingMessageObject != null && !editingMessageObject.needResendWhenEdit())) {
@@ -15668,17 +15770,41 @@ public class ChatActivityEnterView extends FrameLayout implements
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         int wasHeight = textFieldContainer.getMeasuredHeight();
-        if (botCommandsMenuButton != null && botCommandsMenuButton.getTag() != null) {
+        updateIosLayoutSeeds();
+        if (isIosButtonPlacement()) {
+            if (botCommandsMenuButton != null && botCommandsMenuButton.getVisibility() == VISIBLE) {
+                botCommandsMenuButton.measure(widthMeasureSpec, heightMeasureSpec);
+            }
+            updateFieldLeftIos();
+        } else if (botCommandsMenuButton != null && botCommandsMenuButton.getTag() != null) {
             botCommandsMenuButton.measure(widthMeasureSpec, heightMeasureSpec);
-            ((MarginLayoutParams) emojiButton.getLayoutParams()).leftMargin = dp(10) + (botCommandsMenuButton == null ? 0 : botCommandsMenuButton.getMeasuredWidth());
-            if (deleteRichDraftButton != null) {
-                ((MarginLayoutParams) deleteRichDraftButton.getLayoutParams()).leftMargin = dp(10) + (botCommandsMenuButton == null ? 0 : botCommandsMenuButton.getMeasuredWidth());
-            }
-            if (messageEditText != null) {
-                ((MarginLayoutParams) messageEditText.getLayoutParams()).leftMargin = dp(57) + (botCommandsMenuButton == null ? 0 : botCommandsMenuButton.getMeasuredWidth());
-            }
-            if (richDraftPreview != null) {
-                ((MarginLayoutParams) richDraftPreview.getLayoutParams()).leftMargin = dp(57) + (botCommandsMenuButton == null ? 0 : botCommandsMenuButton.getMeasuredWidth());
+            if (isIosInputAppearance()) {
+                int cursorDp = IOS_LEFT_EDGE_MARGIN_DP + DEFAULT_HEIGHT + iosGapDp + CAPSULE_INSET_DP;
+                ((MarginLayoutParams) emojiButton.getLayoutParams()).leftMargin = dp(IOS_LEFT_EDGE_MARGIN_DP);
+                if (deleteRichDraftButton != null) {
+                    ((MarginLayoutParams) deleteRichDraftButton.getLayoutParams()).leftMargin = dp(IOS_LEFT_EDGE_MARGIN_DP);
+                }
+                ((MarginLayoutParams) botCommandsMenuButton.getLayoutParams()).leftMargin = dp(cursorDp);
+                cursorDp += Math.round(botCommandsMenuButton.getMeasuredWidth() / AndroidUtilities.density)
+                        + (isCompactInputSize() ? COMPACT_TEXT_INSET_DP : NO_ICON_TEXT_INSET_DP);
+                if (messageEditText != null) {
+                    ((MarginLayoutParams) messageEditText.getLayoutParams()).leftMargin = dp(cursorDp);
+                }
+                if (richDraftPreview != null) {
+                    ((MarginLayoutParams) richDraftPreview.getLayoutParams()).leftMargin = dp(cursorDp - 8);
+                }
+            } else {
+                ((MarginLayoutParams) botCommandsMenuButton.getLayoutParams()).leftMargin = dp(8);
+                ((MarginLayoutParams) emojiButton.getLayoutParams()).leftMargin = dp(10) + botCommandsMenuButton.getMeasuredWidth();
+                if (deleteRichDraftButton != null) {
+                    ((MarginLayoutParams) deleteRichDraftButton.getLayoutParams()).leftMargin = dp(10) + botCommandsMenuButton.getMeasuredWidth();
+                }
+                if (messageEditText != null) {
+                    ((MarginLayoutParams) messageEditText.getLayoutParams()).leftMargin = dp(57) + botCommandsMenuButton.getMeasuredWidth();
+                }
+                if (richDraftPreview != null) {
+                    ((MarginLayoutParams) richDraftPreview.getLayoutParams()).leftMargin = dp(57) + botCommandsMenuButton.getMeasuredWidth();
+                }
             }
         } else if (senderSelectView != null && senderSelectView.getVisibility() == View.VISIBLE) {
             int width = senderSelectView.getLayoutParams().width, height = senderSelectView.getLayoutParams().height;
