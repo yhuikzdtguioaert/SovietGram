@@ -1552,11 +1552,11 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
             filterTabsView.setDelegate(new FilterTabsView.FilterTabsViewDelegate() {
                 @Override
                 public void onPageSelected(FilterTabsView.Tab tab, boolean forward) {
-                    currentFilterId = tab.id;
-                    NaConfig.INSTANCE.getShareForwardLastFolder().setConfigInt(tab.id);
                     if (reserveGridView != null && gridView.getAdapter() == listAdapter && gridView.isShown()) {
-                        prepareReservePage(forward);
+                        prepareReservePage(forward, tab.id);
                     } else {
+                        currentFilterId = tab.id;
+                        NaConfig.INSTANCE.getShareForwardLastFolder().setConfigInt(tab.id);
                         isFolderReloadPending = true;
                     }
                 }
@@ -1607,7 +1607,7 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
 
                 @Override
                 public boolean canPerformActions() {
-                    return true;
+                    return folderDragSettleAnimator == null && !isFolderSlideInProgress;
                 }
             });
 
@@ -1825,7 +1825,7 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
             if (isFolderSlideInProgress || position < 0) {
                 return;
             }
-            TLRPC.Dialog dialog = listAdapter.getItem(position);
+            TLRPC.Dialog dialog = ((ShareDialogsAdapter) ((RecyclerListView) view.getParent()).getAdapter()).getItem(position);
             if (dialog == null) {
                 return;
             }
@@ -1912,7 +1912,7 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
             if (isFolderSlideInProgress || position < 0) {
                 return;
             }
-            TLRPC.Dialog dialog = reserveListAdapter.getItem(position);
+            TLRPC.Dialog dialog = ((ShareDialogsAdapter) ((RecyclerListView) view.getParent()).getAdapter()).getItem(position);
             if (dialog == null) {
                 return;
             }
@@ -4911,7 +4911,7 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
         listAdapter.fetchDialogs();
     }
 
-    private void prepareReservePage(boolean forward) {
+    private void prepareReservePage(boolean forward, int newFilterId) {
         if (reserveGridView == null || reserveListAdapter == null) {
             return;
         }
@@ -4921,8 +4921,15 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
             animator.cancel();
         }
         if (isFolderSlideInProgress) {
+            currentFilterId = targetFilterId;
+            if (filterTabsView != null) {
+                filterTabsView.selectTabWithId(targetFilterId, 1.0f);
+            }
             swapGridPages();
         }
+        targetFilterId = newFilterId;
+        folderDragPreviousFilterId = currentFilterId;
+        currentFilterId = newFilterId;
         isAnimatingForward = forward;
         isFolderSlideInProgress = true;
         slideStartScrollOffsetY = scrollOffsetY;
@@ -4962,6 +4969,7 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
         reserveGridView.setVisibility(View.GONE);
         gridView.setTranslationX(0);
         gridView.setTranslationY(currentPanTranslationY);
+        NaConfig.INSTANCE.getShareForwardLastFolder().setConfigInt(currentFilterId);
         iBlur3Capture = new ViewGroupPartRenderer(gridView, containerView, gridView::drawChild);
         blur3_InvalidateBlur();
     }
@@ -4997,10 +5005,7 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
             boolean forward = dx < 0;
             int nextId = filterTabsView.getNextPageId(forward);
             if (nextId >= 0 && gridView.getWidth() > 0) {
-                targetFilterId = nextId;
-                folderDragPreviousFilterId = currentFilterId;
-                currentFilterId = nextId;
-                prepareReservePage(forward);
+                prepareReservePage(forward, nextId);
                 gridContainer.requestDisallowInterceptTouchEvent(true);
                 isFolderDragTracking = true;
             } else {
@@ -5075,7 +5080,9 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
         float progress = Math.min(Math.abs(gridView.getTranslationX()) / pageWidth, 1f);
         boolean backAnimation = progress < 0.5f && (Math.abs(velocityX) < FOLDER_DRAG_SETTLE_FLING_VELOCITY || Math.abs(velocityX) < Math.abs(velocityY));
         if (folderDragSettleAnimator != null) {
-            folderDragSettleAnimator.cancel();
+            ValueAnimator previousAnimator = folderDragSettleAnimator;
+            folderDragSettleAnimator = null;
+            previousAnimator.cancel();
         }
         float targetProgress = backAnimation ? 0f : 1f;
         ValueAnimator animator = ValueAnimator.ofFloat(progress, targetProgress);
@@ -5101,7 +5108,11 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
             public void onAnimationEnd(Animator animation) {
                 boolean wasCurrent = folderDragSettleAnimator == animator;
                 folderDragSettleAnimator = null;
-                if (!wasCurrent || isDismissed()) {
+                if (isDismissed()) {
+                    isFolderSlideInProgress = false;
+                    return;
+                }
+                if (!wasCurrent) {
                     return;
                 }
                 if (backAnimation) {
