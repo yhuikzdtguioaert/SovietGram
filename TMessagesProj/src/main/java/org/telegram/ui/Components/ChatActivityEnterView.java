@@ -16810,22 +16810,12 @@ public class ChatActivityEnterView extends FrameLayout implements
 
         private int drawableColor;
 
-        public int resolveSendIconColor(int themeColor) {
-            if (ActionButtonStyle.getCurrentStyle() == ActionButtonStyle.ACCENT) {
-                return isNewDesignSendButton ? Color.WHITE : themeColor;
-            }
-            if (shouldUseActionStyleColors()) {
-                return ActionButtonStyle.resolveIconColor(resourcesProvider);
-            }
-            return themeColor;
-        }
-
-        private boolean shouldUseActionStyleColors() {
-            return isNewDesignSendButton || shouldDrawBackground();
+        protected int resolveSendIconColor(int themeColor) {
+            return (isNewDesignSendButton && !NaConfig.INSTANCE.getIosInputAppearance().Bool()) ? Color.WHITE : themeColor;
         }
 
         public void updateColors() {
-            int color = isNewDesignSendButton ? Color.WHITE : Theme.getColor(Theme.key_chat_messagePanelSend, resourcesProvider);
+            int color = resolveSendIconColor(Theme.getColor(Theme.key_chat_messagePanelSend, resourcesProvider));
             if (color != drawableColor) {
                 drawableColor = color;
                 drawable.setColorFilter(new PorterDuffColorFilter(color, PorterDuff.Mode.SRC_IN));

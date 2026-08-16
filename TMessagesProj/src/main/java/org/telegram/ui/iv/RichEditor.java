@@ -976,11 +976,16 @@ public class RichEditor extends BaseFragment implements NotificationCenter.Notif
                 return RichEditor.this.isInScheduleMode();
             }
             @Override
+            protected int resolveSendIconColor(int themeColor) {
+                return NaConfig.INSTANCE.getWhiteSendButton().Bool() ? themeColor : Color.WHITE;
+            }
+            @Override
             public boolean shouldDrawInternalCircle() {
-                return false;
+                return !NaConfig.INSTANCE.getWhiteSendButton().Bool();
             }
         };
-        sendButton.setBackground(withShadow(Theme.createRoundRectDrawable(dp(22), ActionButtonStyle.resolveBackgroundColor(getResourceProvider()))));
+        int sendBackgroundColor = NaConfig.INSTANCE.getWhiteSendButton().Bool() ? Color.WHITE : getThemedColor(Theme.key_chat_messagePanelSend);
+        sendButton.setBackground(withShadow(Theme.createRoundRectDrawable(dp(22), sendBackgroundColor)));
         ScaleStateListAnimator.apply(sendButton);
         bottomPanel.addView(sendButton, LayoutHelper.createLinear(44, 44, 0, Gravity.RIGHT, 8, 0, 0, 0));
         sendButton.setContentDescription(getString(R.string.Send));
