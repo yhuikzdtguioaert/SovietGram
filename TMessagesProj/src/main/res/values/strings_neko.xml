@@ -294,4 +294,10 @@
     <string name="EmojiUseDefault">Use system emoji</string>
     <string name="Chat">Chats</string>
     <string name="Appearance">Appearance</string>
+    <string name="MediaAutoRotateMode">Media auto-rotate</string>
+    <string name="ShowMediaRotateButton">Show the auto-rotate button</string>
+    <string name="MediaAutoRotateOff">Off</string>
+    <string name="MediaAutoRotateGyro">Always</string>
+    <string name="MediaAutoRotateFill">Fit content</string>
+    <string name="MediaAutoRotateChanged">Auto-rotate: %1$s</string>
 </resources>

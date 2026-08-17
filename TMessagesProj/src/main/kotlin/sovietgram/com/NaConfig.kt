@@ -21,11 +21,13 @@ object NaConfig {
     const val DESIGN_VERSION_LATEST = 0
     const val DESIGN_VERSION_12_7_3 = 1273
 
-    // Per-area design versions. 0 is the current 12.9.0 look; 1231 goes back to 12.3.1 —
-    // the last release before upstream's 12.4.0 rebuilt the whole shell (glass action bar,
-    // floating input island, bottom tab bar replacing the side drawer).
+    // Per-area design versions. 0 is the latest look; 1231 restores the pre-12.4 shell.
     const val AREA_DESIGN_LATEST = 0
     const val AREA_DESIGN_12_3_1 = 1231
+    const val MEDIA_AUTO_ROTATE_OFF = 0
+    const val MEDIA_AUTO_ROTATE_FILL = 1
+    const val MEDIA_AUTO_ROTATE_GYRO = 2
+    const val MEDIA_AUTO_ROTATE_MODE_COUNT = 3
 
     @Volatile
     private var initialized = false
@@ -1140,6 +1142,36 @@ object NaConfig {
             ConfigItem.configTypeBool,
             true
         )
+    val mediaAutoRotateMode =
+        addConfig(
+            "MediaAutoRotateMode",
+            ConfigItem.configTypeInt,
+            MEDIA_AUTO_ROTATE_OFF
+        )
+    val showMediaRotateButton =
+        addConfig(
+            "ShowMediaRotateButton",
+            ConfigItem.configTypeBool,
+            true
+        )
+    val scrollToCurrentPhoto =
+        addConfig(
+            "ScrollToCurrentPhoto",
+            ConfigItem.configTypeBool,
+            false
+        )
+    val swipeAllMedia =
+        addConfig(
+            "SwipeAllMedia",
+            ConfigItem.configTypeBool,
+            false
+        )
+    val seamlessVideoHandoff =
+        addConfig(
+            "SeamlessVideoHandoff",
+            ConfigItem.configTypeBool,
+            false
+        )
     val hideReactions =
         addConfig(
             "HideReactions",
@@ -1838,6 +1870,14 @@ object NaConfig {
         if (!getPreferences().contains(cameraInVideoMessages.key)) {
             val legacyRear = getPreferences().getBoolean("RearVideoMessages", false)
             cameraInVideoMessages.setConfigInt(if (legacyRear) 1 else 0)
+        }
+        if (!getPreferences().contains(mediaAutoRotateMode.key)) {
+            val legacyForce = getPreferences().getBoolean("ForceMediaAutoRotate", false)
+            mediaAutoRotateMode.setConfigInt(if (legacyForce) MEDIA_AUTO_ROTATE_GYRO else MEDIA_AUTO_ROTATE_OFF)
+            getPreferences().edit { remove("ForceMediaAutoRotate") }
+        }
+        if (mediaAutoRotateMode.Int() !in MEDIA_AUTO_ROTATE_OFF..MEDIA_AUTO_ROTATE_GYRO) {
+            mediaAutoRotateMode.setConfigInt(MEDIA_AUTO_ROTATE_OFF)
         }
         if (!getPreferences().contains(backAnimationStyle.key) &&
             getPreferences().contains("SpringAnimation")

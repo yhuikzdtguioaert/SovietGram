@@ -293,4 +293,10 @@
     <string name="EmojiUseDefault">Использовать системные эмодзи</string>
     <string name="Chat">Чаты</string>
     <string name="Appearance">Внешний вид</string>
+    <string name="MediaAutoRotateMode">Автоповорот медиа</string>
+    <string name="ShowMediaRotateButton">Показывать кнопку автоповорота</string>
+    <string name="MediaAutoRotateOff">Выключен</string>
+    <string name="MediaAutoRotateGyro">Всегда</string>
+    <string name="MediaAutoRotateFill">По контенту</string>
+    <string name="MediaAutoRotateChanged">Автоповорот: %1$s</string>
 </resources>
