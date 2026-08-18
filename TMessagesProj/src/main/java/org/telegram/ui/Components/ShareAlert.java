@@ -265,10 +265,275 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
     private RLottieImageView toggleAuthorButton;
     private RLottieImageView toggleCaptionButton;
     private RLottieImageView toggleNotifyButton;
+    private RLottieImageView toggleForwardCommentPositionButton;
+    private AnimatorSet forwardCommentPositionToggleAnimatorSet;
+    private boolean isForwardCommentPositionButtonShown;
     private HintView2 currentToggleHint;
 
     public void setStoryToShare(TL_stories.StoryItem storyItem) {
         this.storyItem = storyItem;
+    }
+
+    private boolean isForwardNotifyEffective() {
+        if (NaConfig.INSTANCE.getSilentMessageByDefault().Bool()) {
+            return false; // Ghost mode overrides to silent
+        }
+        return NaConfig.INSTANCE.getForwardNotify().Bool();
+    }
+
+    private String getToggleDescription(int index) {
+        if (index == 0) {
+            return LocaleController.getString(R.string.AccDescrForwardAuthor);
+        } else if (index == 1) {
+            return LocaleController.getString(R.string.AccDescrForwardCaption);
+        } else {
+            return LocaleController.getString(R.string.AccDescrForwardSound);
+        }
+    }
+
+    private RLottieImageView createToggleButton(int rawRes, int index) {
+        RLottieImageView button = new RLottieImageView(getContext());
+        RLottieDrawable icon = new RLottieDrawable(rawRes, "toggle_" + index, dp(24), dp(24), true, null);
+        icon.setAllowDecodeSingleFrame(true);
+        icon.setPlayInDirectionOfCustomEndFrame(true);
+        icon.start();
+        button.setAnimation(icon);
+        button.setScaleType(ImageView.ScaleType.CENTER);
+        button.setPadding(dp(2), dp(2), dp(2), dp(2));
+        button.setBackground(Theme.createSelectorDrawable(getThemedColor(Theme.key_listSelector), 1));
+        button.setOnClickListener(v -> toggleOption(index));
+        return button;
+    }
+
+    private void toggleOption(int index) {
+        RLottieImageView toggleButtonView;
+        boolean isActive;
+        if (index == 0) { // Author (quote)
+            boolean newValue = !NaConfig.INSTANCE.getForwardHideSenderName().Bool();
+            NaConfig.INSTANCE.getForwardHideSenderName().setConfigBool(newValue);
+            isActive = !newValue;
+            toggleButtonView = toggleAuthorButton;
+            updateToggleIcon(toggleButtonView, 0, isActive);
+            // When enabling quote (show author), enable caption too
+            if (!newValue && NaConfig.INSTANCE.getForwardHideCaption().Bool()) {
+                NaConfig.INSTANCE.getForwardHideCaption().setConfigBool(false);
+                updateToggleIcon(toggleCaptionButton, 1, true);
+            }
+        } else if (index == 1) { // Caption
+            boolean newValue = !NaConfig.INSTANCE.getForwardHideCaption().Bool();
+            NaConfig.INSTANCE.getForwardHideCaption().setConfigBool(newValue);
+            isActive = !newValue;
+            toggleButtonView = toggleCaptionButton;
+            updateToggleIcon(toggleButtonView, 1, isActive);
+            // When disabling caption, disable quote (hide author) too
+            if (newValue && !NaConfig.INSTANCE.getForwardHideSenderName().Bool()) {
+                NaConfig.INSTANCE.getForwardHideSenderName().setConfigBool(true);
+                updateToggleIcon(toggleAuthorButton, 0, false);
+            }
+        } else { // Sound
+            if (NaConfig.INSTANCE.getSilentMessageByDefault().Bool()) {
+                Toast.makeText(getContext(), LocaleController.getString(R.string.GhostModeSoundOverride), Toast.LENGTH_SHORT).show();
+                return;
+            }
+            boolean newValue = !NaConfig.INSTANCE.getForwardNotify().Bool();
+            NaConfig.INSTANCE.getForwardNotify().setConfigBool(newValue);
+            isActive = newValue;
+            toggleButtonView = toggleNotifyButton;
+            updateToggleIcon(toggleButtonView, 2, isActive);
+        }
+        showToggleHint(toggleButtonView, index, isActive);
+    }
+
+    private void updateToggleIcon(RLottieImageView toggleButtonView, int index, boolean isActive) {
+        toggleButtonView.setContentDescription(getToggleDescription(index));
+
+        if (index == 0) {
+            RLottieDrawable icon = new RLottieDrawable(isActive ? R.raw.name_hide : R.raw.name_show, "toggle_author", dp(24), dp(24), true, null);
+            icon.setAllowDecodeSingleFrame(true);
+            toggleButtonView.setAnimation(icon);
+            icon.start();
+        } else if (index == 1) {
+            RLottieDrawable icon = new RLottieDrawable(isActive ? R.raw.caption_hide : R.raw.caption_show, "toggle_caption", dp(24), dp(24), true, null);
+            icon.setAllowDecodeSingleFrame(true);
+            toggleButtonView.setAnimation(icon);
+            icon.start();
+        } else {
+            RLottieDrawable icon = toggleButtonView.getAnimatedDrawable();
+            if (isActive) {
+                if (icon.getCurrentFrame() >= 40) icon.setCurrentFrame(0);
+                icon.setCustomEndFrame(40);
+            } else {
+                if (icon.getCurrentFrame() < 40) icon.setCurrentFrame(40);
+                icon.setCustomEndFrame(80);
+            }
+            icon.start();
+        }
+
+        int activeColor = getThemedColor(Theme.key_dialogTextBlue);
+        int inactiveColor = getThemedColor(Theme.key_dialogTextGray2);
+        int color = isActive ? activeColor : inactiveColor;
+        toggleButtonView.setColorFilter(new PorterDuffColorFilter(color, PorterDuff.Mode.SRC_IN));
+    }
+
+    private void updateAllToggleIcons() {
+        if (toggleAuthorButton != null) {
+            updateToggleIcon(toggleAuthorButton, 0, !NaConfig.INSTANCE.getForwardHideSenderName().Bool());
+        }
+        if (toggleCaptionButton != null) {
+            updateToggleIcon(toggleCaptionButton, 1, !NaConfig.INSTANCE.getForwardHideCaption().Bool());
+        }
+        if (toggleNotifyButton != null) {
+            updateToggleIcon(toggleNotifyButton, 2, isForwardNotifyEffective());
+        }
+    }
+
+    private void showToggleHint(View toggleButtonView, int index, boolean isActive) {
+        if (currentToggleHint != null) {
+            currentToggleHint.hide();
+            AndroidUtilities.removeFromParent(currentToggleHint);
+            currentToggleHint = null;
+        }
+
+        String text;
+        if (index == 0) text = getString(isActive ? R.string.ForwardAuthorShown : R.string.ForwardAuthorHidden);
+        else if (index == 1) text = getString(isActive ? R.string.ForwardCaptionShown : R.string.ForwardCaptionHidden);
+        else if (index == 3) text = getString(isActive ? R.string.ForwardCommentAfter : R.string.ForwardCommentBefore);
+        else text = getString(isActive ? R.string.ForwardNotifyOn : R.string.ForwardNotifyOff);
+
+        int[] buttonLoc = new int[2];
+        toggleButtonView.getLocationOnScreen(buttonLoc);
+
+        boolean shouldShowBelow = buttonLoc[1] < dp(80);
+        int direction = shouldShowBelow ? HintView2.DIRECTION_TOP : HintView2.DIRECTION_BOTTOM;
+
+        HintView2 hint = new HintView2(getContext(), direction);
+        hint.setRoundingWithCornerEffect(false);
+        hint.setPadding(dp(8), 0, dp(8), 0);
+        hint.setRounding(20);
+        hint.setShadow(dp(12), 0, dp(4), Theme.multAlpha(0xFF000000, .25f));
+        hint.setText(text);
+        hint.setDuration(2000L);
+        hint.setOnHiddenListener(() -> AndroidUtilities.removeFromParent(hint));
+
+        container.setClipToPadding(false);
+        container.setClipChildren(false);
+        containerView.setClipToPadding(false);
+        containerView.setClipChildren(false);
+        frameLayout.setClipToPadding(false);
+        frameLayout.setClipChildren(false);
+
+        int[] parentLoc = new int[2];
+        if (shouldShowBelow) {
+            container.getLocationOnScreen(parentLoc);
+            int buttonCenterX = buttonLoc[0] - parentLoc[0] + toggleButtonView.getWidth() / 2;
+            int buttonScreenBottomY = buttonLoc[1] + toggleButtonView.getHeight();
+            int topMarginPx = buttonScreenBottomY - parentLoc[1] + dp(4);
+            hint.setJointPx(1f, -(container.getWidth() - buttonCenterX - dp(8)));
+            container.addView(hint, LayoutHelper.createFrameMarginPx(LayoutHelper.MATCH_PARENT, 200, Gravity.TOP, 0, topMarginPx, 0, 0));
+        } else {
+            frameLayout.getLocationOnScreen(parentLoc);
+            int buttonCenterX = buttonLoc[0] - parentLoc[0] + toggleButtonView.getWidth() / 2;
+            int buttonTopY = buttonLoc[1] - parentLoc[1];
+            int topMargin = -200 + buttonTopY - dp(16);
+            hint.setJointPx(1f, -(frameLayout.getWidth() - buttonCenterX - dp(8)));
+            frameLayout.addView(hint, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 200, Gravity.TOP, 0, topMargin, 0, 0));
+        }
+        hint.show();
+        currentToggleHint = hint;
+    }
+
+    private void toggleForwardCommentPosition() {
+        boolean sendCommentAfterForward = !NekoConfig.sendCommentAfterForward.Bool();
+        NekoConfig.sendCommentAfterForward.setConfigBool(sendCommentAfterForward);
+        updateForwardCommentPositionButtonIcon(sendCommentAfterForward);
+        if (toggleForwardCommentPositionButton != null) {
+            showToggleHint(toggleForwardCommentPositionButton, 3, sendCommentAfterForward);
+        }
+    }
+
+    private void updateForwardCommentPositionButtonIcon(boolean isActive) {
+        if (toggleForwardCommentPositionButton == null) return;
+        toggleForwardCommentPositionButton.setContentDescription(LocaleController.getString(R.string.AccDescrForwardCommentPosition));
+        RLottieDrawable icon = toggleForwardCommentPositionButton.getAnimatedDrawable();
+        if (isActive) {
+            if (icon.getCurrentFrame() >= 16) icon.setCurrentFrame(0);
+            icon.setCustomEndFrame(16);
+        } else {
+            if (icon.getCurrentFrame() < 16) icon.setCurrentFrame(16);
+            icon.setCustomEndFrame(32);
+        }
+        icon.start();
+        toggleForwardCommentPositionButton.setColorFilter(new PorterDuffColorFilter(
+                getThemedColor(Theme.key_dialogTextBlue), PorterDuff.Mode.SRC_IN));
+    }
+
+    private int resolveForwardCommentPositionButtonTargetLeft() {
+        if (writeButtonContainer == null || writeButtonContainer.getWidth() == 0 || toggleForwardCommentPositionButton == null) {
+            return -1;
+        }
+        int sendCircleLeft = writeButtonContainer.getLeft() + writeButtonContainer.getWidth() - dp(61);
+        return sendCircleLeft - dp(4) - toggleForwardCommentPositionButton.getWidth();
+    }
+
+    private int resolveCommentTextViewRightPaddingPx() {
+        int base = Math.max(dp(84), writeButton.width());
+        if (toggleForwardCommentPositionButton != null && commentTextView.length() > 0 && frameLayout2.getTag() != null) {
+            int targetLeft = resolveForwardCommentPositionButtonTargetLeft();
+            if (targetLeft > 0) {
+                return containerView.getWidth() - containerView.getPaddingRight() - targetLeft - dp(4);
+            }
+            return base + dp(56);
+        }
+        return base;
+    }
+
+    private void alignForwardCommentPositionButtonToField() {
+        if (toggleForwardCommentPositionButton == null || frameLayout2.getTag() == null) return;
+        int targetLeft = resolveForwardCommentPositionButtonTargetLeft();
+        if (targetLeft > 0) {
+            int rightMargin = containerView.getWidth() - toggleForwardCommentPositionButton.getWidth() - containerView.getPaddingRight() - backgroundPaddingLeft - targetLeft;
+            FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) toggleForwardCommentPositionButton.getLayoutParams();
+            if (lp.rightMargin != rightMargin) {
+                lp.rightMargin = rightMargin;
+                toggleForwardCommentPositionButton.requestLayout();
+            }
+        }
+        float fieldCenterY = (frameLayout2.getTop() + frameLayout2.getBottom()) / 2f;
+        float buttonCenterY = toggleForwardCommentPositionButton.getTop() + toggleForwardCommentPositionButton.getTranslationY() + toggleForwardCommentPositionButton.getHeight() / 2f;
+        toggleForwardCommentPositionButton.setTranslationY(toggleForwardCommentPositionButton.getTranslationY() + (fieldCenterY - buttonCenterY));
+    }
+
+    private void updateForwardCommentPositionButtonVisibility(boolean hasCommentText) {
+        if (toggleForwardCommentPositionButton == null) return;
+        boolean show = hasCommentText && frameLayout2.getTag() != null;
+        boolean isShown = isForwardCommentPositionButtonShown;
+        if (show == isShown) return;
+        isForwardCommentPositionButtonShown = show;
+        if (forwardCommentPositionToggleAnimatorSet != null) {
+            forwardCommentPositionToggleAnimatorSet.cancel();
+        }
+        toggleForwardCommentPositionButton.setVisibility(View.VISIBLE);
+        ValueAnimator paddingAnimator = ValueAnimator.ofInt(commentTextView.getPaddingRight(), resolveCommentTextViewRightPaddingPx());
+        paddingAnimator.addUpdateListener(animation -> commentTextView.setPadding(0, 0, (Integer) animation.getAnimatedValue(), 0));
+        ArrayList<Animator> animators = new ArrayList<>();
+        animators.add(paddingAnimator);
+        animators.add(ObjectAnimator.ofFloat(toggleForwardCommentPositionButton, View.ALPHA, show ? 1.0f : 0.0f));
+        animators.add(ObjectAnimator.ofFloat(toggleForwardCommentPositionButton, View.SCALE_X, show ? 1.0f : 0.6f));
+        animators.add(ObjectAnimator.ofFloat(toggleForwardCommentPositionButton, View.SCALE_Y, show ? 1.0f : 0.6f));
+        forwardCommentPositionToggleAnimatorSet = new AnimatorSet();
+        forwardCommentPositionToggleAnimatorSet.playTogether(animators);
+        forwardCommentPositionToggleAnimatorSet.setInterpolator(new DecelerateInterpolator());
+        forwardCommentPositionToggleAnimatorSet.setDuration(180);
+        forwardCommentPositionToggleAnimatorSet.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                if (!show && forwardCommentPositionToggleAnimatorSet != null && animation.equals(forwardCommentPositionToggleAnimatorSet)) {
+                    toggleForwardCommentPositionButton.setVisibility(View.GONE);
+                }
+            }
+        });
+        forwardCommentPositionToggleAnimatorSet.start();
+        containerView.post(this::alignForwardCommentPositionButtonToField);
     }
 
     public interface ShareAlertDelegate {
@@ -1995,6 +2260,9 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
                 if (writeButtonContainer != null) {
                     writeButtonContainer.bringToFront();
                 }
+                if (toggleForwardCommentPositionButton != null) {
+                    toggleForwardCommentPositionButton.bringToFront();
+                }
             }
         };
         commentTextView.includeNavigationBar = true;
@@ -2025,6 +2293,8 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
             public void afterTextChanged(Editable s) {
                 AndroidUtilities.runOnUIThread(() -> {
                     updateSelectedCount(1);
+                    updateForwardCommentPositionButtonVisibility(commentTextView.length() > 0);
+                    containerView.post(ShareAlert.this::alignForwardCommentPositionButtonToField);
                 });
             }
         });
@@ -2079,6 +2349,24 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
         writeButtonContainer.addView(writeButton, LayoutHelper.createFrameMatchParent());
         writeButton.setOnClickListener(v -> sendInternal(true));
         writeButton.setOnLongClickListener(v -> onSendLongClick(writeButton));
+
+        if (sendingMessageObjects != null && !sendingMessageObjects.isEmpty()) {
+            RLottieDrawable forwardCommentToggleIcon = new RLottieDrawable(R.raw.forward_comment_toggle, "forward_comment_toggle", dp(28), dp(28), true, null);
+            forwardCommentToggleIcon.setAllowDecodeSingleFrame(true);
+            forwardCommentToggleIcon.setPlayInDirectionOfCustomEndFrame(true);
+            forwardCommentToggleIcon.start();
+            toggleForwardCommentPositionButton = new RLottieImageView(context);
+            toggleForwardCommentPositionButton.setAnimation(forwardCommentToggleIcon);
+            toggleForwardCommentPositionButton.setScaleType(ImageView.ScaleType.CENTER);
+            toggleForwardCommentPositionButton.setBackground(Theme.createSelectorDrawable(getThemedColor(Theme.key_listSelector), 1));
+            toggleForwardCommentPositionButton.setOnClickListener(v -> toggleForwardCommentPosition());
+            toggleForwardCommentPositionButton.setVisibility(View.GONE);
+            toggleForwardCommentPositionButton.setAlpha(0.0f);
+            toggleForwardCommentPositionButton.setScaleX(0.6f);
+            toggleForwardCommentPositionButton.setScaleY(0.6f);
+            containerView.addView(toggleForwardCommentPositionButton, LayoutHelper.createFrame(48, 48, Gravity.RIGHT | Gravity.BOTTOM, 0, 0, 78, 0));
+            updateForwardCommentPositionButtonIcon(NekoConfig.sendCommentAfterForward.Bool());
+        }
 
         textPaint.setTextSize(dp(12));
         textPaint.setTypeface(AndroidUtilities.bold());
@@ -3146,10 +3434,12 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
                 timestampFrameLayout.setVisibility(View.VISIBLE);
             }
             writeButtonContainer.setVisibility(View.VISIBLE);
+            updateForwardCommentPositionButtonVisibility(commentTextView.length() > 0);
         } else {
             if (pickerBottom != null) {
                 pickerBottom.setVisibility(View.VISIBLE);
             }
+            updateForwardCommentPositionButtonVisibility(false);
         }
         if (pickerBottom != null) {
             ViewCompat.setImportantForAccessibility(pickerBottom, show ? ViewCompat.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS : ViewCompat.IMPORTANT_FOR_ACCESSIBILITY_YES);
@@ -3227,7 +3517,9 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
             writeButton.setStarsPrice(price, messagesCount, animated != 0);
             showCommentTextView(true);
 
-            commentTextView.setPadding(0, 0, Math.max(dp(84), writeButton.width()), 0);
+            if (forwardCommentPositionToggleAnimatorSet == null || !forwardCommentPositionToggleAnimatorSet.isRunning()) {
+                commentTextView.setPadding(0, 0, resolveCommentTextViewRightPaddingPx(), 0);
+            }
         }
     }
 

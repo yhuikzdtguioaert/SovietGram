@@ -437,4 +437,7 @@
 
     <string name="ShowLastVisitInOwnProfile">Показывать последнее посещение в своём профиле</string>
     <string name="ShowLastVisitInOwnProfileNotice">Пока включён режим «Призрака», в вашем профиле вместо «в сети» показывается время последнего открытия приложения.</string>
+    <string name="AccDescrForwardCommentPosition">Переключить позицию комментария при пересылке</string>
+    <string name="ForwardCommentAfter">Комментарий будет отправлен после сообщения</string>
+    <string name="ForwardCommentBefore">Комментарий будет отправлен до сообщения</string>
 </resources>

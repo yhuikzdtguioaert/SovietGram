@@ -458,4 +458,7 @@
 
     <string name="ShowLastVisitInOwnProfile">Show Last Visit in Own Profile</string>
     <string name="ShowLastVisitInOwnProfileNotice">While Ghost Mode is on, your own profile shows the last time you opened the app instead of \"online\".</string>
+    <string name="AccDescrForwardCommentPosition">Toggle forward comment position</string>
+    <string name="ForwardCommentAfter">Comment will be sent after the message</string>
+    <string name="ForwardCommentBefore">Comment will be sent before the message</string>
 </resources>
