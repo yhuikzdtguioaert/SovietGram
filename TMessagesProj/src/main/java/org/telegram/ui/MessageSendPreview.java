@@ -1255,6 +1255,14 @@ public class MessageSendPreview extends Dialog implements NotificationCenter.Not
                 return sendButton.shouldDrawBackground();
             }
             @Override
+            public boolean shouldDrawInternalCircle() {
+                return anchorSendButton.shouldDrawInternalCircle() || anchorSendButton.getActionBubbleColorProvider() == null;
+            }
+            @Override
+            public int resolveSendIconColor(int themeColor) {
+                return sendButton.resolveSendIconColor(themeColor);
+            }
+            @Override
             public int getFillColor() {
                 return sendButton.getFillColor();
             }
@@ -1265,6 +1273,10 @@ public class MessageSendPreview extends Dialog implements NotificationCenter.Not
         this.sendButton.open.set(sendButton.open.get(), true);
         this.sendButton.setOnClickListener(onClick);
         containerView.addView(this.sendButton, new ViewGroup.LayoutParams(sendButton.getWidth(), sendButton.getHeight()));
+        if (!anchorSendButton.shouldDrawInternalCircle() && anchorSendButton.getActionBubbleColorProvider() != null) {
+            sendButtonGlassDrawable = iBlur3Factory.create(this.sendButton, anchorSendButton.getActionBubbleColorProvider());
+            this.sendButton.setBlurredBackgroundDrawable(sendButtonGlassDrawable);
+        }
         sendButtonWidth = anchorSendButton.width(sendButton.getHeight());
         sendButtonInitialPosition[0] += anchorSendButton.getWidth() - anchorSendButton.width(sendButton.getHeight()) - dp(6);
         return this.sendButton;

@@ -113,4 +113,8 @@
     <string name="VideoPlayerDecoderPreferSW">Prefer SW</string>
     <string name="VideoPlayerDecoderHardware">HW Only</string>
     <string name="VideoPlayerDecoderPreferHW">Prefer HW</string>
+    <string name="ActionButtonStyle">Action Button Style</string>
+    <string name="ActionButtonStyleAccent">Accent</string>
+    <string name="ActionButtonStyleNeutral">Neutral</string>
+    <string name="ActionButtonStyleWhite">White</string>
 </resources>
