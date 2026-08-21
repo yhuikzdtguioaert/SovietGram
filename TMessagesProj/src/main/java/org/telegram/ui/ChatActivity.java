@@ -416,10 +416,11 @@ import tw.nekomimi.nekogram.ui.components.GroupedIconsView;
 import tw.nekomimi.nekogram.utils.AlertUtil;
 import tw.nekomimi.nekogram.utils.AndroidUtil;
 import tw.nekomimi.nekogram.utils.ProxyUtil;
-import sovietgram.com.NaConfig;
-import sovietgram.com.ToggleResult;
-import sovietgram.com.helper.BookmarksHelper;
-import sovietgram.com.helper.DoubleTap;
+import xyz.nextalone.nagram.NaConfig;
+import xyz.nextalone.nagram.ToggleResult;
+import xyz.nextalone.nagram.helper.BookmarksHelper;
+import xyz.nextalone.nagram.helper.DoubleTap;
+import xyz.nextalone.nagram.helper.ProtectedForward;
 
 @SuppressWarnings("unchecked")
 public class ChatActivity extends BaseFragment implements
@@ -10934,6 +10935,22 @@ public class ChatActivity extends BaseFragment implements
         contentView.addView(undoView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.BOTTOM | Gravity.LEFT, 8, 0, 8, 8));
     }
 
+    public void showForwardedFeedback(ArrayList<MessagesStorage.TopicKey> dids, int count) {
+        if (dids.size() == 1) {
+            if (!BulletinFactory.of(this).showForwardedBulletinWithTag(dids.get(0).dialogId, count)) {
+                createUndoView();
+                if (undoView != null) {
+                    undoView.showWithAction(dids.get(0).dialogId, UndoView.ACTION_FWD_MESSAGES, count);
+                }
+            }
+        } else {
+            createUndoView();
+            if (undoView != null) {
+                undoView.showWithAction(0, UndoView.ACTION_FWD_MESSAGES, count, dids.size(), null, null);
+            }
+        }
+    }
+
     @Override
     public INavigationLayout.BackButtonState getBackButtonState() {
         return INavigationLayout.BackButtonState.BACK;
@@ -13083,10 +13100,13 @@ public class ChatActivity extends BaseFragment implements
 
     public void openForward(boolean fromActionBar) {
         boolean hasSelectedAyuDeletedMessage = hasSelectedAyuDeletedMessage();
-        if (isPeerNoForwards() || hasSelectedNoforwardsMessage() || hasSelectedAyuDeletedMessage) {
+        if ((isPeerNoForwards() || hasSelectedNoforwardsMessage() || hasSelectedAyuDeletedMessage) &&
+                !(chatMode != MODE_SCHEDULED && !hasSelectedAyuDeletedMessage && ProtectedForward.shouldBypassForwardRestriction(currentAccount, getSelectedMessages1()))) {
             // We should update text if user changed locale without re-opening chat activity
             String str;
-            if (isPeerNoForwards()) {
+            if (!hasSelectedAyuDeletedMessage && ProtectedForward.getMode() == ProtectedForward.FORWARD_PROTECTED_NEVER && getMessageHelper().canSendMessagesAsCopy(getSelectedMessages1())) {
+                str = LocaleController.getString(R.string.ForwardProtectedDisabled);
+            } else if (isPeerNoForwards()) {
                 if (getDialogId() > 0) {
                     str = LocaleController.getString(R.string.ForwardsRestrictedInfoUser);
                 } else if (ChatObject.isChannel(currentChat) && !currentChat.megagroup) {
@@ -20113,7 +20133,8 @@ public class ChatActivity extends BaseFragment implements
 
                 boolean hasSelectedAyuDeletedMessage = hasSelectedAyuDeletedMessage();
                 boolean noforwards = isPeerNoForwards() || hasSelectedNoforwardsMessage() || hasSelectedAyuDeletedMessage;
-                boolean canForward = chatMode != MODE_SCHEDULED && cantForwardMessagesCount == 0 && !noforwards;
+                boolean canForwardProtected = noforwards && !hasSelectedAyuDeletedMessage && ProtectedForward.shouldBypassForwardRestriction(currentAccount, getSelectedMessages1());
+                boolean canForward = chatMode != MODE_SCHEDULED && ((cantForwardMessagesCount == 0 && !noforwards) || canForwardProtected);
                 boolean showForward = NaConfig.INSTANCE.getActionBarButtonForward().Bool();
                 boolean canSendMessage = ChatObject.canSendMessages(currentChat);
                 boolean canReport = false;
@@ -36131,6 +36152,11 @@ public class ChatActivity extends BaseFragment implements
             }
         }
 
+        if (ProtectedForward.containsProtected(fmessages)) {
+            ProtectedForward.forwardProtected(this, fmessages, dids, message, notify, scheduleDate, scheduleRepeatPeriod, fragment);
+            return true;
+        }
+
         if (!fragment.isQuote && (dids.size() > 1 || dids.get(0).dialogId == getUserConfig().getClientUserId() || message != null || scheduleDate != 0 || !notify)) {
             return !AlertsCreator.ensurePaidMessagesMultiConfirmationTopicKeys(currentAccount, dids, fmessages.size() + (TextUtils.isEmpty(message) ? 0 : 1), prices -> {
                 if (fragment.resetDelegate) {
@@ -48840,7 +48866,7 @@ public class ChatActivity extends BaseFragment implements
                     }
                 }
                 if (!selectedObject.isSponsored() && chatMode != MODE_QUICK_REPLIES && chatMode != MODE_SCHEDULED && (!selectedObject.needDrawBluredPreview() || selectedObject.hasExtendedMediaPreview()) &&
-                        !selectedObject.isLiveLocation() && selectedObject.type != MessageObject.TYPE_PHONE_CALL && !noforwards && selectedObject.type != MessageObject.TYPE_SHARING_OFFER &&
+                        !selectedObject.isLiveLocation() && selectedObject.type != MessageObject.TYPE_PHONE_CALL && (!noforwards || (!isEphemeral && getDialogId() != UserObject.VERIFY && getMessageHelper().canSendMessageAsCopy(selectedObject, selectedObjectGroup))) && selectedObject.type != MessageObject.TYPE_SHARING_OFFER &&
                         selectedObject.type != MessageObject.TYPE_GIFT_PREMIUM && selectedObject.type != MessageObject.TYPE_GIFT_OFFER && selectedObject.type != MessageObject.TYPE_COMMUNITY_CHANGED && selectedObject.type != MessageObject.TYPE_GIFT_OFFER_REJECTED && selectedObject.type != MessageObject.TYPE_GIFT_PREMIUM_CHANNEL && selectedObject.type != MessageObject.TYPE_SUGGEST_PHOTO && !selectedObject.isWallpaperAction()
                         && !message.isExpiredStory() && message.type != MessageObject.TYPE_STORY_MENTION && message.type != MessageObject.TYPE_GIFT_STARS
                 ) {
