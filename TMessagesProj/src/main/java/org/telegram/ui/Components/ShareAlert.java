@@ -590,20 +590,9 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
                 button.requestLayout();
             }
         }
-    }
-
-    private void animateForwardRowButtonVisibility(View button, boolean show) {
-        if (button == null) return;
-        if (show && button.getVisibility() == View.VISIBLE && button.getAlpha() == 1.0f) return;
-        if (!show && button.getVisibility() == View.GONE) return;
-        button.animate().cancel();
-        if (show) {
-            button.setVisibility(View.VISIBLE);
-            button.post(this::alignForwardRowButtonsToField);
-            button.animate().alpha(1.0f).scaleX(1.0f).scaleY(1.0f).setDuration(180).setInterpolator(new DecelerateInterpolator()).start();
-        } else {
-            button.animate().alpha(0.0f).scaleX(0.6f).scaleY(0.6f).setDuration(180).setInterpolator(new DecelerateInterpolator()).withEndAction(() -> button.setVisibility(View.GONE)).start();
-        }
+        float fieldCenterY = (frameLayout2.getTop() + frameLayout2.getBottom()) / 2f;
+        float buttonCenterY = toggleForwardCommentPositionButton.getTop() + toggleForwardCommentPositionButton.getHeight() / 2f;
+        toggleForwardCommentPositionButton.setTranslationY(fieldCenterY - buttonCenterY);
     }
 
     private void updateForwardCommentPositionButtonVisibility(boolean hasCommentText) {
@@ -1011,6 +1000,9 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
                         setGridViewsTranslationY(0);
                         searchGridView.setTranslationY(0);
                         updateBottomOverlay();
+                        if (toggleForwardCommentPositionButton != null) {
+                            alignForwardCommentPositionButtonToField();
+                        }
                     }
 
                     @Override
@@ -1019,7 +1011,7 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
                         super.onPanTranslationUpdate(y, progress, keyboardVisible);
                         for (int i = 0; i < containerView.getChildCount(); i++) {
                             final View child = containerView.getChildAt(i);
-                            if (child != pickerBottom && child != bulletinContainer && child != shadow[1] && child != sharesCountLayout && child != frameLayout2 && child != timestampFrameLayout && child != writeButtonContainer && child != gridContainer && child != forwardTextCopyNotice && child != forwardTextEditButton && child != toggleForwardCommentPositionButton) {
+                            if (child != pickerBottom && child != bulletinContainer && child != shadow[1] && child != sharesCountLayout && child != frameLayout2 && child != timestampFrameLayout && child != writeButtonContainer && child != gridContainer && child != toggleForwardCommentPositionButton) {
                                 child.setTranslationY(y);
                             }
                         }
@@ -2486,7 +2478,13 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
             toggleForwardCommentPositionButton.setAlpha(0.0f);
             toggleForwardCommentPositionButton.setScaleX(0.6f);
             toggleForwardCommentPositionButton.setScaleY(0.6f);
-            containerView.addView(toggleForwardCommentPositionButton, LayoutHelper.createFrame(FORWARD_ROW_BUTTON_SIZE_DP, FORWARD_ROW_BUTTON_SIZE_DP, Gravity.RIGHT | Gravity.BOTTOM, 0, 0, FORWARD_TOGGLE_BUTTON_RIGHT_MARGIN_DP, 0));
+            containerView.addView(toggleForwardCommentPositionButton, LayoutHelper.createFrame(48, 48, Gravity.RIGHT | Gravity.BOTTOM, 0, 0, 78, 0));
+            toggleForwardCommentPositionButton.addOnLayoutChangeListener((v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
+                if (top != oldTop || bottom != oldBottom) {
+                    alignForwardCommentPositionButtonToField();
+                    v.post(this::alignForwardCommentPositionButtonToField);
+                }
+            });
             updateForwardCommentPositionButtonIcon(NekoConfig.sendCommentAfterForward.Bool());
 
             forwardTextEditableMessage = ForwardTextEdit.getEditableMessage(sendingMessageObjects);
