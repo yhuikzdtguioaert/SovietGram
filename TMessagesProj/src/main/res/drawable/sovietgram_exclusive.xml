@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Category icon for the SovietGram Exclusive settings section.
+  Single white path on purpose: TextCell tints its icon with a MULTIPLY colour
+  filter (Theme.key_windowBackgroundWhiteGrayIcon), so a white fill comes out in
+  exactly the same grey as the Chat / General / Experimental icons next to it.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!--
+      The raw path only spans x 3.28..20.72 / y 3..19.78, so on its own the diamond
+      draws smaller than the 20x20 artwork of the stock icons beside it and sits
+      about half a unit high. The group scales it up to the same 20-unit optical box
+      and drops it back onto the 12,12 centre so it lines up with its neighbours.
+    -->
+    <group
+        android:pivotX="12"
+        android:pivotY="11.39"
+        android:scaleX="1.1468"
+        android:scaleY="1.1468"
+        android:translateY="0.61">
+        <path
+            android:fillColor="#fff"
+            android:pathData="M7.72,3h8.56c0.7,0 1.35,0.36 1.72,0.96l2.72,4.35c0.45,0.72 0.38,1.65 -0.18,2.29l-8.03,9.18c-0.27,0.31 -0.75,0.31 -1.02,0l-8.03,-9.18c-0.56,-0.64 -0.63,-1.57 -0.18,-2.29L6,3.96C6.37,3.36 7.02,3 7.72,3zM7.72,4.8L5.31,8.65h3.13l1.16,-3.85L7.72,4.8zM11.5,4.8L10.34,8.65h3.32L12.5,4.8H11.5zM14.4,4.8l1.16,3.85h3.13L16.28,4.8H14.4zM18.42,10.45h-2.9l-2.31,6.63L18.42,10.45zM13.62,10.45h-3.24L12,15.11L13.62,10.45zM8.48,10.45h-2.9l5.21,6.63L8.48,10.45z" />
+    </group>
+</vector>
