@@ -25,6 +25,7 @@ TMessagesProj/afat/
 keystore.properties
 signing.properties
 .env
+.codex_artifacts
 
 # Argument files the Java compiler drops in the project root on long command lines.
 javac.*.args
