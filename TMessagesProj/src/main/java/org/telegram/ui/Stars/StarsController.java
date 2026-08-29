@@ -89,6 +89,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import tw.nekomimi.nekogram.NekoConfig;
 import tw.nekomimi.nekogram.helpers.DeletedGiftsHelper;
 import tw.nekomimi.nekogram.helpers.SovietGramAccountScope;
+import tw.nekomimi.nekogram.helpers.SovietGramProfileGifts;
 
 public class StarsController {
 
@@ -3608,6 +3609,7 @@ public class StarsController {
         public ArrayList<TL_stars.SavedStarGift> gifts = new ArrayList<>();
         public int currentRequestId = -1;
         public int totalCount;
+        private int stateVersion;
 
         public int getTotalCount() {
             return totalCount;
@@ -3630,6 +3632,7 @@ public class StarsController {
         public boolean shown;
 
         public void invalidate(boolean load) {
+            stateVersion++;
             if (currentRequestId != -1) {
                 ConnectionsManager.getInstance(currentAccount).cancelRequest(currentRequestId, true);
                 currentRequestId = -1;
@@ -3650,6 +3653,7 @@ public class StarsController {
             if (loading || endReached) return;
 
             boolean first = lastOffset == null;
+            final int version = stateVersion;
             loading = true;
             final TLObject request;
             if (craftingGiftId != 0) {
@@ -3684,7 +3688,6 @@ public class StarsController {
             final int[] reqId = new int[1];
             reqId[0] = currentRequestId = ConnectionsManager.getInstance(currentAccount).sendRequest(request, (res, err) -> AndroidUtilities.runOnUIThread(() -> {
                 if (reqId[0] != currentRequestId) return;
-                loading = false;
                 currentRequestId = -1;
                 if (res instanceof TL_stars.TL_payments_savedStarGifts) {
                     final TL_stars.TL_payments_savedStarGifts rez = (TL_stars.TL_payments_savedStarGifts) res;
@@ -3702,11 +3705,49 @@ public class StarsController {
                 } else {
                     endReached = true;
                 }
-                NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.starUserGiftsLoaded, dialogId, GiftsList.this);
+                finishLoad(first, version);
             }));
         }
 
+        /** Merge durable SovietGram NFT assets into the native profile list on its first page. */
+        private void finishLoad(boolean first, int version) {
+            if (!first || isCollection || craftingGiftId != 0) {
+                loading = false;
+                notifyUpdate();
+                return;
+            }
+            SovietGramProfileGifts.load(
+                    currentAccount,
+                    dialogId,
+                    isInclude_displayed(),
+                    isInclude_hidden(),
+                    serverGifts -> {
+                        if (version != stateVersion) return;
+                        final HashSet<Long> knownServerIds = new HashSet<>();
+                        for (TL_stars.SavedStarGift gift : gifts) {
+                            if (SovietGramProfileGifts.isServerGift(gift)) {
+                                knownServerIds.add(gift.saved_id);
+                            }
+                        }
+                        int added = 0;
+                        for (TL_stars.SavedStarGift gift : serverGifts) {
+                            if (knownServerIds.add(gift.saved_id)) {
+                                gifts.add(gift);
+                                added++;
+                            }
+                        }
+                        totalCount += added;
+                        if (sort_by_date && added > 0) {
+                            Collections.sort(gifts, (a, b) -> Integer.compare(b.date, a.date));
+                        }
+                        loading = false;
+                        notifyUpdate();
+                    }
+            );
+        }
+
         public void cancel() {
+            stateVersion++;
             if (currentRequestId != -1) {
                 ConnectionsManager.getInstance(currentAccount).cancelRequest(currentRequestId, true);
                 currentRequestId = -1;

@@ -15,9 +15,14 @@ import org.telegram.messenger.PushListenerController;
 import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.Utilities;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 public class GooglePushListenerServiceProvider implements PushListenerController.IPushListenerServiceProvider {
 
     private Boolean hasServices;
+    private final AtomicBoolean tokenRequestInFlight = new AtomicBoolean(false);
+    private int retryAttempt;
+    private static final long[] RETRY_DELAYS_MS = {5_000L, 30_000L, 120_000L, 600_000L};
 
     public GooglePushListenerServiceProvider() {}
 
@@ -33,40 +38,59 @@ public class GooglePushListenerServiceProvider implements PushListenerController
 
     @Override
     public void onRequestPushToken() {
-        String currentPushString = SharedConfig.pushString;
+        final String currentPushString = SharedConfig.pushString;
         if (!TextUtils.isEmpty(currentPushString)) {
             if (BuildVars.DEBUG_PRIVATE_VERSION && BuildVars.LOGS_ENABLED) {
                 FileLog.d("FCM regId = " + currentPushString);
             }
+            // Re-assert the last known-good token immediately. A transient Firebase failure below
+            // must never replace a working registration with an empty value.
+            PushListenerController.sendRegistrationToServer(getPushType(), currentPushString);
         } else {
             if (BuildVars.LOGS_ENABLED) {
                 FileLog.d("FCM Registration not found.");
             }
         }
+        requestToken(0L);
+    }
+
+    private void requestToken(long delayMs) {
         Utilities.globalQueue.postRunnable(() -> {
+            if (!tokenRequestInFlight.compareAndSet(false, true)) return;
             try {
                 SharedConfig.pushStringGetTimeStart = SystemClock.elapsedRealtime();
                 FirebaseApp.initializeApp(ApplicationLoader.applicationContext);
                 FirebaseMessaging.getInstance().getToken()
                         .addOnCompleteListener(task -> {
+                            tokenRequestInFlight.set(false);
                             SharedConfig.pushStringGetTimeEnd = SystemClock.elapsedRealtime();
                             if (!task.isSuccessful()) {
                                 if (BuildVars.LOGS_ENABLED) {
-                                    FileLog.d("Failed to get regid");
+                                    FileLog.d("Failed to refresh FCM regid; keeping last known token");
                                 }
-                                SharedConfig.pushStringStatus = "__FIREBASE_FAILED__";
-                                PushListenerController.sendRegistrationToServer(getPushType(), null);
+                                SharedConfig.pushStringStatus = "__FIREBASE_RETRYING__";
+                                scheduleRetry();
                                 return;
                             }
                             String token = task.getResult();
                             if (!TextUtils.isEmpty(token)) {
+                                retryAttempt = 0;
                                 PushListenerController.sendRegistrationToServer(getPushType(), token);
+                            } else {
+                                scheduleRetry();
                             }
                         });
             } catch (Throwable e) {
+                tokenRequestInFlight.set(false);
                 FileLog.e(e);
+                scheduleRetry();
             }
-        });
+        }, delayMs);
+    }
+
+    private void scheduleRetry() {
+        final int index = Math.min(retryAttempt++, RETRY_DELAYS_MS.length - 1);
+        requestToken(RETRY_DELAYS_MS[index]);
     }
 
     @Override

@@ -250,8 +250,8 @@ object VlessConfig {
         val security = when (params["security"]?.lowercase()?.trim()) {
             "tls", "xtls" -> "tls"
             "reality" -> "reality"
-            "none", null, "" -> "none"
-            else -> "none"
+            "none", null, "" -> throw ParseException("VLESS transport must use TLS or Reality")
+            else -> throw ParseException("Unsupported VLESS transport security")
         }
 
         val network = when ((params["type"] ?: params["network"])?.lowercase()?.trim()) {

@@ -176,8 +176,8 @@ public final class SovietGramGiftSync {
     }
 
     /**
-     * Fetches and delivers one page of {@code account}'s inbox, then — if the server returned a whole
-     * page and the cursor actually advanced — immediately fetches the next, bypassing the throttle.
+     * Fetches and delivers one page of {@code account}'s unacknowledged inbox, then — if the server
+     * returned a whole page and delivery advanced — immediately fetches the next, bypassing the throttle.
      * This drains a large backlog in one burst instead of one page per external trigger, while the
      * {@link #polling} entry (cleared only when a short page or an error ends the drain) keeps
      * concurrent callers out. The {@code maxId > cursor} guard stops an all-unparseable page from
@@ -185,7 +185,10 @@ public final class SovietGramGiftSync {
      */
     private static void pollPage(int account) {
         final long cursor = SovietGramTokenStore.giftCursor(account);
-        SovietGramApiClient.get(account, "/v1/gifts/inbox?since=" + cursor, (body, error) -> {
+        // Delivery state lives on the server now. The cursor is retained for compatibility and
+        // diagnostics, but omitting it here lets an unacknowledged row survive a preference reset
+        // or reinstall instead of being skipped forever.
+        SovietGramApiClient.get(account, "/v1/gifts/inbox", (body, error) -> {
             if (error != null || body == null) {
                 polling.remove(account);
                 if (error != null) {
@@ -195,26 +198,46 @@ public final class SovietGramGiftSync {
             }
             final JSONArray gifts = body.optJSONArray("gifts");
             final int count = gifts == null ? 0 : gifts.length();
-            final long maxId = count > 0 ? deliverInbox(account, gifts) : 0;
-            // A full page means the server hit its LIMIT and more gifts may be queued behind it; the
-            // cursor has advanced past everything just delivered, so fetch the next page straight away.
-            if (count >= INBOX_PAGE_SIZE && maxId > cursor) {
-                pollPage(account);
-            } else {
+            final DeliveryBatch batch = count > 0 ? deliverInbox(account, gifts) : new DeliveryBatch(0, new JSONArray());
+            if (batch.ids.length() == 0) {
                 polling.remove(account);
+                return;
             }
+            acknowledge(account, batch, count >= INBOX_PAGE_SIZE && batch.maxId > cursor);
         });
     }
 
+    /** Acknowledge only after every row in the page has been persisted or deliberately skipped. */
+    private static void acknowledge(int account, DeliveryBatch batch, boolean loadNextPage) {
+        try {
+            final JSONObject body = new JSONObject();
+            body.put("ids", batch.ids);
+            SovietGramApiClient.postSigned(account, "/v1/gifts/ack", body, (response, error) -> {
+                if (error != null) {
+                    polling.remove(account);
+                    org.telegram.messenger.FileLog.e("SovietGramGiftSync: inbox ack failed: " + error);
+                } else if (loadNextPage) {
+                    pollPage(account);
+                } else {
+                    polling.remove(account);
+                }
+            });
+        } catch (Throwable e) {
+            polling.remove(account);
+            org.telegram.messenger.FileLog.e(e);
+        }
+    }
+
     /**
-     * Reconstructs each inbox gift into the chat with its sender, oldest first, advancing the cursor
-     * as it goes so a mid-batch interruption never re-delivers what already landed. Runs on the UI
-     * thread (the API callback is dispatched there), so it can touch the UI pipeline directly.
+     * Reconstructs each inbox gift into the chat with its sender, oldest first. The deterministic local
+     * message id closes the write-before-ack crash window, and the server acknowledgement is the durable
+     * delivery state. Runs on the UI thread (the API callback is dispatched there), so it can touch the
+     * UI pipeline directly.
      *
      * @return the highest gift id the cursor was advanced to, or {@code 0} if nothing was usable —
      * the caller uses this to decide whether draining the next page can make progress.
      */
-    private static long deliverInbox(int account, JSONArray gifts) {
+    private static DeliveryBatch deliverInbox(int account, JSONArray gifts) {
         final long myId = UserConfig.getInstance(account).getClientUserId();
 
         // The API returns oldest-first; sort defensively so the cursor only ever moves forward even
@@ -237,6 +260,7 @@ public final class SovietGramGiftSync {
         Collections.sort(parsed, (a, b) -> Long.compare(a.id, b.id));
 
         long maxId = 0;
+        final JSONArray acknowledgedIds = new JSONArray();
         for (InboxGift gift : parsed) {
             // A gift I sent echoes back in my own inbox (self-gifts, to_id == from_id == me). I already
             // have the local outgoing copy, so only skip the render — the cursor must still advance past
@@ -244,13 +268,14 @@ public final class SovietGramGiftSync {
             if (gift.fromId > 0 && gift.fromId != myId && !TextUtils.isEmpty(gift.blob)) {
                 final TLRPC.MessageAction action = decodeAction(gift.blob);
                 if (action != null) {
-                    deliverIncoming(account, gift.fromId, action);
+                    deliverIncoming(account, gift.id, gift.fromId, action);
                 }
             }
             SovietGramTokenStore.setGiftCursor(account, gift.id);
             maxId = gift.id; // parsed is ascending, so the last write is the high-water mark
+            acknowledgedIds.put(Long.toString(gift.id));
         }
-        return maxId;
+        return new DeliveryBatch(maxId, acknowledgedIds);
     }
 
     /**
@@ -258,12 +283,15 @@ public final class SovietGramGiftSync {
      * {@code LocalGiftHelper.deliver}: same persistence and UI-refresh dance, but the message is
      * incoming ({@code out = false}) and both peer and sender are the gifter.
      */
-    private static void deliverIncoming(int account, long fromId, TLRPC.MessageAction action) {
+    private static void deliverIncoming(int account, long serverGiftId, long fromId, TLRPC.MessageAction action) {
         final MessagesController controller = MessagesController.getInstance(account);
         final UserConfig userConfig = UserConfig.getInstance(account);
 
         final TLRPC.TL_messageService message = new TLRPC.TL_messageService();
-        message.local_id = message.id = userConfig.getNewMessageId();
+        // The server id deterministically owns a reserved negative message-id range. If the app is
+        // killed after the DB write but before /ack, the next delivery replaces the same row rather
+        // than creating a second "new" gift.
+        message.local_id = message.id = localMessageId(serverGiftId);
         message.dialog_id = fromId;
         message.peer_id = controller.getPeer(fromId);
         message.from_id = controller.getPeer(fromId);
@@ -284,6 +312,11 @@ public final class SovietGramGiftSync {
         MessagesStorage.getInstance(account).putMessages(messages, true, true, false, 0, 0, 0);
         controller.updateInterfaceWithMessages(fromId, objects, 0);
         NotificationCenter.getInstance(account).postNotificationName(NotificationCenter.dialogsNeedReload);
+    }
+
+    private static int localMessageId(long serverGiftId) {
+        final long slot = serverGiftId & 0x3fffffffL;
+        return (int) (Integer.MIN_VALUE + slot);
     }
 
     // ===== TL blob (de)serialisation =====
@@ -318,7 +351,7 @@ public final class SovietGramGiftSync {
      * {@link TLRPC.MessageAction#TLdeserialize}. Returns {@code null} on any malformed blob.
      */
     @Nullable
-    private static TLRPC.MessageAction decodeAction(String blob) {
+    static TLRPC.MessageAction decodeAction(String blob) {
         try {
             final byte[] bytes = Base64.decode(blob, Base64.NO_WRAP);
             if (bytes.length < 4) {
@@ -358,6 +391,16 @@ public final class SovietGramGiftSync {
             this.id = id;
             this.fromId = fromId;
             this.blob = blob;
+        }
+    }
+
+    private static final class DeliveryBatch {
+        final long maxId;
+        final JSONArray ids;
+
+        DeliveryBatch(long maxId, JSONArray ids) {
+            this.maxId = maxId;
+            this.ids = ids;
         }
     }
 }

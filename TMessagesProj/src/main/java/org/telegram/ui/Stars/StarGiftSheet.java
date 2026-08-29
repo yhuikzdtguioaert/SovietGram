@@ -179,6 +179,7 @@ import org.telegram.ui.TwoStepVerificationActivity;
 import org.telegram.ui.TwoStepVerificationSetupActivity;
 import org.telegram.ui.bots.AffiliateProgramFragment;
 import org.telegram.ui.bots.BotWebViewSheet;
+import tw.nekomimi.nekogram.helpers.SovietGramProfileGifts;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -5485,6 +5486,26 @@ public class StarGiftSheet extends BottomSheetWithRecyclerListView implements No
     private void toggleShow() {
         if (button.isLoading()) return;
 
+        if (SovietGramProfileGifts.isServerGift(savedStarGift)) {
+            final boolean visible = savedStarGift.unsaved;
+            button.setLoading(true);
+            SovietGramProfileGifts.setVisible(currentAccount, savedStarGift, visible, (success, error) -> {
+                button.setLoading(false);
+                if (!success) {
+                    getBulletinFactory().createErrorBulletin(error == null ? "gift_update_failed" : error).show(false);
+                    return;
+                }
+                final StarsController.GiftsCollections collections =
+                        StarsController.getInstance(currentAccount).getProfileGiftCollectionsList(dialogId, false);
+                if (collections != null) {
+                    collections.updateGiftsUnsaved(savedStarGift, !visible);
+                }
+                StarsController.getInstance(currentAccount).invalidateProfileGifts(dialogId);
+                dismiss();
+            });
+            return;
+        }
+
         final boolean saved;
         final TLRPC.Document sticker;
         final TL_stars.InputSavedStarGift inputStarGift = getInputStarGift();
@@ -6696,6 +6717,7 @@ public class StarGiftSheet extends BottomSheetWithRecyclerListView implements No
     }
 
     public static TL_stars.InputSavedStarGift getInputStarGift(long dialogId, TL_stars.SavedStarGift g) {
+        if (SovietGramProfileGifts.isServerGift(g)) return null;
         if (!TextUtils.isEmpty(g.gift.slug)) {
             final TL_stars.TL_inputSavedStarGiftSlug inputSavedStarGiftSlug = new TL_stars.TL_inputSavedStarGiftSlug();
             inputSavedStarGiftSlug.slug = g.gift.slug;
@@ -6708,6 +6730,7 @@ public class StarGiftSheet extends BottomSheetWithRecyclerListView implements No
     }
 
     private TL_stars.InputSavedStarGift getInputStarGift() {
+        if (SovietGramProfileGifts.isServerGift(savedStarGift)) return null;
         if (dialogId < 0) {
             final TL_stars.TL_inputSavedStarGiftChat stargift = new TL_stars.TL_inputSavedStarGiftChat();
             stargift.peer = MessagesController.getInstance(currentAccount).getInputPeer(dialogId);

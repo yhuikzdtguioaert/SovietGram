@@ -721,6 +721,18 @@ public class LocalGiftHelper {
         final int account = fragment.getCurrentAccount();
         final MessagesController controller = MessagesController.getInstance(account);
         final UserConfig userConfig = UserConfig.getInstance(account);
+        final long selfId = userConfig.getClientUserId();
+        final boolean selfGift = dialogId == selfId;
+
+        // A gift sent in Saved Messages is a real self-gift, not merely a service bubble copied into
+        // that dialog. Native Telegram marks a kept gift as saved; doing the same here makes the local
+        // action and the persistent SovietGram profile row agree immediately. Premium/stars/TON have
+        // no saved flag, but are still mirrored with from_id == to_id by pushGift below.
+        if (selfGift && action instanceof TLRPC.TL_messageActionStarGiftUnique) {
+            ((TLRPC.TL_messageActionStarGiftUnique) action).saved = true;
+        } else if (selfGift && action instanceof TLRPC.TL_messageActionStarGift) {
+            ((TLRPC.TL_messageActionStarGift) action).saved = true;
+        }
 
         TLRPC.TL_messageService message = new TLRPC.TL_messageService();
         message.local_id = message.id = userConfig.getNewMessageId();
@@ -734,7 +746,7 @@ public class LocalGiftHelper {
         message.out = true;
         message.flags = TLRPC.MESSAGE_FLAG_HAS_FROM_ID;
         TLRPC.TL_peerUser self = new TLRPC.TL_peerUser();
-        self.user_id = userConfig.getClientUserId();
+        self.user_id = selfId;
         message.from_id = self;
         userConfig.saveConfig(false);
 

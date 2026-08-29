@@ -303,7 +303,7 @@ public final class SovietGramApiClient {
     private static Response execute(int account, String method, String path, @Nullable byte[] bodyBytes,
                                     boolean authed, OkHttpClient http) throws IOException {
         final String base = ApiServersHelper.baseUrl();
-        if (TextUtils.isEmpty(base)) {
+        if (TextUtils.isEmpty(base) || !base.startsWith("https://")) {
             throw new IOException("api_not_ready");
         }
         if (!path.startsWith("/")) path = "/" + path;

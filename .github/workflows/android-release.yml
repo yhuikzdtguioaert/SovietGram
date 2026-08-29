@@ -2,6 +2,10 @@ name: Build signed Android release
 
 on:
   workflow_dispatch:
+  # Build-only CI branch: produces an Actions artifact but never creates a GitHub Release.
+  push:
+    branches:
+      - codex/gifts-notifications-transport-build
 
 permissions:
   contents: read

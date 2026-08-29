@@ -1091,7 +1091,11 @@ func wsConnectOnce(ctx context.Context, dialAddr, domain, path string, timeout t
 
 	tlsCfg := tlsConfigPool.Clone()
 	tlsCfg.ServerName = domain
-	tlsCfg.InsecureSkipVerify = true
+	// The relay is reached by IP on some paths, but its certificate is for `domain`.
+	// ServerName keeps SNI/hostname verification correct while the default root pool validates
+	// the chain. Skipping verification here turned encrypted traffic into unauthenticated traffic.
+	tlsCfg.InsecureSkipVerify = false
+	tlsCfg.MinVersion = tls.VersionTLS12
 
 	targetAddr := net.JoinHostPort(dialAddr, "443")
 	rawConn, err := dialer.DialContext(ctx, "tcp", targetAddr)

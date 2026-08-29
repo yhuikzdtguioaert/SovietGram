@@ -91,7 +91,8 @@ public class ApiServersHelper extends BaseRemoteHelper {
 
     /** Blocking-safe URL for HTTP callers. Empty string until the first pick lands. */
     public static String baseUrl() {
-        return NaConfig.INSTANCE.getSovietGramApiServer().String().trim();
+        final String value = NaConfig.INSTANCE.getSovietGramApiServer().String().trim();
+        return value.startsWith("https://") ? value : "";
     }
 
     /**
@@ -186,12 +187,12 @@ public class ApiServersHelper extends BaseRemoteHelper {
         return list;
     }
 
-    /** Normalizes and appends a candidate URL, skipping blanks and non-http(s) values. */
+    /** Normalizes and appends a candidate URL; sync credentials never cross plaintext HTTP. */
     private static void addUrl(java.util.Set<String> out, String raw) {
         if (raw == null) return;
         final String url = raw.trim();
         if (url.isEmpty()) return;
-        if (!url.startsWith("https://") && !url.startsWith("http://")) return;
+        if (!url.startsWith("https://")) return;
         out.add(url.endsWith("/") ? url.substring(0, url.length() - 1) : url);
     }
 
