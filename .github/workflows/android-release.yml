@@ -31,6 +31,14 @@ jobs:
           java-version: "21"
           cache: gradle
 
+      - name: Set up Go 1.26
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.26.x"
+          cache-dependency-path: |
+            TMessagesProj/src/main/go/tgwsproxy/go.mod
+            TMessagesProj/src/main/go/xrayengine/go.sum
+
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
 
@@ -43,6 +51,22 @@ jobs:
             "build-tools;36.0.0" \
             "ndk;27.2.12479018" \
             "cmake;3.31.6"
+
+      - name: Build encrypted proxy native libraries
+        shell: bash
+        env:
+          ANDROID_NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/27.2.12479018
+        run: |
+          chmod +x \
+            TMessagesProj/src/main/go/tgwsproxy/build.sh \
+            TMessagesProj/src/main/go/xrayengine/build.sh
+          TMessagesProj/src/main/go/tgwsproxy/build.sh
+          TMessagesProj/src/main/go/xrayengine/build.sh
+          for abi in arm64-v8a x86_64; do
+            test -s "TMessagesProj/jni/$abi/libtgwsproxy.so"
+            test -s "TMessagesProj/jni/$abi/libxray.so"
+            file "TMessagesProj/jni/$abi/libtgwsproxy.so" "TMessagesProj/jni/$abi/libxray.so"
+          done
 
       - name: Restore signing keystore
         shell: bash

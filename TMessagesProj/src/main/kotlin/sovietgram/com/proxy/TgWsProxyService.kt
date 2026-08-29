@@ -110,7 +110,16 @@ class TgWsProxyService : Service() {
                 // anything that can fail or block: the controller always uses
                 // startForegroundService(), and not honouring it within ~5s is an
                 // instant ANR-crash. The preference only picks the channel.
-                ensureForeground()
+                val enabled = notificationsEnabled()
+                val currentText = if (portUp) runningText() else
+                    lastNotificationText.ifBlank { getString(R.string.TgWsProxyNotificationStarting) }
+                ensureForeground(currentText)
+                // Android/Samsung promotes an IMPORTANCE_NONE foreground-service channel to LOW.
+                // Therefore the only way for the user's "notification off" switch to actually remove
+                // the shade entry is to satisfy the FGS start contract and immediately detach it.
+                if (!enabled) {
+                    removeForegroundNotification()
+                }
                 startProxy(port, poolSize, cfEnabled, secret)
             }
             ACTION_UPDATE_NOTIFICATION -> {
@@ -119,17 +128,22 @@ class TgWsProxyService : Service() {
                 // would drop every connection for a purely cosmetic change.
                 // ensureForeground() resets the text to "Starting…", so the
                 // current status is captured first and restored right after.
-                val currentText = lastNotificationText
-                if (postedWithNotification != notificationsEnabled()) {
+                val enabled = notificationsEnabled()
+                val currentText = if (portUp) runningText() else
+                    lastNotificationText.ifBlank { getString(R.string.TgWsProxyNotificationStarting) }
+                if (postedWithNotification != enabled) {
                     foregroundStarted = false
                 }
-                ensureForeground()
-                // A no-op while the notification is off — updateNotification()
-                // refuses to re-post it, which is the whole point of "off".
-                updateNotification(
-                    if (portUp) runningText() else currentText.ifBlank { lastNotificationText },
-                    force = true
-                )
+                // updateNotification is delivered through startForegroundService even when this
+                // instance was previously demoted, so acknowledge that contract first. Passing the
+                // current state prevents the hidden/deferred notification from reverting to Starting.
+                ensureForeground(currentText)
+                if (enabled) {
+                    updateNotification(currentText, force = true)
+                } else {
+                    lastNotificationText = currentText
+                    removeForegroundNotification()
+                }
             }
             ACTION_STOP -> {
                 // Also reached from the notification's Stop action, which does not
@@ -167,7 +181,7 @@ class TgWsProxyService : Service() {
      * flipping the preference never leaves a stale notification the user has to
      * swipe away, and turning notifications off never flashes a visible one.
      */
-    private fun ensureForeground() {
+    private fun ensureForeground(initialText: String? = null) {
         if (foregroundStarted) {
             return
         }
@@ -175,7 +189,8 @@ class TgWsProxyService : Service() {
         if (notificationStartedAt == 0L) {
             notificationStartedAt = System.currentTimeMillis()
         }
-        val initial = getString(R.string.TgWsProxyNotificationStarting)
+        val initial = initialText?.takeIf { it.isNotBlank() }
+            ?: getString(R.string.TgWsProxyNotificationStarting)
         lastNotificationText = initial
         val enabled = notificationsEnabled()
         val target = notificationId(enabled)
@@ -218,8 +233,12 @@ class TgWsProxyService : Service() {
             return
         }
 
-        ensureForeground()
-        updateNotification(getString(R.string.TgWsProxyNotificationStarting), force = true)
+        val starting = getString(R.string.TgWsProxyNotificationStarting)
+        lastNotificationText = starting
+        if (notificationsEnabled()) {
+            ensureForeground(starting)
+            updateNotification(starting, force = true)
+        }
         acquireWakeLock()
 
         Thread({
@@ -738,6 +757,11 @@ class TgWsProxyService : Service() {
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
+        if (!notificationsEnabled()) {
+            // OEMs may materialise a previously deferred FGS notification only when the task leaves
+            // the foreground. Re-remove both ids at that exact lifecycle edge.
+            removeForegroundNotification()
+        }
         if (!running) {
             stopSelf()
         }

@@ -108,7 +108,16 @@ class XrayService : Service() {
                 // anything that can fail or block: the controller always uses
                 // startForegroundService(), and not honouring it within ~5s is an
                 // instant ANR-crash. The preference only picks the channel.
-                ensureForeground()
+                val enabled = notificationsEnabled()
+                val currentText = if (portUp) runningText() else
+                    lastNotificationText.ifBlank { getString(R.string.VlessNotificationStarting) }
+                ensureForeground(currentText)
+                // Android/Samsung promotes an IMPORTANCE_NONE foreground-service channel to LOW.
+                // Fulfil startForegroundService first, then detach the notification when the user
+                // explicitly selected notification-free mode.
+                if (!enabled) {
+                    removeForegroundNotification()
+                }
                 startProxy(XrayController.SOCKS_PORT, key)
             }
             ACTION_UPDATE_NOTIFICATION -> {
@@ -117,17 +126,19 @@ class XrayService : Service() {
                 // would drop every connection for a purely cosmetic change.
                 // ensureForeground() resets the text to "Starting…", so the
                 // current status is captured first and restored right after.
-                val currentText = lastNotificationText
-                if (postedWithNotification != notificationsEnabled()) {
+                val enabled = notificationsEnabled()
+                val currentText = if (portUp) runningText() else
+                    lastNotificationText.ifBlank { getString(R.string.VlessNotificationStarting) }
+                if (postedWithNotification != enabled) {
                     foregroundStarted = false
                 }
-                ensureForeground()
-                // A no-op while the notification is off — updateNotification()
-                // refuses to re-post it, which is the whole point of "off".
-                updateNotification(
-                    if (portUp) runningText() else currentText.ifBlank { lastNotificationText },
-                    force = true
-                )
+                ensureForeground(currentText)
+                if (enabled) {
+                    updateNotification(currentText, force = true)
+                } else {
+                    lastNotificationText = currentText
+                    removeForegroundNotification()
+                }
             }
             ACTION_STOP -> {
                 // Also reached from the notification's Stop action, which does not
@@ -165,7 +176,7 @@ class XrayService : Service() {
      * flipping the preference never leaves a stale notification the user has to
      * swipe away, and turning notifications off never flashes a visible one.
      */
-    private fun ensureForeground() {
+    private fun ensureForeground(initialText: String? = null) {
         if (foregroundStarted) {
             return
         }
@@ -173,7 +184,8 @@ class XrayService : Service() {
         if (notificationStartedAt == 0L) {
             notificationStartedAt = System.currentTimeMillis()
         }
-        val initial = getString(R.string.VlessNotificationStarting)
+        val initial = initialText?.takeIf { it.isNotBlank() }
+            ?: getString(R.string.VlessNotificationStarting)
         lastNotificationText = initial
         val enabled = notificationsEnabled()
         val target = notificationId(enabled)
@@ -277,8 +289,12 @@ class XrayService : Service() {
             return
         }
 
-        ensureForeground()
-        updateNotification(getString(R.string.VlessNotificationStarting), force = true)
+        val starting = getString(R.string.VlessNotificationStarting)
+        lastNotificationText = starting
+        if (notificationsEnabled()) {
+            ensureForeground(starting)
+            updateNotification(starting, force = true)
+        }
         acquireWakeLock()
 
         Thread({
@@ -789,6 +805,9 @@ class XrayService : Service() {
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
+        if (!notificationsEnabled()) {
+            removeForegroundNotification()
+        }
         if (!running) {
             stopSelf()
         }
