@@ -11166,4 +11166,6 @@
     <string name="ArticleAIPrompt">Write a prompt...</string>
     <string name="ArticleAIGenerate">Generate</string>
     <string name="ArticleAIAddToPage">Add to Page</string>
+    <string name="TgWsProxyFakeTls">FakeTLS traffic obfuscation</string>
+    <string name="TgWsProxyFakeTlsDomain">FakeTLS camouflage domain</string>
 </resources>

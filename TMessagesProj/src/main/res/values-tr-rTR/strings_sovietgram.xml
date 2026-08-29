@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="VersionDesign">Sürüm tasarımı</string>
-    <string name="AreaDesignLatest">En son (v12.9.0)</string>
+    <string name="AreaDesignLatest">En son (v12.10.1)</string>
     <string name="AreaDesignV1231">v12.3.1</string>
     <string name="ChatHeaderDesign">Sohbet başlığı</string>
     <string name="NavigationDesign">Hesap ve ayarlar menüsü</string>

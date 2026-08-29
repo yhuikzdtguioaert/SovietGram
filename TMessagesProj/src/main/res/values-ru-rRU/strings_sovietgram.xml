@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="VersionDesign">Дизайн версии</string>
-    <string name="AreaDesignLatest">Последний (v12.9.0)</string>
+    <string name="AreaDesignLatest">Последний (v12.10.1)</string>
     <string name="AreaDesignV1231">v12.3.1</string>
     <string name="ChatHeaderDesign">Шапка чата</string>
     <string name="NavigationDesign">Меню аккаунта и настроек</string>

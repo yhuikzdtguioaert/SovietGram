@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="VersionDesign">طراحی نسخه</string>
-    <string name="AreaDesignLatest">جدیدترین (v12.9.0)</string>
+    <string name="AreaDesignLatest">جدیدترین (v12.10.1)</string>
     <string name="AreaDesignV1231">v12.3.1</string>
     <string name="ChatHeaderDesign">سربرگ گفتگو</string>
     <string name="NavigationDesign">منوی حساب و تنظیمات</string>

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="VersionDesign">Design della versione</string>
-    <string name="AreaDesignLatest">Più recente (v12.9.0)</string>
+    <string name="AreaDesignLatest">Più recente (v12.10.1)</string>
     <string name="AreaDesignV1231">v12.3.1</string>
     <string name="ChatHeaderDesign">Intestazione della chat</string>
     <string name="NavigationDesign">Menu account e impostazioni</string>

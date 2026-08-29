@@ -3227,6 +3227,18 @@ func Java_sovietgram_com_proxy_NativeTgWsProxyBridge_setCfProxyConfig(env *C.JNI
 	SetCfProxyConfig(enabledInt, priorityInt, cUserDomain)
 }
 
+//export Java_sovietgram_com_proxy_NativeTgWsProxyBridge_setFakeTls
+func Java_sovietgram_com_proxy_NativeTgWsProxyBridge_setFakeTls(env *C.JNIEnv, clazz C.jclass, enabled C.jboolean, jDomain C.jstring) {
+	cDomain := C.CString(jstringToGoString(env, jDomain))
+	defer C.free(unsafe.Pointer(cDomain))
+
+	enabledInt := C.int(0)
+	if enabled != 0 {
+		enabledInt = 1
+	}
+	SetFakeTls(enabledInt, cDomain)
+}
+
 //export Java_sovietgram_com_proxy_NativeTgWsProxyBridge_getStats
 func Java_sovietgram_com_proxy_NativeTgWsProxyBridge_getStats(env *C.JNIEnv, clazz C.jclass) C.jstring {
 	cSummary := C.CString(stats.Summary())

@@ -275,6 +275,18 @@ object NaConfig {
             ConfigItem.configTypeBool,
             true
         )
+    val tgWsProxyFakeTls =
+        addConfig(
+            "TgWsProxyFakeTls",
+            ConfigItem.configTypeBool,
+            true
+        )
+    val tgWsProxyFakeTlsDomain =
+        addConfig(
+            "TgWsProxyFakeTlsDomain",
+            ConfigItem.configTypeString,
+            "www.cloudflare.com"
+        )
     val tgWsProxyNotificationEnabled =
         addConfig(
             "TgWsProxyNotificationEnabled",

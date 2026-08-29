@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="VersionDesign">版本设计</string>
-    <string name="AreaDesignLatest">最新 (v12.9.0)</string>
+    <string name="AreaDesignLatest">最新 (v12.10.1)</string>
     <string name="AreaDesignV1231">v12.3.1</string>
     <string name="ChatHeaderDesign">聊天顶栏</string>
     <string name="NavigationDesign">账号与设置菜单</string>

@@ -114,12 +114,12 @@ object VlessConfig {
         when (link.security) {
             "tls" -> stream.put("tlsSettings", JSONObject().apply {
                 put("serverName", link.serverName())
-                if (link.fingerprint.isNotBlank()) {
-                    put("fingerprint", link.fingerprint)
-                }
-                if (link.alpn.isNotEmpty()) {
-                    put("alpn", JSONArray().apply { link.alpn.forEach { put(it) } })
-                }
+                // Browser uTLS fingerprint and ordinary browser ALPN make the
+                // outer encrypted connection blend with regular HTTPS while
+                // remaining compatible with link-provided overrides.
+                put("fingerprint", link.fingerprint.ifBlank { "chrome" })
+                val effectiveAlpn = link.alpn.ifEmpty { listOf("h2", "http/1.1") }
+                put("alpn", JSONArray().apply { effectiveAlpn.forEach { put(it) } })
                 put("allowInsecure", false)
             })
             "reality" -> stream.put("realitySettings", JSONObject().apply {

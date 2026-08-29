@@ -19,5 +19,7 @@ public final class NativeTgWsProxyBridge {
 
     public static native void setCfProxyConfig(boolean enabled, boolean priority, String userDomain);
 
+    public static native void setFakeTls(boolean enabled, String domain);
+
     public static native String getStats();
 }
