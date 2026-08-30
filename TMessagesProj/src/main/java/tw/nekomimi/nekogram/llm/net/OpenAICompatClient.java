@@ -21,7 +21,7 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 import tw.nekomimi.nekogram.llm.utils.ModelUtil;
 import tw.nekomimi.nekogram.utils.HttpClient;
-import xyz.nextalone.nagram.NaConfig;
+import sovietgram.com.NaConfig;
 
 public final class OpenAICompatClient {
 

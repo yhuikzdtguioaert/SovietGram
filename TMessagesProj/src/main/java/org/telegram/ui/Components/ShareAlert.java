@@ -145,7 +145,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import tw.nekomimi.nekogram.NekoConfig;
 import tw.nekomimi.nekogram.helpers.MessageHelper;
-import xyz.nextalone.nagram.NaConfig;
+import sovietgram.com.NaConfig;
 import xyz.nextalone.nagram.helper.ProtectedForward;
 import xyz.nextalone.nagram.helper.ForwardTextEdit;
 import org.telegram.ui.Components.FilterTabsView;

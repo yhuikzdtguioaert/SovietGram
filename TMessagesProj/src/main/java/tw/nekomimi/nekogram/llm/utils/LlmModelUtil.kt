@@ -1,7 +1,7 @@
 package tw.nekomimi.nekogram.llm.utils
 
 import org.json.JSONObject
-import tw.nekomimi.nekogram.llm.preset.PresetRegistry
+import tw.nekomimi.nekogram.llm.preset.LlmPresetRegistry
 import java.util.Locale
 
 object ModelUtil {
@@ -131,9 +131,9 @@ object ModelUtil {
             return
         }
         val providerPreset = when (url) {
-            PresetRegistry.getPresetBaseUrl(PresetRegistry.GEMINI) -> PresetRegistry.GEMINI
-            PresetRegistry.getPresetBaseUrl(PresetRegistry.OPENROUTER) -> PresetRegistry.OPENROUTER
-            PresetRegistry.getPresetBaseUrl(PresetRegistry.VERCEL_AI_GATEWAY) -> PresetRegistry.VERCEL_AI_GATEWAY
+            LlmPresetRegistry.getPresetBaseUrl(LlmPresetRegistry.GEMINI) -> LlmPresetRegistry.GEMINI
+            LlmPresetRegistry.getPresetBaseUrl(LlmPresetRegistry.OPENROUTER) -> LlmPresetRegistry.OPENROUTER
+            LlmPresetRegistry.getPresetBaseUrl(LlmPresetRegistry.VERCEL_AI_GATEWAY) -> LlmPresetRegistry.VERCEL_AI_GATEWAY
             else -> null
         }
         applyReasoningParametersInternal(requestJson, providerPreset, model)
@@ -157,11 +157,11 @@ object ModelUtil {
     private fun applyReasoningParametersRouter(requestJson: JSONObject, providerPreset: Int, model: String?): Boolean {
         val provider = getModelProvider(model) ?: return false
         return when (providerPreset) {
-            PresetRegistry.OPENROUTER -> {
+            LlmPresetRegistry.OPENROUTER -> {
                 requestJson.put("reasoning", JSONObject().put("effort", getReasoningEffort(model)))
                 true
             }
-            PresetRegistry.VERCEL_AI_GATEWAY -> {
+            LlmPresetRegistry.VERCEL_AI_GATEWAY -> {
                 putProviderOptions(
                     requestJson,
                     "gateway",

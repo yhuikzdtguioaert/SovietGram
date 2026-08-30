@@ -416,10 +416,10 @@ import tw.nekomimi.nekogram.ui.components.GroupedIconsView;
 import tw.nekomimi.nekogram.utils.AlertUtil;
 import tw.nekomimi.nekogram.utils.AndroidUtil;
 import tw.nekomimi.nekogram.utils.ProxyUtil;
-import xyz.nextalone.nagram.NaConfig;
+import sovietgram.com.NaConfig;
 import xyz.nextalone.nagram.ToggleResult;
-import xyz.nextalone.nagram.helper.BookmarksHelper;
-import xyz.nextalone.nagram.helper.DoubleTap;
+import sovietgram.com.helper.BookmarksHelper;
+import sovietgram.com.helper.DoubleTap;
 import xyz.nextalone.nagram.helper.ProtectedForward;
 
 @SuppressWarnings("unchecked")
