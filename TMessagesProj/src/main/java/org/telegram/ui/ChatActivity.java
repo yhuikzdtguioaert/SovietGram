@@ -417,7 +417,7 @@ import tw.nekomimi.nekogram.utils.AlertUtil;
 import tw.nekomimi.nekogram.utils.AndroidUtil;
 import tw.nekomimi.nekogram.utils.ProxyUtil;
 import sovietgram.com.NaConfig;
-import xyz.nextalone.nagram.ToggleResult;
+import sovietgram.com.ToggleResult;
 import sovietgram.com.helper.BookmarksHelper;
 import sovietgram.com.helper.DoubleTap;
 import xyz.nextalone.nagram.helper.ProtectedForward;

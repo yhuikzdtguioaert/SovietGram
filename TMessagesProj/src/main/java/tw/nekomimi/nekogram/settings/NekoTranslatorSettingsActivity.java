@@ -84,7 +84,7 @@ import tw.nekomimi.nekogram.llm.LlmConfig;
 import tw.nekomimi.nekogram.llm.net.OpenAICompatClient;
 import tw.nekomimi.nekogram.llm.preset.LlmPresetRegistry;
 import tw.nekomimi.nekogram.llm.ui.LlmEditTextFactory;
-import tw.nekomimi.nekogram.llm.utils.LlmModelUtil;
+import tw.nekomimi.nekogram.llm.utils.ModelUtil;
 import tw.nekomimi.nekogram.llm.utils.LlmUrlNormalizer;
 import tw.nekomimi.nekogram.translate.Translator;
 import tw.nekomimi.nekogram.translate.TranslatorKt;
@@ -661,7 +661,7 @@ public class NekoTranslatorSettingsActivity extends BaseNekoXSettingsActivity {
     private void checkTemperatureRows() {
         int preset = NaConfig.INSTANCE.getLlmProviderPreset().Int();
         String modelName = LlmConfig.getEffectiveModelName(preset);
-        boolean showTemperature = LlmModelUtil.supportsTemperature(modelName);
+        boolean showTemperature = ModelUtil.supportsTemperature(modelName);
         if (listAdapter == null) {
             if (!showTemperature) {
                 cellGroup.rows.remove(headerTemperature);
@@ -874,8 +874,8 @@ public class NekoTranslatorSettingsActivity extends BaseNekoXSettingsActivity {
     private static void sortModelsForProvider(int preset, ArrayList<String> models) {
         if (preset == LlmPresetRegistry.OPENROUTER) {
             models.sort((a, b) -> {
-                boolean aFree = LlmModelUtil.isOpenRouterFreeModel(a);
-                boolean bFree = LlmModelUtil.isOpenRouterFreeModel(b);
+                boolean aFree = ModelUtil.isOpenRouterFreeModel(a);
+                boolean bFree = ModelUtil.isOpenRouterFreeModel(b);
                 if (aFree != bFree) {
                     return aFree ? -1 : 1;
                 }

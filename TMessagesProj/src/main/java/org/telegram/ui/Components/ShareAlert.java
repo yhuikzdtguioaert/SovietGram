@@ -134,6 +134,7 @@ import org.telegram.ui.MessageStatisticActivity;
 import org.telegram.ui.PhotoViewer;
 import org.telegram.ui.PremiumPreviewFragment;
 import org.telegram.ui.Stories.DarkThemeResourceProvider;
+import org.telegram.ui.Stories.recorder.HintView2;
 
 import java.util.ArrayList;
 import java.util.Collections;
