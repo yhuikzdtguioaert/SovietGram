@@ -10150,7 +10150,10 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         super.onResume();
         // Announce whose look this screen paints before anything draws: the own settings, or this
         // peer's as the pull below last cached them.
-        CustomProfileHelper.setDrawingLook(myProfile, userId);
+        // Group/channel profile pages use the same local Custom Profile treatment as user profile
+        // pages. A fragment identity is passed as well, so an older profile's late onPause() cannot
+        // clear the look just selected by this one during a transition.
+        CustomProfileHelper.setDrawingLook(this, myProfile || chatId != 0, userId);
         applyCustomProfileNameStyle();
         if (sharedMediaLayout != null) {
             sharedMediaLayout.onResume();
@@ -10207,7 +10210,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     public void onPause() {
         super.onPause();
         // Unconditionally: a peer's look must not follow onto whatever screen comes next either.
-        CustomProfileHelper.clearDrawingLook();
+        CustomProfileHelper.clearDrawingLook(this);
         // Also unconditionally: a peer's look can animate its banner or background just as the own one
         // can, and the player holds a decoder thread either way.
         CustomProfileHelper.releaseVideo();
@@ -12214,6 +12217,10 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 } : null);
                 Drawable leftIcon = currentEncryptedChat != null ? getLockIconDrawable() : null;
                 boolean rightIconIsPremium = false, rightIconIsStatus = false, rightIconIsBadge = false;
+                final boolean hasSovietBadge = SovietGramBadges.has(user == null ? 0 : user.id);
+                nameTextView[a].setDrawablePadding(dp(5));
+                nameTextView[a].setRightDrawableOnClick(null);
+                nameTextView[a].setRightDrawable2OnClick(null);
                 nameTextView[a].setRightDrawableOutside(a == 0);
                 if (a == 0 && !copyFromChatActivity) {
                     if (user.scam || user.fake) {
@@ -12225,6 +12232,11 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     } else if (getMessagesController().isDialogMuted(dialogId != 0 ? dialogId : userId, topicId)) {
                         nameTextView[a].setRightDrawable2(getThemedDrawable(Theme.key_drawable_muteIconDrawable));
                         nameTextViewRightDrawable2ContentDescription = LocaleController.getString(R.string.NotificationsMuted);
+                    } else if (hasSovietBadge) {
+                        rightIconIsBadge = true;
+                        nameTextView[a].setRightDrawable2(getBadgeDrawable(a));
+                        nameTextViewRightDrawable2ContentDescription =
+                                SovietGramBadges.label(SovietGramBadges.badgeOf(user.id));
                     } else {
                         nameTextView[a].setRightDrawable2(null);
                         nameTextViewRightDrawable2ContentDescription = null;
@@ -12241,16 +12253,6 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                             nameTextView[a].setRightDrawable(getEmojiStatusDrawable(user.emoji_status, false, false, a));
                         }
                         nameTextViewRightDrawableContentDescription = LocaleController.getString(R.string.AccDescrPremium);
-                    } else if (SovietGramBadges.has(user == null ? 0 : user.id)) {
-                        // Between the status somebody picked for themselves and the premium star:
-                        // a badge is this app's own mark, and what Telegram says about an account
-                        // outranks it, while what it says about a subscription does not.
-                        rightIconIsStatus = false;
-                        rightIconIsPremium = false;
-                        rightIconIsBadge = true;
-                        nameTextView[a].setRightDrawable(getBadgeDrawable(a));
-                        nameTextViewRightDrawableContentDescription =
-                                SovietGramBadges.label(SovietGramBadges.badgeOf(user.id));
                     } else if (getMessagesController().isPremiumUser(user)) {
                         rightIconIsStatus = false;
                         rightIconIsPremium = true;
@@ -12265,6 +12267,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         nameTextView[a].setRightDrawable2(getScamDrawable(user.scam ? 0 : 1));
                     } else if (user.verified) {
                         nameTextView[a].setRightDrawable2(getVerifiedCrossfadeDrawable(a));
+                    } else if (hasSovietBadge) {
+                        rightIconIsBadge = true;
+                        nameTextView[a].setRightDrawable2(getBadgeDrawable(a));
                     } else {
                         nameTextView[a].setRightDrawable2(null);
                     }
@@ -12280,16 +12285,6 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                             nameTextView[a].setRightDrawable(getEmojiStatusDrawable(user.emoji_status, true, true, a));
                         }
                         nameTextViewRightDrawableContentDescription = LocaleController.getString(R.string.AccDescrPremium);
-                    } else if (SovietGramBadges.has(user == null ? 0 : user.id)) {
-                        // Between the status somebody picked for themselves and the premium star:
-                        // a badge is this app's own mark, and what Telegram says about an account
-                        // outranks it, while what it says about a subscription does not.
-                        rightIconIsStatus = false;
-                        rightIconIsPremium = false;
-                        rightIconIsBadge = true;
-                        nameTextView[a].setRightDrawable(getBadgeDrawable(a));
-                        nameTextViewRightDrawableContentDescription =
-                                SovietGramBadges.label(SovietGramBadges.badgeOf(user.id));
                     } else if (getMessagesController().isPremiumUser(user)) {
                         rightIconIsStatus = false;
                         rightIconIsPremium = true;
@@ -12373,13 +12368,11 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         showDialog(premiumPreviewBottomSheet);
                     });
                 }
-                if (rightIconIsBadge && !user.self) {
-                    // Set last on purpose: a badge holder can also be premium, and the tap has to
-                    // say what the mark on screen means, not what a different mark would have. Not
-                    // on your own profile though — there the mark stands in the slot you set your
-                    // own status from, and taking that tap away would cost more than it gives.
+                if (rightIconIsBadge) {
+                    // The SovietGram mark has its own second slot and hit target. Telegram's premium
+                    // star/custom status stays first; five dp between them keeps both readable.
                     final long badgeOf = user.id;
-                    nameTextView[a].setRightDrawableOnClick(v -> SovietGramBadges.show(ProfileActivity.this, badgeOf));
+                    nameTextView[a].setRightDrawable2OnClick(v -> SovietGramBadges.show(ProfileActivity.this, badgeOf));
                 }
             }
 

@@ -29,9 +29,11 @@ public class GcmPushListenerService extends FirebaseMessagingService {
         Map<String, String> data = message.getData();
         long time = message.getSentTime();
 
-        if (BuildVars.LOGS_ENABLED) {
-            FileLog.d("FCM received data: " + data + " from: " + from);
-        }
+        // Keep a release-build logcat breadcrumb without writing encrypted payloads or tokens.
+        MessagesController.getGlobalNotificationsSettings().edit()
+                .putLong("last_fcm_receive_time", System.currentTimeMillis())
+                .apply();
+        android.util.Log.i("SovietGramPush", "FCM received: sender=" + from + ", keys=" + data.keySet().size());
 
         PushListenerController.processRemoteMessage(PushListenerController.PUSH_TYPE_FIREBASE, data.get("p"), time);
     }

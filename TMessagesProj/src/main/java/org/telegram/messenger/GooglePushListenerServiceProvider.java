@@ -2,6 +2,7 @@ package org.telegram.messenger;
 
 import android.os.SystemClock;
 import android.text.TextUtils;
+import android.util.Log;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
@@ -46,8 +47,10 @@ public class GooglePushListenerServiceProvider implements PushListenerController
             // Re-assert the last known-good token immediately. A transient Firebase failure below
             // must never replace a working registration with an empty value.
             PushListenerController.sendRegistrationToServer(getPushType(), currentPushString);
+            Log.i("SovietGramPush", "FCM cached token reasserted");
         } else {
             FileLog.d("FCM Registration not found.");
+            Log.w("SovietGramPush", "FCM cached token missing; requesting a new token");
         }
         requestToken(0L);
     }
@@ -67,6 +70,7 @@ public class GooglePushListenerServiceProvider implements PushListenerController
                                     FileLog.d("Failed to refresh FCM regid; keeping last known token");
                                 }
                                 SharedConfig.pushStringStatus = "__FIREBASE_RETRYING__";
+                                Log.w("SovietGramPush", "FCM token refresh failed; retry scheduled");
                                 scheduleRetry();
                                 return;
                             }
@@ -74,6 +78,7 @@ public class GooglePushListenerServiceProvider implements PushListenerController
                             if (!TextUtils.isEmpty(token)) {
                                 retryAttempt = 0;
                                 PushListenerController.sendRegistrationToServer(getPushType(), token);
+                                Log.i("SovietGramPush", "FCM token refreshed and sent for all accounts");
                             } else {
                                 scheduleRetry();
                             }

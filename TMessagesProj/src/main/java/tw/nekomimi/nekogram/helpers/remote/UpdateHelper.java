@@ -109,13 +109,22 @@ public class UpdateHelper extends BaseRemoteHelper {
         }
         String fileName = FileLoader.getDocumentFileName(document);
         int remoteVersionCode = parseVersionCode(fileName);
-        boolean shouldUpdate = remoteVersionCode > BuildConfig.VERSION_CODE;
+        String remoteVersionName = extractVersionName(fileName);
+        // SovietGram has two independent release counters: the monotonically increasing app build
+        // (1258, 1259, ...) and the Telegram source version (12.10.1, 12.10.2, ...).  Treating the
+        // pair as one compound version meant a publisher had to bump both fields at once.  A newer
+        // value in either dimension is now enough, exactly like two independent update tracks.
+        boolean shouldUpdate = IndependentVersionComparator.isUpdate(
+                remoteVersionCode, remoteVersionName,
+                BuildConfig.VERSION_CODE, BuildConfig.BUILD_VERSION_STRING);
         if (!shouldUpdate && !updateAlways) {
             return null;
         }
 
         var update = new TLRPC.TL_help_appUpdate();
-        update.version = parseVersionName(fileName);
+        update.version = TextUtils.isEmpty(remoteVersionName)
+                ? BuildConfig.BUILD_VERSION_STRING
+                : remoteVersionName;
         update.can_not_skip = false;
         update.text = extractCommitMessage(message.message);
         update.document = document;
@@ -188,14 +197,14 @@ public class UpdateHelper extends BaseRemoteHelper {
         return versionCode;
     }
 
-    private String parseVersionName(String fileName) {
+    private String extractVersionName(String fileName) {
         if (!TextUtils.isEmpty(fileName)) {
             Matcher matcher = VERSION_NAME_PATTERN.matcher(fileName);
             if (matcher.find()) {
-                return matcher.group(1);
+                return matcher.group(1).trim();
             }
         }
-        return BuildConfig.BUILD_VERSION_STRING;
+        return "";
     }
 
     private String extractCommitMessage(String text) {

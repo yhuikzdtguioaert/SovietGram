@@ -746,6 +746,11 @@
             </intent-filter>
         </receiver>
 
+        <receiver
+            android:name=".PushHealthReceiver"
+            android:enabled="true"
+            android:exported="false" />
+
         <receiver android:name=".RefererReceiver" android:exported="true" android:permission="android.permission.INSTALL_PACKAGES">
             <intent-filter>
                 <action android:name="com.android.vending.INSTALL_REFERRER" />

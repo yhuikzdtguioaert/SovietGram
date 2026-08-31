@@ -72,6 +72,9 @@ public class ApplicationLoader extends Application {
     public static ApplicationLoader applicationLoaderInstance;
 
     private static PendingIntent pendingIntent;
+    private static PendingIntent pushHealthPendingIntent;
+    static final String ACTION_PUSH_HEALTH = "sovietgram.com.action.PUSH_HEALTH";
+    private static final long PUSH_HEALTH_INTERVAL_MS = 15 * 60 * 1000L;
 
     @SuppressLint("StaticFieldLeak")
     public static volatile Context applicationContext;
@@ -475,6 +478,49 @@ public class ApplicationLoader extends Application {
         });
     }
 
+    /**
+     * Samsung and a few other vendor builds occasionally keep the FCM token valid but stop delivering
+     * callbacks to a killed app. This watchdog does not post an ongoing notification: it periodically
+     * wakes a short receiver, reasserts the token for every signed-in account and opens Telegram's
+     * native push connection as a fallback. FCM remains the primary path.
+     */
+    private static void schedulePushHealthChecks() {
+        try {
+            AlarmManager alarm = (AlarmManager) applicationContext.getSystemService(Context.ALARM_SERVICE);
+            Intent intent = new Intent(applicationContext, PushHealthReceiver.class).setAction(ACTION_PUSH_HEALTH);
+            pushHealthPendingIntent = PendingIntent.getBroadcast(
+                    applicationContext, 1258, intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            alarm.cancel(pushHealthPendingIntent);
+            alarm.setInexactRepeating(
+                    AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                    SystemClock.elapsedRealtime() + 60_000L,
+                    PUSH_HEALTH_INTERVAL_MS,
+                    pushHealthPendingIntent);
+        } catch (Throwable e) {
+            FileLog.e("Push health watchdog schedule failed", e);
+        }
+    }
+
+    public static void runPushHealthCheck() {
+        if (getPushProvider().hasServices()) {
+            getPushProvider().onRequestPushToken();
+        }
+        // One global preference is used by ConnectionsManager for every account. Keep the socket
+        // fallback consistent across account switches instead of enabling only selectedAccount.
+        MessagesController.getGlobalNotificationsSettings().edit()
+                .putBoolean("pushConnection", true)
+                .apply();
+        for (int account = 0; account < UserConfig.MAX_ACCOUNT_COUNT; account++) {
+            if (!UserConfig.getInstance(account).isClientActivated()) {
+                continue;
+            }
+            ConnectionsManager.getInstance(account).setPushConnectionEnabled(true);
+            ConnectionsManager.getInstance(account).resumeNetworkMaybe();
+        }
+        Log.i("SovietGramPush", "watchdog: token reasserted; native fallback resumed for active accounts");
+    }
+
     @Override
     public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
@@ -490,8 +536,9 @@ public class ApplicationLoader extends Application {
 
     private static void initPushServices() {
         AndroidUtilities.runOnUIThread(() -> {
+            schedulePushHealthChecks();
             if (getPushProvider().hasServices()) {
-                getPushProvider().onRequestPushToken();
+                runPushHealthCheck();
             } else {
                 if (BuildVars.LOGS_ENABLED) {
                     FileLog.d("No valid " + getPushProvider().getLogTitle() + " APK found.");

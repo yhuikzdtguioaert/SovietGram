@@ -70,6 +70,9 @@ public final class CustomProfileHelper {
 
     /** The peer whose profile is the screen being drawn, or 0 when it is the own one. */
     private static long drawingPeerId;
+    /** Identity of the ProfileActivity that most recently selected the global drawing look. */
+    @Nullable
+    private static Object drawingOwner;
 
     /** That peer's synced look, or null when the own settings are the source. */
     @Nullable
@@ -792,7 +795,8 @@ public final class CustomProfileHelper {
      * own settings, or {@code peerId}'s as the sync layer last saw them. The settings have no per-peer
      * notion of their own, so without this a custom shape would follow onto everybody's profile.
      */
-    public static void setDrawingLook(boolean myProfile, long peerId) {
+    public static void setDrawingLook(Object owner, boolean myProfile, long peerId) {
+        drawingOwner = owner;
         drawingMyProfile = myProfile;
         drawingPeerId = myProfile ? 0 : peerId;
         remoteLook = drawingPeerId == 0 ? null : SovietGramProfileSync.remoteCustomProfile(drawingPeerId);
@@ -818,7 +822,14 @@ public final class CustomProfileHelper {
     }
 
     /** Called as the screen stops being the one on screen; nothing may keep painting its look after. */
-    public static void clearDrawingLook() {
+    public static void clearDrawingLook(Object owner) {
+        // Fragment lifecycle callbacks can cross during the profile transition: the new profile
+        // resumes and selects its look before the covered profile receives onPause().  The old
+        // unconditional clear made the correct remote theme flash for one frame and then disappear.
+        if (drawingOwner != owner) {
+            return;
+        }
+        drawingOwner = null;
         drawingMyProfile = false;
         drawingPeerId = 0;
         remoteLook = null;

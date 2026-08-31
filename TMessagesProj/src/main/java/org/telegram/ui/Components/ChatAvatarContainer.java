@@ -1036,18 +1036,25 @@ public class ChatAvatarContainer extends FrameLayout implements FactorAnimator.T
 
     private boolean rightDrawableIsScamOrVerified = false;
     private boolean rightDrawableIsScam = false;
+    private boolean rightDrawableIsSovietBadge = false;
     private String rightDrawableContentDescription = null;
     private String rightDrawable2ContentDescription = null;
 
     public void setTitleIcons(Drawable leftIcon, Drawable mutedIcon) {
         titleTextView.setLeftDrawable(leftIcon);
         if (!rightDrawableIsScamOrVerified && !rightDrawableIsScam) {
-            if (mutedIcon != null) {
+            if (rightDrawableIsSovietBadge) {
+                titleTextView.setRightDrawable2(SovietGramBadges.drawable());
+            } else {
+                titleTextView.setRightDrawable2(mutedIcon);
+            }
+            if (rightDrawableIsSovietBadge) {
+                // Description is installed by setTitle(), where the badge owner is known.
+            } else if (mutedIcon != null) {
                 rightDrawable2ContentDescription = getString(R.string.NotificationsMuted);
             } else {
                 rightDrawable2ContentDescription = null;
             }
-            titleTextView.setRightDrawable2(mutedIcon);
         }
         checkActionBar(true);
     }
@@ -1078,17 +1085,18 @@ public class ChatAvatarContainer extends FrameLayout implements FactorAnimator.T
 
         titleTextView.setText(value);
         titleTextView.setScrollNonFitText(scrollable || isCentered());
+        titleTextView.setDrawablePadding(dp(5));
+        titleTextView.setRightDrawable2OnClick(null);
         rightDrawableIsScam = false;
+        rightDrawableIsScamOrVerified = false;
         if (scam || fake) {
             rightDrawableIsScam = true;
-            if (!(titleTextView.getRightDrawable() instanceof ScamDrawable)) {
-                ScamDrawable drawable = new ScamDrawable(11, scam ? 0 : 1);
-                drawable.setColor(getThemedColor(Theme.key_actionBarDefaultSubtitle));
-                titleTextView.setRightDrawable2(drawable);
+            ScamDrawable drawable = new ScamDrawable(11, scam ? 0 : 1);
+            drawable.setColor(getThemedColor(Theme.key_actionBarDefaultSubtitle));
+            titleTextView.setRightDrawable2(drawable);
 //                titleTextView.setRightPadding(0);
-                rightDrawable2ContentDescription = getString(R.string.ScamMessage);
-                rightDrawableIsScamOrVerified = true;
-            }
+            rightDrawable2ContentDescription = getString(R.string.ScamMessage);
+            rightDrawableIsScamOrVerified = true;
         } else if (verified) {
             verifiedBackground = getResources().getDrawable(R.drawable.verified_area).mutate();
             verifiedBackground.setColorFilter(new PorterDuffColorFilter(getThemedColor(Theme.key_profile_verifiedBackground), PorterDuff.Mode.MULTIPLY));
@@ -1098,29 +1106,29 @@ public class ChatAvatarContainer extends FrameLayout implements FactorAnimator.T
             titleTextView.setRightDrawable2(verifiedDrawable);
             rightDrawableIsScamOrVerified = true;
             rightDrawable2ContentDescription = getString(R.string.AccDescrVerified);
-        } else if (titleTextView.getRightDrawable() instanceof ScamDrawable) {
-            titleTextView.setRightDrawable2(null);
-            rightDrawableIsScamOrVerified = false;
-            rightDrawable2ContentDescription = null;
         }
-        // Same order the profile uses: a status the person picked wins, then our own mark, then the
-        // premium star. The dialog id is the user id in a private chat and negative anywhere else,
-        // so groups and channels never match; your own id is the one Saved Messages carries, and a
-        // badge over "Saved Messages" is telling yourself something you already know.
+        // Telegram status/premium and the SovietGram role badge are independent slots. The dialog id
+        // is the user id in a private chat and negative anywhere else, so groups never match.
         final long badgeDialogId = parentFragment == null ? 0 : parentFragment.getDialogId();
         final boolean sovietBadge = !scam && !fake && !verified
-                && DialogObject.getEmojiStatusDocumentId(emojiStatus) == 0
                 && badgeDialogId != UserConfig.getInstance(currentAccount).clientUserId
                 && SovietGramBadges.has(badgeDialogId);
-        if (premium || sovietBadge || DialogObject.getEmojiStatusDocumentId(emojiStatus) != 0) {
+        rightDrawableIsSovietBadge = sovietBadge;
+        if (sovietBadge) {
+            titleTextView.setRightDrawable2(SovietGramBadges.drawable());
+            rightDrawable2ContentDescription = SovietGramBadges.label(SovietGramBadges.badgeOf(badgeDialogId));
+            titleTextView.setRightDrawable2OnClick(v -> SovietGramBadges.show(parentFragment, badgeDialogId));
+        } else if (!scam && !fake && !verified) {
+            titleTextView.setRightDrawable2(null);
+            rightDrawable2ContentDescription = null;
+        }
+        if (premium || DialogObject.getEmojiStatusDocumentId(emojiStatus) != 0) {
             if (titleTextView.getRightDrawable() instanceof AnimatedEmojiDrawable.WrapSizeDrawable &&
                 ((AnimatedEmojiDrawable.WrapSizeDrawable) titleTextView.getRightDrawable()).getDrawable() instanceof AnimatedEmojiDrawable) {
                 ((AnimatedEmojiDrawable) ((AnimatedEmojiDrawable.WrapSizeDrawable) titleTextView.getRightDrawable()).getDrawable()).removeView(titleTextView);
             }
             if (DialogObject.getEmojiStatusDocumentId(emojiStatus) != 0) {
                 emojiStatusDrawable.set(DialogObject.getEmojiStatusDocumentId(emojiStatus), animated);
-            } else if (sovietBadge) {
-                emojiStatusDrawable.set(SovietGramBadges.drawable(), animated);
             } else if (premium) {
                 emojiStatusDefaultDrawable = ContextCompat.getDrawable(ApplicationLoader.applicationContext, R.drawable.msg_premium_liststar).mutate();
                 emojiStatusDefaultDrawable.setColorFilter(new PorterDuffColorFilter(getThemedColor(Theme.key_profile_verifiedBackground), PorterDuff.Mode.MULTIPLY));
@@ -1130,11 +1138,7 @@ public class ChatAvatarContainer extends FrameLayout implements FactorAnimator.T
             }
             emojiStatusDrawable.setColor(getThemedColor(Theme.key_profile_verifiedBackground));
             titleTextView.setRightDrawable(emojiStatusDrawable);
-            rightDrawableIsScamOrVerified = false;
             rightDrawableContentDescription = getString(R.string.AccDescrPremium);
-            if (isCentered()) {
-                titleTextView.setRightDrawable2(null);
-            }
         } else {
             titleTextView.setRightDrawable(null);
             rightDrawableContentDescription = null;
