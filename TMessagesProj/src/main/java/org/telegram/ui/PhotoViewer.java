@@ -3153,7 +3153,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                     continue;
                 }
                 if (child == aspectRatioFrameLayout) {
-                    int heightSpec = MeasureSpec.makeMeasureSpec(AndroidUtilities.displaySize.y + (isStatusBarVisible() ? AndroidUtilities.statusBarHeight : 0), MeasureSpec.EXACTLY);
+                    int heightSpec = MeasureSpec.makeMeasureSpec(getMeasuredHeight(), MeasureSpec.EXACTLY);
                     child.measure(widthMeasureSpec, heightSpec);
                 } else if (child == paintingOverlay) {
                     int width;
@@ -4840,7 +4840,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                         heightSize += AndroidUtilities.statusBarHeight;
                     }
                 }
-                int bottomInsets = insets.bottom;
+                int bottomInsets = Math.round(insets.bottom * AndroidUtilities.getNavigationBarThirdButtonsFactor(insets.bottom));
                 heightSize -= bottomInsets;
                 widthSize -= getPaddingLeft() + getPaddingRight();
                 heightSize -= getPaddingBottom();
@@ -4856,7 +4856,8 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
             protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
                 animatingImageView.layout(getPaddingLeft(), 0, getPaddingLeft() + animatingImageView.getMeasuredWidth(), animatingImageView.getMeasuredHeight());
                 containerView.layout(getPaddingLeft(), 0, getPaddingLeft() + containerView.getMeasuredWidth(), containerView.getMeasuredHeight());
-                navigationBar.layout(getPaddingLeft(), containerView.getMeasuredHeight(), navigationBar.getMeasuredWidth(), containerView.getMeasuredHeight() + navigationBar.getMeasuredHeight());
+                int navigationBarTop = containerView.getMeasuredHeight() - containerView.getPaddingBottom();
+                navigationBar.layout(getPaddingLeft(), navigationBarTop, navigationBar.getMeasuredWidth(), navigationBarTop + navigationBar.getMeasuredHeight());
                 wasLayout = true;
                 if (changed) {
                     if (!dontResetZoomOnFirstLayout) {
@@ -5102,7 +5103,9 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                 navigationBarLayoutParams.bottomMargin = -navigationBarHeight / 2;
                 navigationBar.setLayoutParams(navigationBarLayoutParams);
             }
-            containerView.setPadding(r.left, 0, r.right, 0);
+            float thirdButtonsFactor = AndroidUtilities.getNavigationBarThirdButtonsFactor(r.bottom);
+            int gestureNavigationInset = r.bottom - Math.round(r.bottom * thirdButtonsFactor);
+            containerView.setPadding(r.left, 0, r.right, gestureNavigationInset);
             if (actionBar != null) {
                 AndroidUtilities.cancelRunOnUIThread(updateContainerFlagsRunnable);
                 if (isVisible && animationInProgress == 0) {
@@ -6059,6 +6062,10 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                         }
                     });
                 } else if (id == gallery_menu_set_photo) {
+                    BaseFragment fragment = parentFragment;
+                    if (fragment == null || fragment.getParentLayout() == null) {
+                        return;
+                    }
                     File f = null;
                     if (currentMessageObject != null) {
                         if (currentMessageObject.messageOwner.media instanceof TLRPC.TL_messageMediaWebPage && currentMessageObject.messageOwner.media.webpage != null && currentMessageObject.messageOwner.media.webpage.document == null) {
@@ -6074,6 +6081,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                     }
                     if (f == null || !f.exists()) {
                         showDownloadAlert();
+                        return;
                     }
                     final ArrayList<Object> arrayList = new ArrayList<>();
                     MediaController.PhotoEntry photoEntry = new MediaController.PhotoEntry(0, 0, 0, f.getAbsolutePath(), 0, false, 0, 0, 0);
@@ -6082,8 +6090,8 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                         @Override
                         public void sendButtonPressed(int index, VideoEditedInfo videoEditedInfo, boolean notify, int scheduleDate, int scheduleRepeatPeriod, boolean forceDocument) {
                             MediaController.PhotoEntry photoEntry = (MediaController.PhotoEntry) arrayList.get(0);
-                            if (photoEntry.imagePath != null || photoEntry.isVideo) {
-                                PhotoUtilities.setImageAsAvatar(photoEntry, parentFragment, null);
+                            if ((photoEntry.imagePath != null || photoEntry.isVideo) && fragment.getParentLayout() != null) {
+                                PhotoUtilities.setImageAsAvatar(photoEntry, fragment, null);
                             }
                         }
 
@@ -6315,6 +6323,9 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
         menuItem.setSubMenuDelegate(new ActionBarMenuItem.ActionBarSubMenuItemDelegate() {
             @Override
             public void onShowSubMenu() {
+                if (parentFragment == null || parentFragment.getParentLayout() == null) {
+                    menuItem.hideSubItem(gallery_menu_set_photo);
+                }
                 if (videoPlayerControlVisible && isPlaying) {
                     AndroidUtilities.cancelRunOnUIThread(hideActionBarRunnable);
                 }
@@ -19779,6 +19790,9 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
             height += AndroidUtilities.navigationBarHeight - insets.bottom;
             if ((mode == EDIT_MODE_NONE || mode == EDIT_MODE_STICKER_MASK || mode == EDIT_MODE_COVER) && sendPhotoType != SELECT_TYPE_AVATAR && isStatusBarVisible()) {
                 height += AndroidUtilities.statusBarHeight;
+            }
+            if (containerView.getMeasuredHeight() > 0) {
+                height = Math.min(height, containerView.getMeasuredHeight());
             }
 //            if (mode == EDIT_MODE_NONE && sendPhotoType == 2) {
 //                height += AndroidUtilities.navigationBarHeight;

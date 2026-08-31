@@ -35,6 +35,7 @@ import org.telegram.messenger.Emoji;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
 import org.telegram.tgnet.TLRPC;
+import org.telegram.messenger.utils.tlutils.TlUtils;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.AnimatedEmojiSpan;
 import org.telegram.ui.Components.CubicBezierInterpolator;
@@ -125,6 +126,9 @@ public class BotKeyboardView extends LinearLayout implements InAppKeyboardInsetV
     }
 
     public void setButtons(TLRPC.TL_replyKeyboardMarkup buttons) {
+        if (TlUtils.tlEquals(buttons, botButtons)) {
+            return;
+        }
         botButtons = buttons;
         buttonViews.clear();
 
