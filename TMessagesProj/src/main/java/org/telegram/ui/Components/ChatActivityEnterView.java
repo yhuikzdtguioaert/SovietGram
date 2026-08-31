@@ -4916,7 +4916,7 @@ public class ChatActivityEnterView extends FrameLayout implements
         sendBubbleDrawable.setRadius(dp(IOS_BUBBLE_RADIUS_DP));
         voiceBubbleDrawable = factory.create(sendButtonContainer, resolveSendBubbleColorProvider());
         voiceBubbleDrawable.setRadius(dp(IOS_BUBBLE_RADIUS_DP));
-        doneBubbleDrawable = factory.create(textFieldContainer, resolveAccentBubbleColorProvider());
+        doneBubbleDrawable = factory.create(textFieldContainer, resolveSendBubbleColorProvider());
         doneBubbleDrawable.setRadius(dp(IOS_BUBBLE_RADIUS_DP));
         emojiBubbleDrawable = factory.create(messageEditTextContainer, colorProvider);
         emojiBubbleDrawable.setRadius(dp(IOS_BUBBLE_RADIUS_DP));
@@ -4930,7 +4930,7 @@ public class ChatActivityEnterView extends FrameLayout implements
         richBubbleDrawable.setRadius(dp(IOS_BUBBLE_RADIUS_DP));
         initRecordDeleteBubble();
         if (doneButton != null) {
-            doneButton.setActionBubbleColorProvider(resolveAccentBubbleColorProvider());
+            doneButton.setActionBubbleColorProvider(resolveSendBubbleColorProvider());
         }
     }
 
