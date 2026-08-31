@@ -33,6 +33,7 @@ SovietGram стоит на чужой работе, и список длинны
 - [NagramX](https://github.com/risin42/NagramX)
 - [AyuGram](https://github.com/AyuGram)
 - [exteraGram](https://github.com/exteraSquad)
+- [NagramXTurbo](https://github.com/temporaryna/NagramXTurbo)
 
 ### Плагины
 
