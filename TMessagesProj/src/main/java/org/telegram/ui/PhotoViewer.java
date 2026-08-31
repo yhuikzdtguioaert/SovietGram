@@ -1165,6 +1165,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
 
     private OrientationEventListener orientationEventListener;
     private int prevOrientation = -10;
+    private int prevActivityOrientation = -10;
     private int fullscreenedByButton;
     private boolean wasRotated;
 

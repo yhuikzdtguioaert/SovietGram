@@ -133,4 +133,17 @@
     <string name="ForwardTextPlaceholder">Message text</string>
     <string name="ForwardTextCopyNotice">Will be sent as a copy from you, without a forward label</string>
     <string name="ForwardTextEmptyNotice">Message text can\'t be empty</string>
+    <string name="AccDescrForwardAuthor">Toggle forward author name</string>
+    <string name="AccDescrForwardCaption">Toggle forward caption</string>
+    <string name="AccDescrForwardSound">Toggle notification sound</string>
+    <string name="GhostModeSoundOverride">Ghost Mode is active — sound is always off</string>
+    <string name="ForwardAuthorShown">Author name will be shown</string>
+    <string name="ForwardAuthorHidden">Author name will be hidden</string>
+    <string name="ForwardCaptionShown">Caption will be shown</string>
+    <string name="ForwardCaptionHidden">Caption will be hidden</string>
+    <string name="ForwardNotifyOn">Recipient will be notified</string>
+    <string name="ForwardNotifyOff">Recipient will receive a silent notification</string>
+    <string name="InputBar">Input Bar</string>
+    <string name="ScrollToCurrentPhotoAbout">If you swipe to another photo and close the viewer, scroll the chat to it.</string>
+    <string name="PhotoViewerHdrAbout">Show HDR photos with extended brightness.</string>
 </resources>

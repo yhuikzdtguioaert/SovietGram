@@ -591,9 +591,20 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
                 button.requestLayout();
             }
         }
-        float fieldCenterY = (frameLayout2.getTop() + frameLayout2.getBottom()) / 2f;
-        float buttonCenterY = toggleForwardCommentPositionButton.getTop() + toggleForwardCommentPositionButton.getHeight() / 2f;
-        toggleForwardCommentPositionButton.setTranslationY(fieldCenterY - buttonCenterY);
+    }
+
+    private void animateForwardRowButtonVisibility(View button, boolean show) {
+        if (button == null) return;
+        if (show && button.getVisibility() == View.VISIBLE && button.getAlpha() == 1.0f) return;
+        if (!show && button.getVisibility() == View.GONE) return;
+        button.animate().cancel();
+        if (show) {
+            button.setVisibility(View.VISIBLE);
+            button.post(this::alignForwardRowButtonsToField);
+            button.animate().alpha(1.0f).scaleX(1.0f).scaleY(1.0f).setDuration(180).setInterpolator(new DecelerateInterpolator()).start();
+        } else {
+            button.animate().alpha(0.0f).scaleX(0.6f).scaleY(0.6f).setDuration(180).setInterpolator(new DecelerateInterpolator()).withEndAction(() -> button.setVisibility(View.GONE)).start();
+        }
     }
 
     private void updateForwardCommentPositionButtonVisibility(boolean hasCommentText) {
@@ -1002,7 +1013,7 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
                         searchGridView.setTranslationY(0);
                         updateBottomOverlay();
                         if (toggleForwardCommentPositionButton != null) {
-                            alignForwardCommentPositionButtonToField();
+                            alignForwardRowButtonsToField();
                         }
                     }
 
@@ -2482,8 +2493,8 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
             containerView.addView(toggleForwardCommentPositionButton, LayoutHelper.createFrame(48, 48, Gravity.RIGHT | Gravity.BOTTOM, 0, 0, 78, 0));
             toggleForwardCommentPositionButton.addOnLayoutChangeListener((v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
                 if (top != oldTop || bottom != oldBottom) {
-                    alignForwardCommentPositionButtonToField();
-                    v.post(this::alignForwardCommentPositionButtonToField);
+                    alignForwardRowButtonsToField();
+                    v.post(this::alignForwardRowButtonsToField);
                 }
             });
             updateForwardCommentPositionButtonIcon(NekoConfig.sendCommentAfterForward.Bool());

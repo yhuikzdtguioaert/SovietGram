@@ -79,6 +79,20 @@ jobs:
             > TMessagesProj/release-sovietgram-2026.jks
           test -s TMessagesProj/release-sovietgram-2026.jks
 
+      - name: Compile-check Kotlin and Java
+        shell: bash
+        env:
+          LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          test -n "$LOCAL_PROPERTIES"
+          test -n "$GOOGLE_SERVICES_JSON"
+          chmod +x gradlew
+          ./gradlew \
+            :TMessagesProj:compileReleaseKotlin \
+            :TMessagesProj:compileReleaseJavaWithJavac \
+            --no-daemon --stacktrace
+
       - name: Build signed release APK
         shell: bash
         env:

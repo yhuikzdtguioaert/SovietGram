@@ -536,6 +536,7 @@ public class NekoChatSettingsActivity extends BaseNekoXSettingsActivity implemen
     private ListAdapter listAdapter;
     private ActionBarMenuItem menuItem;
     private StickerSizeCell stickerSizeCell;
+    private InputBarPreviewCell inputBarPreviewCell;
 
     public NekoChatSettingsActivity() {
         if (NaConfig.INSTANCE.getUseEditedIcon().Bool()) {
@@ -1072,6 +1073,9 @@ public class NekoChatSettingsActivity extends BaseNekoXSettingsActivity implemen
             switch (viewType) {
                 case ConfigCellCustom.CUSTOM_ITEM_StickerSize:
                     view = stickerSizeCell = new StickerSizeCell(mContext);
+                    break;
+                case ConfigCellCustom.CUSTOM_ITEM_InputBarPreview:
+                    view = inputBarPreviewCell = new InputBarPreviewCell(mContext, getResourceProvider());
                     break;
                 case ConfigCellCustom.CUSTOM_ITEM_EmojiSet:
                     view = new EmojiSetCell(mContext, false);

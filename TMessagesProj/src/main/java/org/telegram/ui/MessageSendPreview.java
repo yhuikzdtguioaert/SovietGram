@@ -74,6 +74,8 @@ import org.telegram.ui.Components.ScrimOptions;
 import org.telegram.ui.Components.SizeNotifierFrameLayout;
 import org.telegram.ui.Components.Text;
 import org.telegram.ui.Components.blur3.BlurredBackgroundDrawableViewFactory;
+import org.telegram.ui.Components.blur3.drawable.BlurredBackgroundDrawable;
+import org.telegram.ui.Components.blur3.drawable.color.BlurredBackgroundColorProviderThemed;
 import org.telegram.ui.Components.blur3.drawable.color.impl.BlurredBackgroundProviderImpl;
 import org.telegram.ui.Components.blur3.source.BlurredBackgroundSourceBitmap;
 import org.telegram.ui.Components.blur3.utils.Blur3Utils;
@@ -130,6 +132,7 @@ public class MessageSendPreview extends Dialog implements NotificationCenter.Not
     private Utilities.Callback<Canvas> drawEditTextBackground;
     private ChatActivityEnterView.SendButton anchorSendButton;
     private ChatActivityEnterView.SendButton sendButton;
+    private BlurredBackgroundDrawable sendButtonGlassDrawable;
     private int sendButtonWidth, sendButtonRight;
     private View optionsView;
     private EmojiAnimationsOverlay effectOverlay;
@@ -1257,10 +1260,6 @@ public class MessageSendPreview extends Dialog implements NotificationCenter.Not
             @Override
             public boolean shouldDrawInternalCircle() {
                 return anchorSendButton.shouldDrawInternalCircle() || anchorSendButton.getActionBubbleColorProvider() == null;
-            }
-            @Override
-            public int resolveSendIconColor(int themeColor) {
-                return sendButton.resolveSendIconColor(themeColor);
             }
             @Override
             public int resolveSendIconColor(int themeColor) {

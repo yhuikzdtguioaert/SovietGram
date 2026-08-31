@@ -739,9 +739,7 @@ public abstract class AyuMessageUtils {
         // check for files saved with different naming pattern
         File existingFile = findExistingFileByBaseName(fileName); // heavy operation, maybe remove later
         if (existingFile != null) {
-            if (BuildVars.LOGS_ENABLED) {
-                Log.d(TAG, "File already saved: " + existingFile.getAbsolutePath());
-            }
+            FileLog.d("AyuMessageUtils: file already saved: " + existingFile.getAbsolutePath());
             return existingFile;
         }
         // decrypt and save
