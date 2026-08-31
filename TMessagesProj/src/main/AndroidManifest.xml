@@ -645,7 +645,7 @@
         <service
             android:name=".NotificationsService"
             android:enabled="true"
-            android:exported="true"
+            android:exported="false"
             android:foregroundServiceType="remoteMessaging"
         />
         <service
@@ -866,6 +866,13 @@
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
+
+        <!-- firebase-messaging contributes its abstract/base service too.  Leaving both
+             handlers in the merged manifest makes vendor resolvers (notably Samsung's)
+             choose the wrong component and the payload is only discovered on app sync. -->
+        <service
+            android:name="com.google.firebase.messaging.FirebaseMessagingService"
+            tools:node="remove" />
 
         <provider
             android:authorities="${applicationId}.streaming"

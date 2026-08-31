@@ -17,6 +17,7 @@ public class PushHealthReceiver extends BroadcastReceiver {
             try {
                 ApplicationLoader.postInitApplication();
                 ApplicationLoader.runPushHealthCheck();
+                ApplicationLoader.startPushService();
             } catch (Throwable e) {
                 FileLog.e("Push health watchdog failed", e);
             } finally {

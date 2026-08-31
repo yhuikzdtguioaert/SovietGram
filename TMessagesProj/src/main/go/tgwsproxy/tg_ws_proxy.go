@@ -45,7 +45,6 @@ import (
 	"crypto/rand"
 	"crypto/sha1"
 	"crypto/sha256"
-	"crypto/tls"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
@@ -68,6 +67,8 @@ import (
 	"syscall"
 	"time"
 	"unsafe"
+
+	utls "github.com/refraction-networking/utls"
 )
 
 // ---------------------------------------------------------------------------
@@ -863,9 +864,7 @@ func SafeClose(conn net.Conn) {
 	_ = conn.Close()
 }
 
-var tlsConfigPool = &tls.Config{
-	ClientSessionCache: tls.NewLRUClientSessionCache(100),
-}
+var tlsSessionCache = utls.NewLRUClientSessionCache(100)
 
 const (
 	opText   = 0x1
@@ -1089,14 +1088,16 @@ func wsConnectOnce(ctx context.Context, dialAddr, domain, path string, timeout t
 		Timeout: timeout,
 	}
 
-	tlsCfg := tlsConfigPool.Clone()
-	tlsCfg.ServerName = domain
+	tlsCfg := &utls.Config{
+		ServerName:         domain,
+		InsecureSkipVerify: false,
+		MinVersion:         utls.VersionTLS12,
+		NextProtos:         []string{"http/1.1"},
+		ClientSessionCache: tlsSessionCache,
+	}
 	// The relay is reached by IP on some paths, but its certificate is for `domain`.
 	// ServerName keeps SNI/hostname verification correct while the default root pool validates
 	// the chain. Skipping verification here turned encrypted traffic into unauthenticated traffic.
-	tlsCfg.InsecureSkipVerify = false
-	tlsCfg.MinVersion = tls.VersionTLS12
-
 	targetAddr := net.JoinHostPort(dialAddr, "443")
 	rawConn, err := dialer.DialContext(ctx, "tcp", targetAddr)
 	if err != nil {
@@ -1105,7 +1106,9 @@ func wsConnectOnce(ctx context.Context, dialAddr, domain, path string, timeout t
 
 	setSockOpts(rawConn)
 
-	tlsConn := tls.Client(rawConn, tlsCfg)
+	// Match a current Chrome ClientHello (GREASE, extension set/order and key shares) instead of
+	// Go's distinctive TLS fingerprint.  Certificate-chain and hostname verification stay strict.
+	tlsConn := utls.UClient(rawConn, tlsCfg, utls.HelloChrome_Auto)
 	handshakeTimeout := wsHandshakeTimeout(timeout)
 	handshakeCtx, cancel := context.WithTimeout(ctx, handshakeTimeout)
 	defer cancel()

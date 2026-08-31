@@ -428,41 +428,51 @@ public class ApplicationLoader extends Application {
     }
 
     private static void startPushServiceInternal() {
-        if (PushListenerController.getProvider().hasServices()) {
-            return;
-        }
-        SharedPreferences preferences = MessagesController.getNotificationsSettings(UserConfig.selectedAccount);
-        boolean enabled;
-        if (preferences.contains("pushService")) {
-            enabled = preferences.getBoolean("pushService", true);
-        } else {
-            enabled = MessagesController.getMainSettings(UserConfig.selectedAccount).getBoolean("keepAliveService", false);
-            SharedPreferences.Editor editor = preferences.edit();
-            editor.putBoolean("pushService", enabled);
-            editor.putBoolean("pushConnection", enabled);
-            editor.apply();
-            ConnectionsManager.getInstance(UserConfig.selectedAccount).setPushConnectionEnabled(enabled);
+        // FCM and the native socket are complementary.  A custom application id cannot assume
+        // that Telegram's FCM sender will always be able to reach the token, and some Samsung
+        // firmwares suspend the callback while keeping the token valid.  Keep the authenticated
+        // Telegram socket alive as a deterministic fallback for every signed-in account.
+        SharedPreferences preferences = MessagesController.getGlobalNotificationsSettings();
+        boolean enabled = preferences.getBoolean("pushService", true);
+        if (!preferences.getBoolean("sovietPersistentPushV2", false)) {
+            enabled = true;
+            preferences.edit()
+                    .putBoolean("pushService", true)
+                    .putBoolean("pushConnection", true)
+                    .putBoolean("sovietPersistentPushV2", true)
+                    .apply();
         }
         if (enabled) {
+            for (int account = 0; account < UserConfig.MAX_ACCOUNT_COUNT; account++) {
+                if (UserConfig.getInstance(account).isClientActivated()) {
+                    ConnectionsManager.getInstance(account).setPushConnectionEnabled(true);
+                }
+            }
             AndroidUtilities.runOnUIThread(() -> {
                 try {
-                    Log.d("TFOSS", "Starting push service...");
-                    if (NaConfig.INSTANCE.getPushServiceTypeInAppDialog().Bool()) {
+                    Log.i("SovietGramPush", "starting persistent native push fallback");
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                         applicationContext.startForegroundService(new Intent(applicationContext, NotificationsService.class));
                     } else {
                         applicationContext.startService(new Intent(applicationContext, NotificationsService.class));
                     }
 
-                    Log.d("TFOSS", "Trying to start push service every 10 minutes");
-                    // Telegram-FOSS: unconditionally enable push service
+                    // A service PendingIntent is required here.  The old broadcast PendingIntent
+                    // targeted a Service class, so the ten-minute restart never reached anything.
                     AlarmManager am = (AlarmManager) applicationContext.getSystemService(Context.ALARM_SERVICE);
                     Intent i = new Intent(applicationContext, NotificationsService.class);
-                    pendingIntent = PendingIntent.getBroadcast(applicationContext, 0, i, PendingIntent.FLAG_IMMUTABLE);
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        pendingIntent = PendingIntent.getForegroundService(applicationContext, 1258, i,
+                                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+                    } else {
+                        pendingIntent = PendingIntent.getService(applicationContext, 1258, i,
+                                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+                    }
 
                     am.cancel(pendingIntent);
                     am.setInexactRepeating(AlarmManager.RTC_WAKEUP, System.currentTimeMillis(), 10 * 60 * 1000, pendingIntent);
                 } catch (Throwable e) {
-                    Log.e("TFOSS", "Failed to start push service");
+                    FileLog.e("Persistent push fallback failed to start", e);
                 }
             });
 
@@ -539,6 +549,7 @@ public class ApplicationLoader extends Application {
             schedulePushHealthChecks();
             if (getPushProvider().hasServices()) {
                 runPushHealthCheck();
+                startPushService();
             } else {
                 if (BuildVars.LOGS_ENABLED) {
                     FileLog.d("No valid " + getPushProvider().getLogTitle() + " APK found.");

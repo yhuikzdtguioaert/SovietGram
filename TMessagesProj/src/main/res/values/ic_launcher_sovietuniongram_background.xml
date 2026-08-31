@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_sovietuniongram_background">#FFFFFF</color>
+    <color name="ic_launcher_sovietuniongram_background">#F7EEDA</color>
+    <color name="sovietgram_icon_background">#F7EEDA</color>
 </resources>

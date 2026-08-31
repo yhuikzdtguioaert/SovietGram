@@ -77,12 +77,33 @@ object VlessConfig {
             put("settings", JSONObject().apply {
                 put("vnext", JSONArray().apply { put(vnext) })
             })
-            put("streamSettings", buildStreamSettings(link))
+            put("streamSettings", buildStreamSettings(link).apply {
+                // Route the outer TLS/Reality handshake through Xray's fragment dialer.  Only
+                // ClientHello records are split, with short randomized bounds, which hides the
+                // stable TLS packet signature without adding latency to the encrypted session.
+                put("sockopt", JSONObject().apply {
+                    put("dialerProxy", "tls-fragment")
+                    put("tcpNoDelay", true)
+                    put("tcpKeepAliveIdle", 60)
+                    put("tcpKeepAliveInterval", 30)
+                })
+            })
         }
 
         val direct = JSONObject().apply {
             put("protocol", "freedom")
             put("tag", "direct")
+        }
+        val tlsFragment = JSONObject().apply {
+            put("protocol", "freedom")
+            put("tag", "tls-fragment")
+            put("settings", JSONObject().apply {
+                put("fragment", JSONObject().apply {
+                    put("packets", "tlshello")
+                    put("length", "10-35")
+                    put("interval", "5-15")
+                })
+            })
         }
 
         val config = JSONObject().apply {
@@ -100,6 +121,7 @@ object VlessConfig {
             put("inbounds", JSONArray().apply { put(inbound) })
             put("outbounds", JSONArray().apply {
                 put(outbound)
+                put(tlsFragment)
                 put(direct)
             })
         }

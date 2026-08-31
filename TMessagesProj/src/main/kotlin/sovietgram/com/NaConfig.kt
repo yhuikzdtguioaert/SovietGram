@@ -1269,7 +1269,7 @@ object NaConfig {
         addConfig(
             "IconReplacements",
             ConfigItem.configTypeInt,
-            0
+            1
         )
     val showCopyAsSticker =
         addConfig(
@@ -1413,13 +1413,13 @@ object NaConfig {
         addConfig(
             "SwitchStyle",
             ConfigItem.configTypeInt,
-            0 // 0: default; 1: Modern
+            1 // 0: default; 1: Modern
         )
     val sliderStyle =
         addConfig(
             "SliderStyle",
             ConfigItem.configTypeInt,
-            0 // 0: default; 1: Modern; 2: MD3
+            1 // 0: default; 1: Modern
         )
     val iosButtonPlacement =
         addConfig(
@@ -1918,6 +1918,14 @@ object NaConfig {
                 notificationIcon.setConfigInt(4)
             }
             notificationIconDefaultMigrated.setConfigBool(true)
+        }
+        // Apply the new SovietGram visual baseline once to existing installs as well as to fresh
+        // installs.  After this marker users can still freely select the classic styles.
+        if (!getPreferences().getBoolean("SovietModernDefaultsV1", false)) {
+            iconReplacements.setConfigInt(1)
+            switchStyle.setConfigInt(1)
+            sliderStyle.setConfigInt(1)
+            getPreferences().edit { putBoolean("SovietModernDefaultsV1", true) }
         }
         if (translatorMode.Int() !in 0..2) {
             translatorMode.setConfigInt(0)
