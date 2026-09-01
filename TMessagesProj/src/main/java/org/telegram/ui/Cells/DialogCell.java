@@ -653,6 +653,8 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
     private boolean drawVerified;
     private boolean drawBotVerified;
     private boolean drawPremium;
+    private boolean drawSovietBadge;
+    private Drawable sovietBadgeDrawable;
     private final View emojiStatusView;
     private final AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable emojiStatus;
     private final AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable botVerification;
@@ -674,6 +676,18 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
     private ValueAnimator statusDrawableAnimator;
     long lastDialogChangedTime;
     private int statusDrawableLeft;
+
+    /** Width of Telegram's status slot plus SovietGram's independent role slot. */
+    private int getNameStatusIconsWidth() {
+        int width = drawPremium ? dp(24) : 0;
+        if (drawSovietBadge) {
+            if (width > 0) {
+                width += dp(3);
+            }
+            width += dp(15);
+        }
+        return width;
+    }
 
     private DialogsActivity parentFragment;
 
@@ -1315,6 +1329,7 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
         drawVerified = false;
         drawBotVerified = false;
         drawPremium = false;
+        drawSovietBadge = false;
         drawForwardIcon = false;
         drawGiftIcon = false;
         drawScam = 0;
@@ -1532,30 +1547,27 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                             drawVerified = !forbidVerified && user.verified;
                             drawBotVerified = !forbidVerified && !UserObject.isUserSelf(user) && user.bot_verification_icon != 0;
                         }
-                        drawPremium = MessagesController.getInstance(currentAccount).isPremiumUser(user) && UserConfig.getInstance(currentAccount).clientUserId != user.id && user.id != 0;
-                        // Our own mark goes where the premium star goes, and outranks it, but never
-                        // covers a status the person picked or a check Telegram gave them.
-                        final boolean sovietBadge = drawScam == 0 && !drawVerified
+                        drawPremium = MessagesController.getInstance(currentAccount).isPremiumUser(user)
+                                && UserConfig.getInstance(currentAccount).clientUserId != user.id && user.id != 0;
+                        drawSovietBadge = drawScam == 0 && !drawVerified
                                 && UserConfig.getInstance(currentAccount).clientUserId != user.id
-                                && UserObject.getEmojiStatusDocumentId(user) == null
                                 && SovietGramBadges.has(user.id);
-                        if (drawPremium || sovietBadge) {
-                            drawPremium = true;
+                        if (drawPremium) {
                             Long emojiStatusId = UserObject.getEmojiStatusDocumentId(user);
                             emojiStatus.center = LocaleController.isRTL;
                             if (emojiStatusId != null) {
                                 nameLayoutEllipsizeByGradient = true;
                                 emojiStatus.set(emojiStatusId, false);
                                 emojiStatus.setParticles(DialogObject.isEmojiStatusCollectible(user.emoji_status), false);
-                            } else if (sovietBadge) {
-                                nameLayoutEllipsizeByGradient = true;
-                                emojiStatus.set(SovietGramBadges.drawable(), false);
-                                emojiStatus.setParticles(false, false);
                             } else {
                                 nameLayoutEllipsizeByGradient = true;
                                 emojiStatus.set(PremiumGradient.getInstance().premiumStarDrawableMini, false);
                                 emojiStatus.setParticles(false, false);
                             }
+                        }
+                        if (drawSovietBadge) {
+                            nameLayoutEllipsizeByGradient = true;
+                            sovietBadgeDrawable = SovietGramBadges.drawable();
                         }
                     }
                     if (dialogBotVerificationIcon != 0 && drawBotVerified) {
@@ -2378,8 +2390,9 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
 
         nameAdditionalsForChannelSubscriber = 0;
         final boolean reserveMuteSlot = (dialogMuted || isHiddenInCommunity || drawUnmute || dialogMutedProgress > 0) && !drawVerified && drawScam == 0;
-        if (drawPremium && emojiStatus.getDrawable() != null) {
-            int w = dp(6 + 24 + 6);
+        final int statusIconsWidth = getNameStatusIconsWidth();
+        if (statusIconsWidth > 0) {
+            int w = dp(6) + statusIconsWidth + dp(6);
             if (reserveMuteSlot) {
                 w += dp(6) + Theme.dialogs_muteDrawable.getIntrinsicWidth();
             }
@@ -2390,9 +2403,6 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
             }
         } else if (reserveMuteSlot) {
             int w = dp(6) + Theme.dialogs_muteDrawable.getIntrinsicWidth();
-            if (drawPremium) {
-                w += dp(6 + 24 + 6);
-            }
             nameWidth -= w;
             nameAdditionalsForChannelSubscriber += w;
             if (LocaleController.isRTL) {
@@ -2400,13 +2410,6 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
             }
         } else if (drawVerified) {
             int w = dp(6) + Theme.dialogs_verifiedDrawable.getIntrinsicWidth();
-            nameWidth -= w;
-            nameAdditionalsForChannelSubscriber += w;
-            if (LocaleController.isRTL) {
-                nameLeft += w;
-            }
-        } else if (drawPremium) {
-            int w = dp(6 + 24 + 6);
             nameWidth -= w;
             nameAdditionalsForChannelSubscriber += w;
             if (LocaleController.isRTL) {
@@ -2841,16 +2844,16 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                     widthpx = Math.min(nameWidth, widthpx);
                 }
                 if ((dialogMuted || drawUnmute || dialogMutedProgress > 0) && !drawVerified && drawScam == 0) {
-                    if (drawPremium) {
-                        nameMuteLeft = (int) (nameLeft + (nameWidth - widthpx - left) - dp(24));
+                    if (getNameStatusIconsWidth() > 0) {
+                        nameMuteLeft = (int) (nameLeft + (nameWidth - widthpx - left) - getNameStatusIconsWidth());
                         nameMutedIconLeft = nameMuteLeft - dp(6) - Theme.dialogs_muteDrawable.getIntrinsicWidth();
                     } else {
                         nameMuteLeft = (int) (nameLeft + (nameWidth - widthpx) - dp(6) - Theme.dialogs_muteDrawable.getIntrinsicWidth());
                     }
                 } else if (drawVerified) {
                     nameMuteLeft = (int) (nameLeft + (nameWidth - widthpx) - dp(6) - Theme.dialogs_verifiedDrawable.getIntrinsicWidth());
-                } else if (drawPremium) {
-                    nameMuteLeft = (int) (nameLeft + (nameWidth - widthpx - left) - dp(24));
+                } else if (getNameStatusIconsWidth() > 0) {
+                    nameMuteLeft = (int) (nameLeft + (nameWidth - widthpx - left) - getNameStatusIconsWidth());
                     nameMutedIconLeft = nameMuteLeft - dp(6) - Theme.dialogs_muteDrawable.getIntrinsicWidth();
                 } else if (drawScam != 0) {
                     nameMuteLeft = (int) (nameLeft + (nameWidth - widthpx) - dp(6) - (drawScam == 1 ? Theme.dialogs_scamDrawable : Theme.dialogs_fakeDrawable).getIntrinsicWidth());
@@ -2940,10 +2943,10 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                 if (drawBotVerified) {
                     nameLeft += dp(21);
                 }
-                if ((dialogMuted || true) || drawUnmute || drawVerified || drawPremium || drawScam != 0) {
+                if ((dialogMuted || true) || drawUnmute || drawVerified || getNameStatusIconsWidth() > 0 || drawScam != 0) {
                     nameMuteLeft = (int) (nameLeft + left + dp(6));
-                    if (drawPremium) {
-                        nameMutedIconLeft = nameMuteLeft + dp(24 + 6);
+                    if (getNameStatusIconsWidth() > 0) {
+                        nameMutedIconLeft = nameMuteLeft + getNameStatusIconsWidth() + dp(6);
                     }
                 }
             }
@@ -3463,18 +3466,30 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                     long dialogBotVerificationIcon = 0;
                     if (user != null) {
                         user = MessagesController.getInstance(currentAccount).getUser(user.id);
-                        if (user != null && DialogObject.getEmojiStatusDocumentId(user.emoji_status) != 0) {
-                            nameLayoutEllipsizeByGradient = true;
-                            emojiStatus.set(DialogObject.getEmojiStatusDocumentId(user.emoji_status), animated);
-                            emojiStatus.setParticles(DialogObject.isEmojiStatusCollectible(user.emoji_status), animated);
-                        } else if (user != null && UserConfig.getInstance(currentAccount).clientUserId != user.id && SovietGramBadges.has(user.id)) {
-                            nameLayoutEllipsizeByGradient = true;
-                            emojiStatus.set(SovietGramBadges.drawable(), animated);
-                            emojiStatus.setParticles(false, animated);
-                        } else {
-                            nameLayoutEllipsizeByGradient = true;
-                            emojiStatus.set(PremiumGradient.getInstance().premiumStarDrawableMini, animated);
-                            emojiStatus.setParticles(false, animated);
+                        if (user != null) {
+                            final boolean wasPremium = drawPremium;
+                            final boolean wasSovietBadge = drawSovietBadge;
+                            drawPremium = MessagesController.getInstance(currentAccount).isPremiumUser(user)
+                                    && UserConfig.getInstance(currentAccount).clientUserId != user.id && user.id != 0;
+                            drawSovietBadge = drawScam == 0 && !drawVerified
+                                    && UserConfig.getInstance(currentAccount).clientUserId != user.id
+                                    && SovietGramBadges.has(user.id);
+                            if (drawPremium && DialogObject.getEmojiStatusDocumentId(user.emoji_status) != 0) {
+                                nameLayoutEllipsizeByGradient = true;
+                                emojiStatus.set(DialogObject.getEmojiStatusDocumentId(user.emoji_status), animated);
+                                emojiStatus.setParticles(DialogObject.isEmojiStatusCollectible(user.emoji_status), animated);
+                            } else if (drawPremium) {
+                                nameLayoutEllipsizeByGradient = true;
+                                emojiStatus.set(PremiumGradient.getInstance().premiumStarDrawableMini, animated);
+                                emojiStatus.setParticles(false, animated);
+                            } else {
+                                emojiStatus.set((Drawable) null, animated);
+                                emojiStatus.setParticles(false, animated);
+                            }
+                            sovietBadgeDrawable = drawSovietBadge ? SovietGramBadges.drawable() : null;
+                            if (wasPremium != drawPremium || wasSovietBadge != drawSovietBadge) {
+                                continueUpdate = true;
+                            }
                         }
                         dialogBotVerificationIcon = DialogObject.getBotVerificationIcon(user);
                         invalidate = true;
@@ -4567,7 +4582,7 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                         invalidate();
                     }
                 }
-                int muteAnchor = drawPremium ? nameMutedIconLeft : nameMuteLeft;
+                int muteAnchor = getNameStatusIconsWidth() > 0 ? nameMutedIconLeft : nameMuteLeft;
                 float muteX = muteAnchor - dp(useForceThreeLines || SharedConfig.useThreeLinesLayout ? 0 : 1);
                 float muteY = dp(SharedConfig.useThreeLinesLayout ? 13.5f : 17.5f);
                 if ((!(useForceThreeLines || SharedConfig.useThreeLinesLayout) || isForumCell()) && hasTags()) {
@@ -4648,6 +4663,21 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                 }
                 setDrawableBounds((drawScam == 1 ? Theme.dialogs_scamDrawable : Theme.dialogs_fakeDrawable), nameMuteLeft, y);
                 (drawScam == 1 ? Theme.dialogs_scamDrawable : Theme.dialogs_fakeDrawable).draw(canvas);
+            }
+
+            // The SovietGram role is a separate slot. It must never replace Telegram Premium's
+            // star/custom emoji; both are laid out and drawn side by side with a compact 3dp gap.
+            if (drawSovietBadge && sovietBadgeDrawable != null && !drawVerified && drawScam == 0) {
+                int y = dp(useForceThreeLines || SharedConfig.useThreeLinesLayout ? 15.5f : 18.5f);
+                if ((!(useForceThreeLines || SharedConfig.useThreeLinesLayout) || isForumCell()) && hasTags()) {
+                    y -= dp(9);
+                }
+                int x = nameMuteLeft + (drawPremium ? dp(27) : 0);
+                sovietBadgeDrawable.setColorFilter(new PorterDuffColorFilter(
+                        Theme.getColor(Theme.key_chats_verifiedBackground, resourcesProvider),
+                        PorterDuff.Mode.SRC_IN));
+                setDrawableBounds(sovietBadgeDrawable, x, y, dp(15), dp(15));
+                sovietBadgeDrawable.draw(canvas);
             }
 
             if (drawReorder || reorderIconProgress != 0) {

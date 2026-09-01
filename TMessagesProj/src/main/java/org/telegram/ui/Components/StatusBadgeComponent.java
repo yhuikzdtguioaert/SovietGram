@@ -47,14 +47,13 @@ public class StatusBadgeComponent {
         } else if (user != null && DialogObject.getEmojiStatusDocumentId(user.emoji_status) != 0) {
             statusDrawable.set(DialogObject.getEmojiStatusDocumentId(user.emoji_status), animated);
             statusDrawable.setColor(colorFilter);
-        } else if (badge(user, chat) != null) {
-            // After a verified tick and after a status the person picked themselves, before the
-            // premium star: a badge says something about this app, and anything Telegram itself has
-            // to say about an account is more important than that.
-            statusDrawable.set(SovietGramBadges.drawable(), animated);
-            statusDrawable.setColor(colorFilter);
         } else if (user != null && user.premium) {
             statusDrawable.set(PremiumGradient.getInstance().premiumStarDrawableMini, animated);
+            statusDrawable.setColor(colorFilter);
+        } else if (badge(user, chat) != null) {
+            // Compact one-slot rows keep Telegram's own status/premium identity first. Screens
+            // with two drawable slots (dialogs, headers and profiles) render the role separately.
+            statusDrawable.set(SovietGramBadges.drawable(), animated);
             statusDrawable.setColor(colorFilter);
         } else {
             statusDrawable.set((Drawable) null, animated);

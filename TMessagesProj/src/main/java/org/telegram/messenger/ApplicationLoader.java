@@ -73,7 +73,6 @@ public class ApplicationLoader extends Application {
 
     public static ApplicationLoader applicationLoaderInstance;
 
-    private static PendingIntent pendingIntent;
     private static PendingIntent pushHealthPendingIntent;
     static final String ACTION_PUSH_HEALTH = "sovietgram.com.action.PUSH_HEALTH";
     private static final long PUSH_HEALTH_INTERVAL_MS = 15 * 60 * 1000L;
@@ -457,56 +456,30 @@ public class ApplicationLoader extends Application {
     }
 
     private static void startPushServiceInternal() {
-        // Telegram cannot deliver a token from every third-party Firebase project. Keep the
-        // authenticated native socket alive alongside FCM; NotificationsService uses a dedicated
-        // hidden channel so this reliability path does not add an item to the notification shade.
+        // Real-time notification delivery without a permanent notification must be owned by the
+        // operating system. FCM/UnifiedPush wake the process from a stopped state; a short watchdog
+        // repairs token registration and catches up every account without keeping a foreground
+        // service alive.
         SharedPreferences preferences = MessagesController.getGlobalNotificationsSettings();
-        boolean enabled = preferences.getBoolean("pushService", true);
-        if (!preferences.getBoolean("sovietPersistentPushV2", false)) {
-            enabled = true;
-            preferences.edit()
-                    .putBoolean("pushService", true)
-                    .putBoolean("pushConnection", true)
-                    .putBoolean("sovietPersistentPushV2", true)
-                    .apply();
-        }
-        if (enabled) {
-            for (int account = 0; account < UserConfig.MAX_ACCOUNT_COUNT; account++) {
-                if (UserConfig.getInstance(account).isClientActivated()) {
-                    ConnectionsManager.getInstance(account).setPushConnectionEnabled(true);
-                }
+        final boolean systemPush = getPushProvider().hasServices();
+        preferences.edit()
+                .putBoolean("pushService", false)
+                .putBoolean("pushConnection", !systemPush)
+                .putBoolean("sovietPersistentPushV2", false)
+                .apply();
+        stopNativePushFallback();
+        for (int account = 0; account < UserConfig.MAX_ACCOUNT_COUNT; account++) {
+            if (UserConfig.getInstance(account).isClientActivated()) {
+                ConnectionsManager.getInstance(account).setPushConnectionEnabled(!systemPush);
             }
-            AndroidUtilities.runOnUIThread(() -> {
-                try {
-                    Log.i("SovietGramPush", "starting persistent native push fallback");
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        applicationContext.startForegroundService(new Intent(applicationContext, NotificationsService.class));
-                    } else {
-                        applicationContext.startService(new Intent(applicationContext, NotificationsService.class));
-                    }
-
-                    // A service PendingIntent is required here.  The old broadcast PendingIntent
-                    // targeted a Service class, so the ten-minute restart never reached anything.
-                    AlarmManager am = (AlarmManager) applicationContext.getSystemService(Context.ALARM_SERVICE);
-                    Intent i = new Intent(applicationContext, NotificationsService.class);
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        pendingIntent = PendingIntent.getForegroundService(applicationContext, 1258, i,
-                                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-                    } else {
-                        pendingIntent = PendingIntent.getService(applicationContext, 1258, i,
-                                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-                    }
-
-                    am.cancel(pendingIntent);
-                    am.setInexactRepeating(AlarmManager.RTC_WAKEUP, System.currentTimeMillis(), 10 * 60 * 1000, pendingIntent);
-                } catch (Throwable e) {
-                    FileLog.e("Persistent push fallback failed to start", e);
-                }
-            });
-
-        } else {
-            stopNativePushFallback();
         }
+        if (systemPush) {
+            getPushProvider().onRequestPushToken();
+        }
+        schedulePushHealthChecks();
+        Log.i("SovietGramPush", systemPush
+                ? "system push active; no resident service"
+                : "system push unavailable; bounded native recovery active");
     }
 
     private static void stopNativePushFallback() {
@@ -521,28 +494,19 @@ public class ApplicationLoader extends Application {
                 legacyIntent.cancel();
             }
             Intent serviceIntent = new Intent(applicationContext, NotificationsService.class);
-            PendingIntent scheduledIntent;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                scheduledIntent = PendingIntent.getForegroundService(
-                        applicationContext, 1258, serviceIntent,
-                        PendingIntent.FLAG_NO_CREATE | PendingIntent.FLAG_IMMUTABLE);
-            } else {
-                scheduledIntent = PendingIntent.getService(
-                        applicationContext, 1258, serviceIntent,
-                        PendingIntent.FLAG_NO_CREATE | PendingIntent.FLAG_IMMUTABLE);
-            }
+            PendingIntent scheduledIntent = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+                    ? PendingIntent.getForegroundService(applicationContext, 1258, serviceIntent,
+                            PendingIntent.FLAG_NO_CREATE | PendingIntent.FLAG_IMMUTABLE)
+                    : PendingIntent.getService(applicationContext, 1258, serviceIntent,
+                            PendingIntent.FLAG_NO_CREATE | PendingIntent.FLAG_IMMUTABLE);
             if (scheduledIntent != null) {
                 alarm.cancel(scheduledIntent);
                 scheduledIntent.cancel();
             }
-            if (pendingIntent != null) {
-                alarm.cancel(pendingIntent);
-                pendingIntent.cancel();
-                pendingIntent = null;
-            }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 NotificationManager manager = (NotificationManager) applicationContext.getSystemService(Context.NOTIFICATION_SERVICE);
                 manager.deleteNotificationChannel("sovietgram_native_push_v2");
+                manager.deleteNotificationChannel("sovietgram_native_push_hidden_v3");
                 manager.deleteNotificationChannel("push_service_channel");
             }
             Log.i("SovietGramPush", "native foreground fallback stopped; using system push provider");
@@ -574,22 +538,25 @@ public class ApplicationLoader extends Application {
     }
 
     public static void runPushHealthCheck() {
-        if (getPushProvider().hasServices()) {
+        final boolean systemPush = getPushProvider().hasServices();
+        if (systemPush) {
             getPushProvider().onRequestPushToken();
         }
-        // One global preference is used by ConnectionsManager for every account. Keep the socket
-        // fallback consistent across account switches instead of enabling only selectedAccount.
+        // The receiver is bounded: it opens the native connection only when no OS push provider is
+        // present, and otherwise relies on FCM/UnifiedPush to wake the app in real time.
         MessagesController.getGlobalNotificationsSettings().edit()
-                .putBoolean("pushConnection", true)
+                .putBoolean("pushConnection", !systemPush)
                 .apply();
         for (int account = 0; account < UserConfig.MAX_ACCOUNT_COUNT; account++) {
             if (!UserConfig.getInstance(account).isClientActivated()) {
                 continue;
             }
-            ConnectionsManager.getInstance(account).setPushConnectionEnabled(true);
+            ConnectionsManager.getInstance(account).setPushConnectionEnabled(!systemPush);
             ConnectionsManager.getInstance(account).resumeNetworkMaybe();
         }
-        Log.i("SovietGramPush", "watchdog: token reasserted; native fallback resumed for active accounts");
+        Log.i("SovietGramPush", systemPush
+                ? "watchdog: system token reasserted for every account"
+                : "watchdog: bounded native recovery resumed for every account");
     }
 
     @Override
@@ -607,6 +574,14 @@ public class ApplicationLoader extends Application {
 
     private static void initPushServices() {
         AndroidUtilities.runOnUIThread(() -> {
+            // Migrate the old resident "In-App" mode to Android's notification-free system push
+            // whenever Google Play Services is available. UnifiedPush remains an explicit choice.
+            if (NaConfig.INSTANCE.getPushServiceType().Int() == 0
+                    && GooglePlayServicesUtil.isGooglePlayServicesAvailable(applicationContext) == ConnectionResult.SUCCESS) {
+                NaConfig.INSTANCE.getPushServiceType().setConfigInt(1);
+                NaConfig.INSTANCE.getPushServiceTypeInAppDialog().setConfigBool(false);
+                pushProvider = null;
+            }
             schedulePushHealthChecks();
             if (getPushProvider().hasServices()) {
                 runPushHealthCheck();
