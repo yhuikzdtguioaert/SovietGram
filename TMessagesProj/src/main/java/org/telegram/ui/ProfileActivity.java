@@ -413,6 +413,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     private final Drawable[] premiumStarDrawable = new Drawable[2];
     private Long emojiStatusGiftId;
     private final AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable[] emojiStatusDrawable = new AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable[2];
+    private final AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable[] sovietBadgeDrawable = new AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable[2];
     private final AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable[] botVerificationDrawable = new AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable[2];
     private final Drawable[] verifiedCheckDrawable = new Drawable[2];
     private final CrossfadeDrawable[] verifiedCrossfadeDrawable = new CrossfadeDrawable[2];
@@ -3602,6 +3603,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     if (emojiStatusDrawable[i] != null) {
                         emojiStatusDrawable[i].attach();
                     }
+                    if (sovietBadgeDrawable[i] != null) {
+                        sovietBadgeDrawable[i].attach();
+                    }
                 }
                 for (int i = 0; i < botVerificationDrawable.length; ++i) {
                     if (botVerificationDrawable[i] != null) {
@@ -3617,6 +3621,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 for (int i = 0; i < emojiStatusDrawable.length; i++) {
                     if (emojiStatusDrawable[i] != null) {
                         emojiStatusDrawable[i].detach();
+                    }
+                    if (sovietBadgeDrawable[i] != null) {
+                        sovietBadgeDrawable[i].detach();
                     }
                 }
                 for (int i = 0; i < botVerificationDrawable.length; ++i) {
@@ -11865,27 +11872,17 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         return botVerificationDrawable[a];
     }
 
-    /**
-     * The badge, drawn in the same place a status would be.
-     *
-     * <p>Goes through the status drawable rather than being set on the name directly so it inherits
-     * everything that already works there: the colour the header tints it as it collapses, the
-     * attach and detach with the screen, and the crossfade when it replaces something else.
-     */
     private Drawable getBadgeDrawable(int a) {
-        if (emojiStatusDrawable[a] == null) {
-            emojiStatusDrawable[a] = new AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable(nameTextView[a], AndroidUtilities.dp(24), a == 0 ? AnimatedEmojiDrawable.CACHE_TYPE_EMOJI_STATUS : AnimatedEmojiDrawable.CACHE_TYPE_KEYBOARD);
+        if (sovietBadgeDrawable[a] == null) {
+            sovietBadgeDrawable[a] = new AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable(nameTextView[a], AndroidUtilities.dp(18), a == 0 ? AnimatedEmojiDrawable.CACHE_TYPE_EMOJI_STATUS : AnimatedEmojiDrawable.CACHE_TYPE_KEYBOARD);
             if (fragmentViewAttached) {
-                emojiStatusDrawable[a].attach();
+                sovietBadgeDrawable[a].attach();
             }
         }
-        if (a == 1) {
-            emojiStatusGiftId = null;
-        }
-        emojiStatusDrawable[a].set(SovietGramBadges.drawable(), true);
-        emojiStatusDrawable[a].setParticles(false, true);
+        sovietBadgeDrawable[a].set(SovietGramBadges.drawable(), true);
+        sovietBadgeDrawable[a].setParticles(false, true);
         updateEmojiStatusDrawableColor();
-        return emojiStatusDrawable[a];
+        return sovietBadgeDrawable[a];
     }
 
     private Drawable getEmojiStatusDrawable(TLRPC.EmojiStatus emojiStatus, boolean switchable, boolean animated, int a) {
@@ -11944,6 +11941,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             final int color = ColorUtils.blendARGB(ColorUtils.blendARGB(fromColor, 0xffffffff, progress), getThemedColor(Theme.key_player_actionBarTitle), mediaHeaderAnimationProgress);
             if (emojiStatusDrawable[a] != null) {
                 emojiStatusDrawable[a].setColor(color);
+            }
+            if (sovietBadgeDrawable[a] != null) {
+                sovietBadgeDrawable[a].setColor(color);
             }
             if (botVerificationDrawable[a] != null) {
                 botVerificationDrawable[a].setColor(ColorUtils.blendARGB(ColorUtils.blendARGB(fromColor, 0x99ffffff, progress), getThemedColor(Theme.key_player_actionBarTitle), mediaHeaderAnimationProgress));
@@ -12218,7 +12218,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 Drawable leftIcon = currentEncryptedChat != null ? getLockIconDrawable() : null;
                 boolean rightIconIsPremium = false, rightIconIsStatus = false, rightIconIsBadge = false;
                 final boolean hasSovietBadge = SovietGramBadges.has(user == null ? 0 : user.id);
-                nameTextView[a].setDrawablePadding(dp(5));
+                nameTextView[a].setDrawablePadding(dp(2));
                 nameTextView[a].setRightDrawableOnClick(null);
                 nameTextView[a].setRightDrawable2OnClick(null);
                 nameTextView[a].setRightDrawableOutside(a == 0);
@@ -12370,7 +12370,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 }
                 if (rightIconIsBadge) {
                     // The SovietGram mark has its own second slot and hit target. Telegram's premium
-                    // star/custom status stays first; five dp between them keeps both readable.
+                    // star/custom status stays independent and immediately beside it.
                     final long badgeOf = user.id;
                     nameTextView[a].setRightDrawable2OnClick(v -> SovietGramBadges.show(ProfileActivity.this, badgeOf));
                 }

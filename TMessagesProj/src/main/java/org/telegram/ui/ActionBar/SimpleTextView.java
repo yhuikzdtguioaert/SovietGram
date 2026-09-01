@@ -1342,17 +1342,32 @@ public class SimpleTextView extends View implements Drawable.Callback {
                 || (rightDrawable2OnClickListener != null && rightDrawable2 != null)) {
             if (event.getAction() == MotionEvent.ACTION_DOWN) {
                 pressedRightDrawable = null;
-                if (rightDrawable2OnClickListener != null && rightDrawable2 != null) {
+                // Resolve the real drawable bounds first. The previous oversized, overlapping
+                // hit boxes preferred the Soviet badge even when the premium status was tapped.
+                if (rightDrawableOnClickListener != null && rightDrawable != null) {
+                    Rect bounds = rightDrawable.getBounds();
+                    if (bounds.contains((int) event.getX(), (int) event.getY())) {
+                        pressedRightDrawable = rightDrawable;
+                    }
+                }
+                if (pressedRightDrawable == null && rightDrawable2OnClickListener != null && rightDrawable2 != null) {
                     Rect bounds = rightDrawable2.getBounds();
-                    AndroidUtilities.rectTmp.set(bounds.left - dp(8), bounds.top - dp(8), bounds.right + dp(8), bounds.bottom + dp(8));
-                    if (AndroidUtilities.rectTmp.contains((int) event.getX(), (int) event.getY())) {
+                    if (bounds.contains((int) event.getX(), (int) event.getY())) {
                         pressedRightDrawable = rightDrawable2;
                     }
                 }
                 if (pressedRightDrawable == null && rightDrawableOnClickListener != null && rightDrawable != null) {
-                    AndroidUtilities.rectTmp.set(rightDrawableX - dp(16), rightDrawableY - dp(16), rightDrawableX + dp(16), rightDrawableY + dp(16));
+                    Rect bounds = rightDrawable.getBounds();
+                    AndroidUtilities.rectTmp.set(bounds.left - dp(4), bounds.top - dp(4), bounds.right + dp(4), bounds.bottom + dp(4));
                     if (AndroidUtilities.rectTmp.contains((int) event.getX(), (int) event.getY())) {
                         pressedRightDrawable = rightDrawable;
+                    }
+                }
+                if (pressedRightDrawable == null && rightDrawable2OnClickListener != null && rightDrawable2 != null) {
+                    Rect bounds = rightDrawable2.getBounds();
+                    AndroidUtilities.rectTmp.set(bounds.left - dp(4), bounds.top - dp(4), bounds.right + dp(4), bounds.bottom + dp(4));
+                    if (AndroidUtilities.rectTmp.contains((int) event.getX(), (int) event.getY())) {
+                        pressedRightDrawable = rightDrawable2;
                     }
                 }
                 maybeClick = pressedRightDrawable != null;

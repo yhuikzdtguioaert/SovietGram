@@ -12,6 +12,7 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlarmManager;
 import android.app.Application;
+import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -428,10 +429,13 @@ public class ApplicationLoader extends Application {
     }
 
     private static void startPushServiceInternal() {
-        // FCM and the native socket are complementary.  A custom application id cannot assume
-        // that Telegram's FCM sender will always be able to reach the token, and some Samsung
-        // firmwares suspend the callback while keeping the token valid.  Keep the authenticated
-        // Telegram socket alive as a deterministic fallback for every signed-in account.
+        // FCM is the notification-free primary path. Android requires every foreground service
+        // to expose an ongoing notification, therefore the native service is reserved for devices
+        // which have no working push provider. The periodic socket watchdog below remains active.
+        if (getPushProvider().hasServices()) {
+            stopNativePushFallback();
+            return;
+        }
         SharedPreferences preferences = MessagesController.getGlobalNotificationsSettings();
         boolean enabled = preferences.getBoolean("pushService", true);
         if (!preferences.getBoolean("sovietPersistentPushV2", false)) {
@@ -476,15 +480,48 @@ public class ApplicationLoader extends Application {
                 }
             });
 
-        } else AndroidUtilities.runOnUIThread(() -> {
-            applicationContext.stopService(new Intent(applicationContext, NotificationsService.class));
+        } else {
+            stopNativePushFallback();
+        }
+    }
 
-            PendingIntent pintent = PendingIntent.getService(applicationContext, 0, new Intent(applicationContext, NotificationsService.class), PendingIntent.FLAG_MUTABLE);
-            AlarmManager alarm = (AlarmManager)applicationContext.getSystemService(Context.ALARM_SERVICE);
-            alarm.cancel(pintent);
+    private static void stopNativePushFallback() {
+        AndroidUtilities.runOnUIThread(() -> {
+            applicationContext.stopService(new Intent(applicationContext, NotificationsService.class));
+            AlarmManager alarm = (AlarmManager) applicationContext.getSystemService(Context.ALARM_SERVICE);
+            PendingIntent legacyIntent = PendingIntent.getService(
+                    applicationContext, 0, new Intent(applicationContext, NotificationsService.class),
+                    PendingIntent.FLAG_NO_CREATE | PendingIntent.FLAG_IMMUTABLE);
+            if (legacyIntent != null) {
+                alarm.cancel(legacyIntent);
+                legacyIntent.cancel();
+            }
+            Intent serviceIntent = new Intent(applicationContext, NotificationsService.class);
+            PendingIntent scheduledIntent;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                scheduledIntent = PendingIntent.getForegroundService(
+                        applicationContext, 1258, serviceIntent,
+                        PendingIntent.FLAG_NO_CREATE | PendingIntent.FLAG_IMMUTABLE);
+            } else {
+                scheduledIntent = PendingIntent.getService(
+                        applicationContext, 1258, serviceIntent,
+                        PendingIntent.FLAG_NO_CREATE | PendingIntent.FLAG_IMMUTABLE);
+            }
+            if (scheduledIntent != null) {
+                alarm.cancel(scheduledIntent);
+                scheduledIntent.cancel();
+            }
             if (pendingIntent != null) {
                 alarm.cancel(pendingIntent);
+                pendingIntent.cancel();
+                pendingIntent = null;
             }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                NotificationManager manager = (NotificationManager) applicationContext.getSystemService(Context.NOTIFICATION_SERVICE);
+                manager.deleteNotificationChannel("sovietgram_native_push_v2");
+                manager.deleteNotificationChannel("push_service_channel");
+            }
+            Log.i("SovietGramPush", "native foreground fallback stopped; using system push provider");
         });
     }
 
@@ -549,7 +586,7 @@ public class ApplicationLoader extends Application {
             schedulePushHealthChecks();
             if (getPushProvider().hasServices()) {
                 runPushHealthCheck();
-                startPushService();
+                stopNativePushFallback();
             } else {
                 if (BuildVars.LOGS_ENABLED) {
                     FileLog.d("No valid " + getPushProvider().getLogTitle() + " APK found.");

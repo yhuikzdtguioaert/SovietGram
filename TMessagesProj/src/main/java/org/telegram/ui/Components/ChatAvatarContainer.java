@@ -1085,7 +1085,7 @@ public class ChatAvatarContainer extends FrameLayout implements FactorAnimator.T
 
         titleTextView.setText(value);
         titleTextView.setScrollNonFitText(scrollable || isCentered());
-        titleTextView.setDrawablePadding(dp(5));
+        titleTextView.setDrawablePadding(dp(2));
         titleTextView.setRightDrawable2OnClick(null);
         rightDrawableIsScam = false;
         rightDrawableIsScamOrVerified = false;
