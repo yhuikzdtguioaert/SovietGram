@@ -23,7 +23,7 @@ import androidx.core.app.NotificationCompat;
 
 public class NotificationsService extends Service {
 
-    private static final String CHANNEL_ID = "sovietgram_native_push_v2";
+    private static final String CHANNEL_ID = "sovietgram_native_push_hidden_v3";
     private static final int NOTIFICATION_ID = 12580;
 
     @Override
@@ -31,10 +31,12 @@ public class NotificationsService extends Service {
         super.onCreate();
         NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            notificationManager.deleteNotificationChannel("sovietgram_native_push_v2");
+            notificationManager.deleteNotificationChannel("push_service_channel");
             NotificationChannel channel = new NotificationChannel(
                     CHANNEL_ID,
                     LocaleController.getString(R.string.SovietGramPushService),
-                    NotificationManager.IMPORTANCE_MIN);
+                    NotificationManager.IMPORTANCE_NONE);
             channel.setDescription(LocaleController.getString(R.string.SovietGramPushService));
             channel.setShowBadge(false);
             channel.enableLights(false);

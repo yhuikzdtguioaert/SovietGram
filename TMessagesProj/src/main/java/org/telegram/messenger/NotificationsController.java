@@ -4064,6 +4064,11 @@ public class NotificationsController extends BaseController implements Notificat
             }
             NotificationChannel notificationChannel = new NotificationChannel(channelId, secretChat ? LocaleController.getString(R.string.SecretChatName) : name, importance);
             notificationChannel.setGroup(groupId);
+            // If the user explicitly granted notification-policy access, make message channels
+            // eligible for alerts while Android is in priority-only Do Not Disturb mode.
+            if (!isSilent && systemNotificationManager.isNotificationPolicyAccessGranted()) {
+                notificationChannel.setBypassDnd(true);
+            }
             if (ledColor != 0) {
                 notificationChannel.enableLights(true);
                 notificationChannel.setLightColor(ledColor);

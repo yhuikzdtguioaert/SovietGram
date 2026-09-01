@@ -13,6 +13,7 @@ import android.app.Activity;
 import android.app.AlarmManager;
 import android.app.Application;
 import android.app.NotificationManager;
+import android.app.NotificationChannel;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -420,7 +421,34 @@ public class ApplicationLoader extends Application {
         org.osmdroid.config.Configuration.getInstance().setOsmdroidBasePath(new File(ApplicationLoader.applicationContext.getCacheDir(), "osmdroid"));
 
         LauncherIconController.tryFixLauncherIconIfNeeded();
+        updatePriorityNotificationChannels();
         ProxyRotationController.init();
+    }
+
+    private static void updatePriorityNotificationChannels() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            return;
+        }
+        try {
+            NotificationManager manager = (NotificationManager) applicationContext.getSystemService(Context.NOTIFICATION_SERVICE);
+            if (manager == null || !manager.isNotificationPolicyAccessGranted()) {
+                return;
+            }
+            for (NotificationChannel channel : manager.getNotificationChannels()) {
+                String id = channel.getId();
+                if (channel.getImportance() == NotificationManager.IMPORTANCE_NONE
+                        || id.contains("silent") || id.contains("proxy") || id.contains("push")) {
+                    continue;
+                }
+                if (!channel.canBypassDnd()) {
+                    channel.setBypassDnd(true);
+                    manager.createNotificationChannel(channel);
+                }
+            }
+            Log.i("SovietGramPush", "priority notification channels updated for DND");
+        } catch (Throwable e) {
+            FileLog.e("Unable to update DND notification channels", e);
+        }
     }
 
     // Local Push Service, TFoss implementation
@@ -429,13 +457,9 @@ public class ApplicationLoader extends Application {
     }
 
     private static void startPushServiceInternal() {
-        // FCM is the notification-free primary path. Android requires every foreground service
-        // to expose an ongoing notification, therefore the native service is reserved for devices
-        // which have no working push provider. The periodic socket watchdog below remains active.
-        if (getPushProvider().hasServices()) {
-            stopNativePushFallback();
-            return;
-        }
+        // Telegram cannot deliver a token from every third-party Firebase project. Keep the
+        // authenticated native socket alive alongside FCM; NotificationsService uses a dedicated
+        // hidden channel so this reliability path does not add an item to the notification shade.
         SharedPreferences preferences = MessagesController.getGlobalNotificationsSettings();
         boolean enabled = preferences.getBoolean("pushService", true);
         if (!preferences.getBoolean("sovietPersistentPushV2", false)) {
@@ -586,7 +610,7 @@ public class ApplicationLoader extends Application {
             schedulePushHealthChecks();
             if (getPushProvider().hasServices()) {
                 runPushHealthCheck();
-                stopNativePushFallback();
+                startPushService();
             } else {
                 if (BuildVars.LOGS_ENABLED) {
                     FileLog.d("No valid " + getPushProvider().getLogTitle() + " APK found.");
