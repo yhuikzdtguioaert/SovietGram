@@ -40,9 +40,6 @@ public class LauncherIconController {
         }
 
         for (LauncherIcon icon : LauncherIcon.values()) {
-            if (icon.customPicker) {
-                continue;
-            }
             if (isEnabled(icon)) {
                 return;
             }
@@ -52,9 +49,6 @@ public class LauncherIconController {
     }
 
     public static boolean isEnabled(LauncherIcon icon) {
-        if (icon.customPicker) {
-            return false;
-        }
         Context ctx = ApplicationLoader.applicationContext;
         int i = ctx.getPackageManager().getComponentEnabledSetting(icon.getComponentName(ctx));
         return i == PackageManager.COMPONENT_ENABLED_STATE_ENABLED || i == PackageManager.COMPONENT_ENABLED_STATE_DEFAULT && icon == LauncherIcon.DEFAULT;
@@ -64,9 +58,6 @@ public class LauncherIconController {
         Context ctx = ApplicationLoader.applicationContext;
         PackageManager pm = ctx.getPackageManager();
         for (LauncherIcon i : LauncherIcon.values()) {
-            if (i.customPicker) {
-                continue;
-            }
             pm.setComponentEnabledSetting(i.getComponentName(ctx), i == icon ? PackageManager.COMPONENT_ENABLED_STATE_ENABLED :
                     PackageManager.COMPONENT_ENABLED_STATE_DISABLED, PackageManager.DONT_KILL_APP);
         }
@@ -91,14 +82,13 @@ public class LauncherIconController {
         PREMIUM("PremiumIcon", R.drawable.icon_3_background_sa, R.mipmap.icon_3_foreground_sa, R.string.AppIconPremium),
         TURBO("TurboIcon", R.drawable.icon_5_background_sa, R.mipmap.icon_5_foreground_sa, R.string.AppIconTurbo),
         NOX("NoxIcon", R.mipmap.icon_2_background_sa, R.mipmap.icon_foreground_sa, R.string.AppIconNox),
-        SOVIET_CUSTOM("CustomPhotoIcon", R.drawable.app_icon_custom_picker, R.drawable.app_icon_custom_picker, R.string.AppIconSovietCustom, false, true);
+        SOVIET_CUSTOM("SovietCustomIcon", R.mipmap.ic_launcher_sovietgram_custom, R.mipmap.icon_foreground_sovietgram_heritage, R.string.AppIconSovietCustom);
 
         public final String key;
         public final int background;
         public final int foreground;
         public final int title;
         public final boolean premium;
-        public final boolean customPicker;
 
         private ComponentName componentName;
 
@@ -110,20 +100,15 @@ public class LauncherIconController {
         }
 
         LauncherIcon(String key, int background, int foreground, int title) {
-            this(key, background, foreground, title, false, false);
+            this(key, background, foreground, title, false);
         }
 
         LauncherIcon(String key, int background, int foreground, int title, boolean premium) {
-            this(key, background, foreground, title, premium, false);
-        }
-
-        LauncherIcon(String key, int background, int foreground, int title, boolean premium, boolean customPicker) {
             this.key = key;
             this.background = background;
             this.foreground = foreground;
             this.title = title;
             this.premium = premium;
-            this.customPicker = customPicker;
         }
 
         public boolean isNekoX() {

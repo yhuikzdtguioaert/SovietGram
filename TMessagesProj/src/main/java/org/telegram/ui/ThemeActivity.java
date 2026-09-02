@@ -240,7 +240,6 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
     private int liteModeInfoRow;
 
     private int appIconHeaderRow;
-    private AppIconsSelectorCell appIconsSelectorCell;
     @Keep
     private int appIconSelectorRow;
     private int appIconShadowRow;
@@ -1612,12 +1611,6 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
 
     @Override
     public void onActivityResultFragment(int requestCode, int resultCode, Intent data) {
-        if (requestCode == AppIconsSelectorCell.CUSTOM_APP_ICON_REQUEST_CODE) {
-            if (appIconsSelectorCell != null) {
-                appIconsSelectorCell.handleCustomIconResult(resultCode, data);
-            }
-            return;
-        }
         if (requestCode != LIVE_WALLPAPER_REQUEST_CODE) {
             return;
         }
@@ -2551,7 +2544,7 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
                     view = new RadioButtonCell(mContext);
                     break;
                 case TYPE_APP_ICON:
-                    view = appIconsSelectorCell = new AppIconsSelectorCell(mContext, ThemeActivity.this, currentAccount);
+                    view = new AppIconsSelectorCell(mContext, ThemeActivity.this, currentAccount);
                     break;
                 case TYPE_CHOOSE_COLOR:
                     view = new PeerColorActivity.ChangeNameColorCell(currentAccount, 0, mContext, getResourceProvider());

@@ -2,21 +2,13 @@ package org.telegram.ui.Cells;
 
 import android.animation.ValueAnimator;
 import android.annotation.SuppressLint;
-import android.app.Activity;
 import android.content.Context;
-import android.content.Intent;
-import android.graphics.Bitmap;
-import android.graphics.BitmapShader;
 import android.graphics.Canvas;
 import android.graphics.Color;
-import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Rect;
-import android.graphics.RectF;
-import android.graphics.Shader;
 import android.graphics.drawable.Drawable;
-import android.net.Uri;
 import android.text.Spannable;
 import android.text.SpannableString;
 import android.util.DisplayMetrics;
@@ -30,18 +22,12 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
-import androidx.core.content.pm.ShortcutInfoCompat;
-import androidx.core.content.pm.ShortcutManagerCompat;
 import androidx.core.graphics.ColorUtils;
-import androidx.core.graphics.drawable.IconCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.LinearSmoothScroller;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.telegram.messenger.AndroidUtilities;
-import org.telegram.messenger.ApplicationLoader;
-import org.telegram.messenger.FileLog;
-import org.telegram.messenger.ImageLoader;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.NotificationCenter;
@@ -56,30 +42,21 @@ import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.Premium.PremiumFeatureBottomSheet;
 import org.telegram.ui.Components.RecyclerListView;
 import org.telegram.ui.LauncherIconController;
-import org.telegram.ui.LaunchActivity;
 import org.telegram.ui.PremiumPreviewFragment;
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 public class AppIconsSelectorCell extends RecyclerListView implements NotificationCenter.NotificationCenterDelegate {
     public final static float ICONS_ROUND_RADIUS = 18;
-    public final static int CUSTOM_APP_ICON_REQUEST_CODE = 12581;
-    private static final String CUSTOM_SHORTCUT_ID = "sovietgram_custom_app_icon";
-    private static final String CUSTOM_ICON_FILE = "sovietgram_custom_app_icon.png";
 
     private List<LauncherIconController.LauncherIcon> availableIcons = new ArrayList<>();
     private LinearLayoutManager linearLayoutManager;
     private int currentAccount;
-    private final BaseFragment fragment;
 
     public AppIconsSelectorCell(Context context, BaseFragment fragment, int currentAccount) {
         super(context);
-        this.fragment = fragment;
         this.currentAccount = currentAccount;
         setPadding(0, AndroidUtilities.dp(12), 0, AndroidUtilities.dp(12));
 
@@ -133,10 +110,6 @@ public class AppIconsSelectorCell extends RecyclerListView implements Notificati
         setOnItemClickListener((view, position) -> {
             IconHolderView holderView = (IconHolderView) view;
             LauncherIconController.LauncherIcon icon = availableIcons.get(position);
-            if (icon.customPicker) {
-                pickCustomAppIcon();
-                return;
-            }
             if (icon.premium && !UserConfig.hasPremiumOnAccounts()) {
                 fragment.showDialog(new PremiumFeatureBottomSheet(fragment, PremiumPreviewFragment.PREMIUM_FEATURE_APPLICATION_ICONS, true));
                 return;
@@ -173,125 +146,6 @@ public class AppIconsSelectorCell extends RecyclerListView implements Notificati
             NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.showBulletin, Bulletin.TYPE_APP_ICON, icon);
         });
         updateIconsVisibility();
-    }
-
-    private void pickCustomAppIcon() {
-        try {
-            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-            intent.setType("image/*");
-            intent.addCategory(Intent.CATEGORY_OPENABLE);
-            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
-            fragment.startActivityForResult(intent, CUSTOM_APP_ICON_REQUEST_CODE);
-        } catch (Throwable e) {
-            FileLog.e("Unable to open custom app icon picker", e);
-        }
-    }
-
-    public void handleCustomIconResult(int resultCode, Intent data) {
-        if (resultCode != Activity.RESULT_OK || data == null || data.getData() == null) {
-            return;
-        }
-        final Uri uri = data.getData();
-        try {
-            getContext().getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        } catch (Throwable ignore) {
-        }
-        org.telegram.messenger.Utilities.globalQueue.postRunnable(() -> {
-            Bitmap source = null;
-            Bitmap icon = null;
-            try {
-                source = ImageLoader.loadBitmap(null, uri, 2048, 2048, true);
-                if (source == null) {
-                    throw new IllegalArgumentException("Selected image could not be decoded");
-                }
-                icon = createFramedCustomIcon(source);
-                File output = getCustomIconFile(getContext());
-                try (FileOutputStream stream = new FileOutputStream(output)) {
-                    icon.compress(Bitmap.CompressFormat.PNG, 100, stream);
-                }
-                final Bitmap shortcutBitmap = icon;
-                AndroidUtilities.runOnUIThread(() -> installOrUpdateCustomIcon(shortcutBitmap));
-                icon = null;
-            } catch (Throwable e) {
-                FileLog.e("Unable to create custom app icon", e);
-            } finally {
-                if (source != null) {
-                    source.recycle();
-                }
-                if (icon != null) {
-                    icon.recycle();
-                }
-            }
-        });
-    }
-
-    private void installOrUpdateCustomIcon(Bitmap bitmap) {
-        try {
-            Context context = getContext();
-            Intent launchIntent = new Intent(Intent.ACTION_MAIN)
-                    .setClass(context, LaunchActivity.class)
-                    .addCategory(Intent.CATEGORY_LAUNCHER)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-            ShortcutInfoCompat shortcut = new ShortcutInfoCompat.Builder(context, CUSTOM_SHORTCUT_ID)
-                    .setShortLabel(LocaleController.getString(R.string.SovietGram))
-                    .setLongLabel(LocaleController.getString(R.string.SovietGram))
-                    .setIcon(IconCompat.createWithAdaptiveBitmap(bitmap))
-                    .setIntent(launchIntent)
-                    .build();
-
-            boolean alreadyPinned = false;
-            for (ShortcutInfoCompat existing : ShortcutManagerCompat.getShortcuts(context, ShortcutManagerCompat.FLAG_MATCH_PINNED)) {
-                if (CUSTOM_SHORTCUT_ID.equals(existing.getId())) {
-                    alreadyPinned = true;
-                    break;
-                }
-            }
-            if (alreadyPinned) {
-                ShortcutManagerCompat.updateShortcuts(context, Collections.singletonList(shortcut));
-            } else if (ShortcutManagerCompat.isRequestPinShortcutSupported(context)) {
-                ShortcutManagerCompat.requestPinShortcut(context, shortcut, null);
-            }
-            int position = availableIcons.indexOf(LauncherIconController.LauncherIcon.SOVIET_CUSTOM);
-            if (position >= 0) {
-                getAdapter().notifyItemChanged(position);
-            }
-            NotificationCenter.getGlobalInstance().postNotificationName(
-                    NotificationCenter.showBulletin, Bulletin.TYPE_APP_ICON, LauncherIconController.LauncherIcon.SOVIET_CUSTOM);
-        } catch (Throwable e) {
-            FileLog.e("Unable to install custom app icon", e);
-        } finally {
-            bitmap.recycle();
-        }
-    }
-
-    private static Bitmap createFramedCustomIcon(Bitmap source) {
-        final int size = 512;
-        Bitmap result = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
-        Canvas canvas = new Canvas(result);
-        canvas.drawColor(Color.rgb(189, 21, 21));
-
-        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
-        RectF frame = new RectF(18, 18, size - 18, size - 18);
-        paint.setColor(Color.rgb(247, 238, 218));
-        canvas.drawRoundRect(frame, 118, 118, paint);
-
-        RectF photo = new RectF(34, 34, size - 34, size - 34);
-        BitmapShader shader = new BitmapShader(source, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP);
-        float scale = Math.max(photo.width() / source.getWidth(), photo.height() / source.getHeight());
-        Matrix matrix = new Matrix();
-        matrix.setScale(scale, scale);
-        matrix.postTranslate(
-                photo.centerX() - source.getWidth() * scale / 2f,
-                photo.centerY() - source.getHeight() * scale / 2f);
-        shader.setLocalMatrix(matrix);
-        paint.setShader(shader);
-        canvas.drawRoundRect(photo, 96, 96, paint);
-        paint.setShader(null);
-        return result;
-    }
-
-    private static File getCustomIconFile(Context context) {
-        return new File(context.getFilesDir(), CUSTOM_ICON_FILE);
     }
 
     @SuppressLint("NotifyDataSetChanged")
@@ -419,17 +273,7 @@ public class AppIconsSelectorCell extends RecyclerListView implements Notificati
         }
 
         private void bind(LauncherIconController.LauncherIcon icon) {
-            if (icon.customPicker) {
-                File customFile = getCustomIconFile(getContext());
-                Bitmap customBitmap = customFile.isFile() ? android.graphics.BitmapFactory.decodeFile(customFile.getAbsolutePath()) : null;
-                if (customBitmap != null) {
-                    iconView.setImageBitmap(customBitmap);
-                } else {
-                    iconView.setImageResource(icon.background);
-                }
-            } else {
-                iconView.setImageResource(icon.background);
-            }
+            iconView.setImageResource(icon.background);
 
             MarginLayoutParams params = (MarginLayoutParams) titleView.getLayoutParams();
             if (icon.premium && !UserConfig.hasPremiumOnAccounts()) {
