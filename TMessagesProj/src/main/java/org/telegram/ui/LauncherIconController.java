@@ -81,8 +81,7 @@ public class LauncherIconController {
         AQUA("AquaIcon", R.drawable.icon_4_background_sa, R.mipmap.icon_foreground_sa, R.string.AppIconAqua),
         PREMIUM("PremiumIcon", R.drawable.icon_3_background_sa, R.mipmap.icon_3_foreground_sa, R.string.AppIconPremium),
         TURBO("TurboIcon", R.drawable.icon_5_background_sa, R.mipmap.icon_5_foreground_sa, R.string.AppIconTurbo),
-        NOX("NoxIcon", R.mipmap.icon_2_background_sa, R.mipmap.icon_foreground_sa, R.string.AppIconNox),
-        SOVIET_CUSTOM("SovietCustomIcon", R.mipmap.ic_launcher_sovietgram_custom, R.mipmap.icon_foreground_sovietgram_heritage, R.string.AppIconSovietCustom);
+        NOX("NoxIcon", R.mipmap.icon_2_background_sa, R.mipmap.icon_foreground_sa, R.string.AppIconNox);
 
         public final String key;
         public final int background;
@@ -112,7 +111,7 @@ public class LauncherIconController {
         }
 
         public boolean isNekoX() {
-            return this == DEFAULT || this == SOVIET_CUSTOM;
+            return this == DEFAULT;
         }
     }
 }
