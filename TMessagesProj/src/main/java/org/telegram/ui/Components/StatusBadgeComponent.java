@@ -10,6 +10,8 @@ import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.Premium.PremiumGradient;
 
+import tw.nekomimi.nekogram.helpers.SovietGramBadges;
+
 public class StatusBadgeComponent {
 
     private final AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable statusDrawable;
@@ -48,11 +50,24 @@ public class StatusBadgeComponent {
         } else if (user != null && user.premium) {
             statusDrawable.set(PremiumGradient.getInstance().premiumStarDrawableMini, animated);
             statusDrawable.setColor(colorFilter);
+        } else if (badge(user, chat) != null) {
+            // Compact one-slot rows keep Telegram's own status/premium identity first. Screens
+            // with two drawable slots (dialogs, headers and profiles) render the role separately.
+            statusDrawable.set(SovietGramBadges.drawable(), animated);
+            statusDrawable.setColor(colorFilter);
         } else {
             statusDrawable.set((Drawable) null, animated);
             statusDrawable.setColor(null);
         }
         return statusDrawable;
+    }
+
+    /** The badge worn by whoever this row is about, or null. */
+    private static SovietGramBadges.Badge badge(TLRPC.User user, TLRPC.Chat chat) {
+        if (user != null) {
+            return SovietGramBadges.badgeOf(user.id);
+        }
+        return chat == null ? null : SovietGramBadges.badgeOf(chat.id);
     }
 
     public Drawable getDrawable() {

@@ -28,7 +28,7 @@ import org.telegram.ui.Cells.ChatMessageCell;
 import org.telegram.ui.Components.AvatarDrawable;
 
 import tw.nekomimi.nekogram.ui.icons.IconsResources;
-import xyz.nextalone.nagram.NaConfig;
+import sovietgram.com.NaConfig;
 
 class QuickShareAvatarCell implements ValueAnimator.AnimatorUpdateListener {
     private static final long DURATION = 180L;

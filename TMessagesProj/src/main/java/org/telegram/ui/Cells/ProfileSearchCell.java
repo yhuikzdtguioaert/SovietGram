@@ -72,8 +72,9 @@ import org.telegram.ui.community.CommunityUtils;
 
 import java.util.Locale;
 
-import xyz.nextalone.nagram.NaConfig;
+import sovietgram.com.NaConfig;
 import tw.nekomimi.nekogram.helpers.MessageHelper;
+import tw.nekomimi.nekogram.helpers.SovietGramProfileSync;
 
 public class ProfileSearchCell extends BaseCell implements NotificationCenter.NotificationCenterDelegate, Theme.Colorable {
 
@@ -246,6 +247,12 @@ public class ProfileSearchCell extends BaseCell implements NotificationCenter.No
         subLabel = s;
         drawCount = needCount;
         savedMessages = saved;
+        // Search results and contact rows draw the peer's premium star too, off the same user object.
+        // Coalesced and TTL-cached; see SovietGramProfileSync.sighted.
+        final TLRPC.User peer = user != null ? user : contact != null ? contact.user : null;
+        if (peer != null && peer.id > 0 && !peer.self && !peer.bot) {
+            SovietGramProfileSync.sighted(currentAccount, peer.id);
+        }
         update(0);
     }
 

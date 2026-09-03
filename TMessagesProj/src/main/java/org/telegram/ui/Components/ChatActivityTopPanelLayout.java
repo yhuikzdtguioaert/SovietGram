@@ -7,9 +7,7 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Path;
 import android.graphics.RectF;
-import android.graphics.drawable.Drawable;
 import android.view.MotionEvent;
-import android.view.View;
 import android.widget.LinearLayout;
 
 import androidx.annotation.NonNull;
@@ -19,15 +17,27 @@ import org.telegram.ui.Components.blur3.drawable.BlurredBackgroundDrawable;
 
 import me.vkryl.android.animator.ListAnimator;
 
+import sovietgram.com.NaConfig;
+
 public class ChatActivityTopPanelLayout extends AnimatedLinearLayout {
     public ChatActivityTopPanelLayout(@NonNull Context context) {
         super(context);
 
         setOrientation(LinearLayout.VERTICAL);
+        flatPanel = NaConfig.isLegacyChatHeader();
         updateColors();
     }
 
+    /**
+     * Pre-12.2.0 look: the pinned-message / report-spam stack is a full-width opaque strip
+     * glued under the action bar instead of a rounded floating card. Only the corner radius,
+     * the side bleed and the background fill change — heights and the animator-driven
+     * layout are untouched, so ChatActivity's offsets keep matching.
+     */
+    private final boolean flatPanel;
+
     BlurredBackgroundDrawable backgroundDrawable;
+    private final android.graphics.Paint flatBackgroundPaint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
 
     public void setBlurredBackground(BlurredBackgroundDrawable background) {
         backgroundDrawable = background;
@@ -66,11 +76,21 @@ public class ChatActivityTopPanelLayout extends AnimatedLinearLayout {
         final float bgHeight = getMetadata().getTotalHeight();
         final float bgAlpha = getMetadata().getTotalVisibility();
 
-        clipRectF.set(getPaddingLeft(), getPaddingTop(), getMeasuredWidth() - getPaddingRight(), getPaddingTop() + bgHeight);
+        if (flatPanel) {
+            // Full bleed: the panel is drawn edge to edge, ignoring the 7dp gutter that
+            // ChatActivity keeps applying as padding for the floating card.
+            clipRectF.set(0, 0, getMeasuredWidth(), getPaddingTop() + bgHeight);
+        } else {
+            clipRectF.set(getPaddingLeft(), getPaddingTop(), getMeasuredWidth() - getPaddingRight(), getPaddingTop() + bgHeight);
+        }
 
-        final float r = Math.min(dp(18), Math.min(clipRectF.width(), clipRectF.height()) / 2f);
+        final float r = flatPanel ? 0 : Math.min(dp(18), Math.min(clipRectF.width(), clipRectF.height()) / 2f);
         clipPath.rewind();
         clipPath.addRoundRect(clipRectF, r, r, Path.Direction.CW);
+
+        if (flatPanel) {
+            return;
+        }
 
         if (backgroundDrawable != null) {
             backgroundDrawable.setAlpha((int) (bgAlpha * 255));
@@ -84,78 +104,35 @@ public class ChatActivityTopPanelLayout extends AnimatedLinearLayout {
             backgroundDrawable.updateColors();
         }
 
-        final int color = Theme.getColor(Theme.key_windowBackgroundWhite);
-        final int alpha = Color.alpha(color);
+        flatBackgroundPaint.setColor(Theme.getColor(Theme.key_chat_topPanelBackground));
 
         invalidate();
     }
 
-    private FragmentContextView callFragmentContextView;
-
-    public void setCallFragmentContextView(FragmentContextView fragmentContextView) {
-        callFragmentContextView = fragmentContextView;
-        callFragmentContextView.getCapsuleBlobDrawable().setCallback(this);
-    }
-
-    @Override
-    protected boolean verifyDrawable(@NonNull Drawable who) {
-        return super.verifyDrawable(who) || callFragmentContextView != null && callFragmentContextView.getCapsuleBlobDrawable() == who;
-    }
-
     @Override
     protected void dispatchDraw(@NonNull Canvas canvas) {
-        if (getMetadata().getTotalVisibility() == 0) return;
+        final float totalVisibility = getMetadata().getTotalVisibility();
+        if (totalVisibility == 0) return;
 
-        if (backgroundDrawable != null) {
+        if (flatPanel) {
+            final int wasAlpha = flatBackgroundPaint.getAlpha();
+            flatBackgroundPaint.setAlpha((int) (wasAlpha * totalVisibility));
+            canvas.drawRect(clipRectF, flatBackgroundPaint);
+            flatBackgroundPaint.setAlpha(wasAlpha);
+        } else if (backgroundDrawable != null) {
             backgroundDrawable.draw(canvas);
-        }
-
-        boolean callDrawn = false;
-        if (callFragmentContextView != null) {
-            final int style = callFragmentContextView.getCurrentStyle();
-            if (style == FragmentContextView.STYLE_ACTIVE_GROUP_CALL || style == FragmentContextView.STYLE_CONNECTING_GROUP_CALL) {
-                for (int a = 0, N = getEntriesCount(); a < N; a++) {
-                    final ListAnimator.Entry<AnimatedLinearLayout.Holder> entry = getEntry(a);
-                    final float top = getPaddingTop() + entry.getRectF().top;
-                    final View view = entry.item.view;
-                    final float alpha = entry.getVisibility();
-                    if (alpha <= 0) {
-                        continue;
-                    }
-
-                    if (callFragmentContextView == view || callFragmentContextView.getParent() == view) {
-                        final CapsuleBlobDrawable capsuleBlobDrawable = callFragmentContextView.getCapsuleBlobDrawable();
-
-                        final int p = capsuleBlobDrawable.getRequiredInset();
-                        final int h = dp(36) + p * 2;
-                        capsuleBlobDrawable.setBounds(getPaddingLeft() - p, -p, getMeasuredWidth() - getPaddingRight() + p, -p + h);
-                        capsuleBlobDrawable.setAlpha((int) (255 * alpha));
-                        canvas.save();
-                        canvas.translate(0, top);
-                        capsuleBlobDrawable.draw(canvas);
-                        canvas.restore();
-
-                        callDrawn = true;
-                    }
-                }
-            }
         }
 
         canvas.save();
         canvas.clipPath(clipPath);
         for (int a = 0, N = getEntriesCount(); a < N; a++) {
-            final ListAnimator.Entry<AnimatedLinearLayout.Holder> entry = getEntry(a);
+            final ListAnimator.Entry<?> entry = getEntry(a);
             final float top = getPaddingTop() + entry.getRectF().top;
-            final View view = entry.item.view;
 
             final float position = entry.getPosition();
             final float alpha = entry.getVisibility() * Math.min(1, position);
 
             if (alpha <= 0) {
-                continue;
-            }
-
-            if (callDrawn && callFragmentContextView != null && (callFragmentContextView == view || callFragmentContextView.getParent() == view)) {
                 continue;
             }
 

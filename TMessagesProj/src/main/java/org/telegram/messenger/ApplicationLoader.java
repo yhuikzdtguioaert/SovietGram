@@ -12,6 +12,8 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlarmManager;
 import android.app.Application;
+import android.app.NotificationManager;
+import android.app.NotificationChannel;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -21,6 +23,7 @@ import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.res.Configuration;
+import android.content.res.Resources;
 import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
@@ -59,8 +62,9 @@ import java.util.Locale;
 import java.util.concurrent.CountDownLatch;
 
 import tw.nekomimi.nekogram.NekoConfig;
+import tw.nekomimi.nekogram.ui.icons.IconsResources;
 import tw.nekomimi.nekogram.utils.AndroidUtil;
-import xyz.nextalone.nagram.NaConfig;
+import sovietgram.com.NaConfig;
 import com.google.firebase.crashlytics.FirebaseCrashlytics;
 
 import static android.os.Build.VERSION.SDK_INT;
@@ -69,7 +73,9 @@ public class ApplicationLoader extends Application {
 
     public static ApplicationLoader applicationLoaderInstance;
 
-    private static PendingIntent pendingIntent;
+    private static PendingIntent pushHealthPendingIntent;
+    static final String ACTION_PUSH_HEALTH = "sovietgram.com.action.PUSH_HEALTH";
+    private static final long PUSH_HEALTH_INTERVAL_MS = 15 * 60 * 1000L;
 
     @SuppressLint("StaticFieldLeak")
     public static volatile Context applicationContext;
@@ -105,6 +111,30 @@ public class ApplicationLoader extends Application {
         try {
             applicationContext = getApplicationContext();
         } catch (Throwable ignore) {
+        }
+    }
+
+    /**
+     * A great deal of the interface loads its drawables through
+     * {@code ApplicationLoader.applicationContext.getResources()} rather than through an activity,
+     * and every one of those bypassed the icon replacements while only
+     * {@link org.telegram.ui.LaunchActivity} wrapped its resources. Wrapping here as well is what
+     * makes a replacement set reach the drawer, the notifications, the theme's shared drawables and
+     * everything else built off the application context.
+     */
+    @Override
+    public Resources getResources() {
+        Resources resources = super.getResources();
+        if (resources == null) {
+            return null;
+        }
+        try {
+            // Wrapping runs before FileLog is up, so a failure here has to stay silent and
+            // simply leave the built-in icons in place.
+            Resources wrapped = IconsResources.wrap(resources);
+            return wrapped != null ? wrapped : resources;
+        } catch (Throwable e) {
+            return resources;
         }
     }
 
@@ -275,6 +305,13 @@ public class ApplicationLoader extends Application {
         SharedConfig.loadConfig();
         NekoConfig.init();
         NaConfig.init();
+        // The embedded local proxy lives in our process. Recreate it after a
+        // normal process exit/relaunch instead of leaving Telegram pointed at
+        // a dead 127.0.0.1 port until the user toggles the setting manually.
+        AndroidUtilities.runOnUIThread(() ->
+                sovietgram.com.proxy.TgWsProxyController.restartIfEnabled(applicationContext), 750);
+        AndroidUtilities.runOnUIThread(() ->
+                sovietgram.com.proxy.XrayController.restartIfEnabled(applicationContext), 850);
         SharedPrefsHelper.init(applicationContext);
         FirebaseCrashlytics.getInstance().setCrashlyticsCollectionEnabled(AndroidUtil.shouldEnableCrashlytics());
         for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) { //TODO improve account
@@ -291,12 +328,17 @@ public class ApplicationLoader extends Application {
                 SendMessagesHelper.getInstance(a).checkUnsentMessages();
             }
         }
-
-        PushListenerController.reconcilePushRegistration();
+        // The scoped fake-identity settings — fake premium, the Fragment number and usernames, the
+        // fake balances and the Custom Profile look — hold one account's values at a time, so the
+        // account being opened has to claim them before anything draws from them. Right here, because
+        // the accounts have just been loaded (it needs their telegram ids) and the first screen is next.
+        tw.nekomimi.nekogram.helpers.SovietGramAccountScope.syncToSelected();
 
         // init fcm
         initPushServices();
-        FileLog.d("app initied");
+        if (BuildVars.LOGS_ENABLED) {
+            FileLog.d("app initied");
+        }
 
         MediaController.getInstance();
         for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) { //TODO improve account
@@ -374,11 +416,38 @@ public class ApplicationLoader extends Application {
 
         applicationHandler = new Handler(applicationContext.getMainLooper());
 
-        org.osmdroid.config.Configuration.getInstance().setUserAgentValue("Telegram-FOSS ( NagramXTurbo ) " + BuildConfig.VERSION_NAME);
+        org.osmdroid.config.Configuration.getInstance().setUserAgentValue("Telegram-FOSS ( NekoX ) " + BuildConfig.VERSION_NAME);
         org.osmdroid.config.Configuration.getInstance().setOsmdroidBasePath(new File(ApplicationLoader.applicationContext.getCacheDir(), "osmdroid"));
 
         LauncherIconController.tryFixLauncherIconIfNeeded();
+        updatePriorityNotificationChannels();
         ProxyRotationController.init();
+    }
+
+    private static void updatePriorityNotificationChannels() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            return;
+        }
+        try {
+            NotificationManager manager = (NotificationManager) applicationContext.getSystemService(Context.NOTIFICATION_SERVICE);
+            if (manager == null || !manager.isNotificationPolicyAccessGranted()) {
+                return;
+            }
+            for (NotificationChannel channel : manager.getNotificationChannels()) {
+                String id = channel.getId();
+                if (channel.getImportance() == NotificationManager.IMPORTANCE_NONE
+                        || id.contains("silent") || id.contains("proxy") || id.contains("push")) {
+                    continue;
+                }
+                if (!channel.canBypassDnd()) {
+                    channel.setBypassDnd(true);
+                    manager.createNotificationChannel(channel);
+                }
+            }
+            Log.i("SovietGramPush", "priority notification channels updated for DND");
+        } catch (Throwable e) {
+            FileLog.e("Unable to update DND notification channels", e);
+        }
     }
 
     // Local Push Service, TFoss implementation
@@ -387,54 +456,107 @@ public class ApplicationLoader extends Application {
     }
 
     private static void startPushServiceInternal() {
-        if (PushListenerController.getProvider().hasServices()) {
-            return;
-        }
-        SharedPreferences preferences = MessagesController.getNotificationsSettings(UserConfig.selectedAccount);
-        boolean enabled;
-        if (preferences.contains("pushService")) {
-            enabled = preferences.getBoolean("pushService", true);
-        } else {
-            enabled = MessagesController.getMainSettings(UserConfig.selectedAccount).getBoolean("keepAliveService", false);
-            SharedPreferences.Editor editor = preferences.edit();
-            editor.putBoolean("pushService", enabled);
-            editor.putBoolean("pushConnection", enabled);
-            editor.apply();
-            ConnectionsManager.getInstance(UserConfig.selectedAccount).setPushConnectionEnabled(enabled);
-        }
-        if (enabled) {
-            AndroidUtilities.runOnUIThread(() -> {
-                try {
-                    Log.d("TFOSS", "Starting push service...");
-                    if (NaConfig.INSTANCE.getPushServiceTypeInAppDialog().Bool()) {
-                        applicationContext.startForegroundService(new Intent(applicationContext, NotificationsService.class));
-                    } else {
-                        applicationContext.startService(new Intent(applicationContext, NotificationsService.class));
-                    }
-
-                    Log.d("TFOSS", "Trying to start push service every 10 minutes");
-                    // Telegram-FOSS: unconditionally enable push service
-                    AlarmManager am = (AlarmManager) applicationContext.getSystemService(Context.ALARM_SERVICE);
-                    Intent i = new Intent(applicationContext, NotificationsService.class);
-                    pendingIntent = PendingIntent.getBroadcast(applicationContext, 0, i, PendingIntent.FLAG_IMMUTABLE);
-
-                    am.cancel(pendingIntent);
-                    am.setInexactRepeating(AlarmManager.RTC_WAKEUP, System.currentTimeMillis(), 10 * 60 * 1000, pendingIntent);
-                } catch (Throwable e) {
-                    Log.e("TFOSS", "Failed to start push service");
-                }
-            });
-
-        } else AndroidUtilities.runOnUIThread(() -> {
-            applicationContext.stopService(new Intent(applicationContext, NotificationsService.class));
-
-            PendingIntent pintent = PendingIntent.getService(applicationContext, 0, new Intent(applicationContext, NotificationsService.class), PendingIntent.FLAG_MUTABLE);
-            AlarmManager alarm = (AlarmManager)applicationContext.getSystemService(Context.ALARM_SERVICE);
-            alarm.cancel(pintent);
-            if (pendingIntent != null) {
-                alarm.cancel(pendingIntent);
+        // Real-time notification delivery without a permanent notification must be owned by the
+        // operating system. FCM/UnifiedPush wake the process from a stopped state; a short watchdog
+        // repairs token registration and catches up every account without keeping a foreground
+        // service alive.
+        SharedPreferences preferences = MessagesController.getGlobalNotificationsSettings();
+        final boolean systemPush = getPushProvider().hasServices();
+        preferences.edit()
+                .putBoolean("pushService", false)
+                .putBoolean("pushConnection", !systemPush)
+                .putBoolean("sovietPersistentPushV2", false)
+                .apply();
+        stopNativePushFallback();
+        for (int account = 0; account < UserConfig.MAX_ACCOUNT_COUNT; account++) {
+            if (UserConfig.getInstance(account).isClientActivated()) {
+                ConnectionsManager.getInstance(account).setPushConnectionEnabled(!systemPush);
             }
+        }
+        if (systemPush) {
+            getPushProvider().onRequestPushToken();
+        }
+        schedulePushHealthChecks();
+        Log.i("SovietGramPush", systemPush
+                ? "system push active; no resident service"
+                : "system push unavailable; bounded native recovery active");
+    }
+
+    private static void stopNativePushFallback() {
+        AndroidUtilities.runOnUIThread(() -> {
+            applicationContext.stopService(new Intent(applicationContext, NotificationsService.class));
+            AlarmManager alarm = (AlarmManager) applicationContext.getSystemService(Context.ALARM_SERVICE);
+            PendingIntent legacyIntent = PendingIntent.getService(
+                    applicationContext, 0, new Intent(applicationContext, NotificationsService.class),
+                    PendingIntent.FLAG_NO_CREATE | PendingIntent.FLAG_IMMUTABLE);
+            if (legacyIntent != null) {
+                alarm.cancel(legacyIntent);
+                legacyIntent.cancel();
+            }
+            Intent serviceIntent = new Intent(applicationContext, NotificationsService.class);
+            PendingIntent scheduledIntent = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+                    ? PendingIntent.getForegroundService(applicationContext, 1258, serviceIntent,
+                            PendingIntent.FLAG_NO_CREATE | PendingIntent.FLAG_IMMUTABLE)
+                    : PendingIntent.getService(applicationContext, 1258, serviceIntent,
+                            PendingIntent.FLAG_NO_CREATE | PendingIntent.FLAG_IMMUTABLE);
+            if (scheduledIntent != null) {
+                alarm.cancel(scheduledIntent);
+                scheduledIntent.cancel();
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                NotificationManager manager = (NotificationManager) applicationContext.getSystemService(Context.NOTIFICATION_SERVICE);
+                manager.deleteNotificationChannel("sovietgram_native_push_v2");
+                manager.deleteNotificationChannel("sovietgram_native_push_hidden_v3");
+                manager.deleteNotificationChannel("push_service_channel");
+            }
+            Log.i("SovietGramPush", "native foreground fallback stopped; using system push provider");
         });
+    }
+
+    /**
+     * Samsung and a few other vendor builds occasionally keep the FCM token valid but stop delivering
+     * callbacks to a killed app. This watchdog does not post an ongoing notification: it periodically
+     * wakes a short receiver, reasserts the token for every signed-in account and opens Telegram's
+     * native push connection as a fallback. FCM remains the primary path.
+     */
+    private static void schedulePushHealthChecks() {
+        try {
+            AlarmManager alarm = (AlarmManager) applicationContext.getSystemService(Context.ALARM_SERVICE);
+            Intent intent = new Intent(applicationContext, PushHealthReceiver.class).setAction(ACTION_PUSH_HEALTH);
+            pushHealthPendingIntent = PendingIntent.getBroadcast(
+                    applicationContext, 1258, intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            alarm.cancel(pushHealthPendingIntent);
+            alarm.setInexactRepeating(
+                    AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                    SystemClock.elapsedRealtime() + 60_000L,
+                    PUSH_HEALTH_INTERVAL_MS,
+                    pushHealthPendingIntent);
+        } catch (Throwable e) {
+            FileLog.e("Push health watchdog schedule failed", e);
+        }
+    }
+
+    public static void runPushHealthCheck() {
+        final boolean systemPush = getPushProvider().hasServices();
+        if (systemPush) {
+            getPushProvider().onRequestPushToken();
+        }
+        // The receiver is bounded: it opens the native connection only when no OS push provider is
+        // present, and otherwise relies on FCM/UnifiedPush to wake the app in real time.
+        MessagesController.getGlobalNotificationsSettings().edit()
+                .putBoolean("pushConnection", !systemPush)
+                .apply();
+        for (int account = 0; account < UserConfig.MAX_ACCOUNT_COUNT; account++) {
+            if (!UserConfig.getInstance(account).isClientActivated()) {
+                continue;
+            }
+            ConnectionsManager.getInstance(account).setPushConnectionEnabled(!systemPush);
+            ConnectionsManager.getInstance(account).resumeNetworkMaybe();
+        }
+        Log.i("SovietGramPush", systemPush
+                ? "watchdog: system token reasserted for every account"
+                : "watchdog: bounded native recovery resumed for every account");
     }
 
     @Override
@@ -452,8 +574,18 @@ public class ApplicationLoader extends Application {
 
     private static void initPushServices() {
         AndroidUtilities.runOnUIThread(() -> {
+            // Migrate the old resident "In-App" mode to Android's notification-free system push
+            // whenever Google Play Services is available. UnifiedPush remains an explicit choice.
+            if (NaConfig.INSTANCE.getPushServiceType().Int() == 0
+                    && GooglePlayServicesUtil.isGooglePlayServicesAvailable(applicationContext) == ConnectionResult.SUCCESS) {
+                NaConfig.INSTANCE.getPushServiceType().setConfigInt(1);
+                NaConfig.INSTANCE.getPushServiceTypeInAppDialog().setConfigBool(false);
+                pushProvider = null;
+            }
+            schedulePushHealthChecks();
             if (getPushProvider().hasServices()) {
-                getPushProvider().onRequestPushToken();
+                runPushHealthCheck();
+                startPushService();
             } else {
                 if (BuildVars.LOGS_ENABLED) {
                     FileLog.d("No valid " + getPushProvider().getLogTitle() + " APK found.");
@@ -703,38 +835,29 @@ public class ApplicationLoader extends Application {
     }
 
     public boolean openApkInstall(Activity activity, TLRPC.Document document) {
+        boolean exists = false;
         try {
+            String fileName = FileLoader.getAttachFileName(document);
             File f = FileLoader.getInstance(UserConfig.selectedAccount).getPathToAttach(document, true);
-            return openApkInstall(activity, f);
+            if (exists = f.exists()) {
+                Intent intent = new Intent(Intent.ACTION_VIEW);
+                intent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+
+                if (Build.VERSION.SDK_INT >= 24) {
+                    intent.setDataAndType(FileProvider.getUriForFile(activity, ApplicationLoader.getApplicationId() + ".provider", f), "application/vnd.android.package-archive");
+                } else {
+                    intent.setDataAndType(Uri.fromFile(f), "application/vnd.android.package-archive");
+                }
+                try {
+                    activity.startActivityForResult(intent, 500);
+                } catch (Exception e) {
+                    FileLog.e(e);
+                }
+            }
         } catch (Exception e) {
             FileLog.e(e);
-            return false;
         }
-    }
-
-    public boolean openApkInstall(Activity activity, File file) {
-        try {
-            if (activity == null || file == null || !file.exists()) {
-                return false;
-            }
-            Intent intent = new Intent(Intent.ACTION_VIEW);
-            intent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-
-            if (Build.VERSION.SDK_INT >= 24) {
-                intent.setDataAndType(FileProvider.getUriForFile(activity, ApplicationLoader.getApplicationId() + ".provider", file), "application/vnd.android.package-archive");
-            } else {
-                intent.setDataAndType(Uri.fromFile(file), "application/vnd.android.package-archive");
-            }
-            try {
-                activity.startActivityForResult(intent, 500);
-            } catch (Exception e) {
-                FileLog.e(e);
-            }
-            return true;
-        } catch (Exception e) {
-            FileLog.e(e);
-            return false;
-        }
+        return exists;
     }
 
     @Nullable

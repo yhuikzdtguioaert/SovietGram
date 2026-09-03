@@ -20,7 +20,7 @@ import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Cells.TextSettingsCell;
 import org.telegram.ui.Components.voip.CellFlickerDrawable;
 
-import xyz.nextalone.nagram.NaConfig;
+import sovietgram.com.NaConfig;
 
 public class StorageUsageView extends FrameLayout {
 

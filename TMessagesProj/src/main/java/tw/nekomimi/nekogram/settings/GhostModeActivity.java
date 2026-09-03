@@ -27,7 +27,7 @@ import java.util.Locale;
 import tw.nekomimi.nekogram.NekoConfig;
 import tw.nekomimi.nekogram.config.ConfigItem;
 import tw.nekomimi.nekogram.ui.cells.HeaderCell;
-import xyz.nextalone.nagram.NaConfig;
+import sovietgram.com.NaConfig;
 
 public class GhostModeActivity extends BaseNekoSettingsActivity {
 
@@ -47,6 +47,8 @@ public class GhostModeActivity extends BaseNekoSettingsActivity {
     private int sendWithoutSoundNoticeRow;
     private int showGhostInDrawerRow;
     private int showGhostModeStatusRow;
+    private int showLastVisitInOwnProfileRow;
+    private int showLastVisitInOwnProfileNoticeRow;
     private boolean ghostModeMenuExpanded;
 
     @Override
@@ -76,6 +78,8 @@ public class GhostModeActivity extends BaseNekoSettingsActivity {
         sendWithoutSoundNoticeRow = addRow();
         showGhostInDrawerRow = addRow();
         showGhostModeStatusRow = addRow();
+        showLastVisitInOwnProfileRow = addRow();
+        showLastVisitInOwnProfileNoticeRow = addRow();
     }
 
     @Override
@@ -154,6 +158,12 @@ public class GhostModeActivity extends BaseNekoSettingsActivity {
         } else if (position == showGhostModeStatusRow) {
             NekoConfig.showGhostModeStatus.toggleConfigBool();
             ((TextCheckCell) view).setChecked(NekoConfig.showGhostModeStatus.Bool());
+            NotificationCenter.getInstance(UserConfig.selectedAccount).postNotificationName(NotificationCenter.mainUserInfoChanged);
+        } else if (position == showLastVisitInOwnProfileRow) {
+            NaConfig.INSTANCE.getShowLastVisitInOwnProfile().toggleConfigBool();
+            ((TextCheckCell) view).setChecked(NaConfig.INSTANCE.getShowLastVisitInOwnProfile().Bool());
+            // the own-profile status line is rebuilt from mainUserInfoChanged, so the
+            // change lands without leaving the screen
             NotificationCenter.getInstance(UserConfig.selectedAccount).postNotificationName(NotificationCenter.mainUserInfoChanged);
         }
     }
@@ -255,7 +265,9 @@ public class GhostModeActivity extends BaseNekoSettingsActivity {
                     } else if (position == showGhostInDrawerRow) {
                         textCheckCell.setTextAndCheck(getString(R.string.GhostModeInDrawer), NekoConfig.showGhostInDrawer.Bool(), true);
                     } else if (position == showGhostModeStatusRow) {
-                        textCheckCell.setTextAndCheck(getString(R.string.GhostModeStatusIndicator), NekoConfig.showGhostModeStatus.Bool(), false);
+                        textCheckCell.setTextAndCheck(getString(R.string.GhostModeStatusIndicator), NekoConfig.showGhostModeStatus.Bool(), true);
+                    } else if (position == showLastVisitInOwnProfileRow) {
+                        textCheckCell.setTextAndCheck(getString(R.string.ShowLastVisitInOwnProfile), NaConfig.INSTANCE.getShowLastVisitInOwnProfile().Bool(), false);
                     }
                     break;
                 case TYPE_HEADER:
@@ -273,6 +285,8 @@ public class GhostModeActivity extends BaseNekoSettingsActivity {
                         cell.setText(getString(R.string.MarkReadAfterSendNotice));
                     } else if (position == sendWithoutSoundNoticeRow) {
                         cell.setText(getString(R.string.SendWithoutSoundRowNotice));
+                    } else if (position == showLastVisitInOwnProfileNoticeRow) {
+                        cell.setText(getString(R.string.ShowLastVisitInOwnProfileNotice));
                     }
                     break;
                 case TYPE_CHECK2:
@@ -341,7 +355,7 @@ public class GhostModeActivity extends BaseNekoSettingsActivity {
         public int getItemViewType(int position) {
             if (position == ghostEssentialsHeaderRow) {
                 return TYPE_HEADER;
-            } else if (position == ghostModeNoticeRow || position == markReadAfterSendNoticeRow || position == sendWithoutSoundNoticeRow) {
+            } else if (position == ghostModeNoticeRow || position == markReadAfterSendNoticeRow || position == sendWithoutSoundNoticeRow || position == showLastVisitInOwnProfileNoticeRow) {
                 return TYPE_INFO_PRIVACY;
             } else if (position == ghostModeToggleRow) {
                 return TYPE_CHECK2;

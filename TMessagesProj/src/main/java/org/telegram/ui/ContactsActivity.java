@@ -50,7 +50,6 @@ import androidx.annotation.Keep;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.collection.LongSparseArray;
-import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.DefaultItemAnimator;
@@ -755,7 +754,7 @@ public class ContactsActivity extends BaseFragment implements FactorAnimator.Tar
                         }
                         AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
                         builder.setMessage(getString(R.string.InviteUser));
-                        builder.setTitle(getString(R.string.NagramX));
+                        builder.setTitle(getString(R.string.SovietGram));
                         final String arg1 = usePhone;
                         builder.setPositiveButton(getString(R.string.OK), (dialogInterface, i) -> {
                             try {
@@ -1145,7 +1144,7 @@ public class ContactsActivity extends BaseFragment implements FactorAnimator.Tar
                 }
             }
             AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
-            builder.setTitle(getString(R.string.NagramX));
+            builder.setTitle(getString(R.string.SovietGram));
             String message = LocaleController.formatStringSimple(selectAlertString, UserObject.getUserName(user));
             EditTextBoldCursor editText = null;
             if (!user.bot && needForwardCount) {
@@ -1588,8 +1587,7 @@ public class ContactsActivity extends BaseFragment implements FactorAnimator.Tar
 
     @NonNull
     private WindowInsetsCompat onApplyWindowInsets(@NonNull View v, @NonNull WindowInsetsCompat insets) {
-        final Insets systemInsets = AndroidUtilities.getDefaultWindowInsets(insets, false);
-        navigationBarHeight = systemInsets.bottom;
+        navigationBarHeight = insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom;
 
         checkUi_listViewPadding();
         checkUi_floatingButtonPosition();

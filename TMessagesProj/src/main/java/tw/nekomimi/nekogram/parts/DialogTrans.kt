@@ -13,7 +13,7 @@ import tw.nekomimi.nekogram.translate.Translator
 import tw.nekomimi.nekogram.translate.code2Locale
 import tw.nekomimi.nekogram.utils.AlertUtil
 import tw.nekomimi.nekogram.utils.uDismiss
-import xyz.nextalone.nagram.NaConfig
+import sovietgram.com.NaConfig
 import java.util.concurrent.atomic.AtomicBoolean
 
 @JvmOverloads

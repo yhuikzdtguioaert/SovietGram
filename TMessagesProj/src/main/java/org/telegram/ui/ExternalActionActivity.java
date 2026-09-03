@@ -42,7 +42,6 @@ import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.DrawerLayoutContainer;
 import org.telegram.ui.ActionBar.INavigationLayout;
 import org.telegram.ui.ActionBar.Theme;
-import org.telegram.ui.Components.ActivityWindowEmptyBackgroundDrawable;
 import org.telegram.ui.Components.AlertsCreator;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.PasscodeView;
@@ -51,6 +50,12 @@ import org.telegram.ui.Components.SizeNotifierFrameLayout;
 import java.util.ArrayList;
 
 public class ExternalActionActivity extends Activity implements INavigationLayout.INavigationLayoutDelegate {
+
+    /** Same reason as {@link BasePermissionsActivity#getResources()}: icon packs apply per context. */
+    @Override
+    public android.content.res.Resources getResources() {
+        return tw.nekomimi.nekogram.ui.icons.IconsResources.wrap(super.getResources());
+    }
 
     private boolean finished;
     private static final ArrayList<BaseFragment> mainFragmentsStack = new ArrayList<>();
@@ -76,7 +81,7 @@ public class ExternalActionActivity extends Activity implements INavigationLayou
 
         requestWindowFeature(Window.FEATURE_NO_TITLE);
         setTheme(R.style.Theme_TMessages);
-        getWindow().setBackgroundDrawable(new ActivityWindowEmptyBackgroundDrawable());
+        getWindow().setBackgroundDrawableResource(R.drawable.transparent);
         if (false && !SharedConfig.passcodeHash.isEmpty() && !SharedConfig.allowScreenCapture) {
             try {
                 getWindow().setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE);
@@ -285,7 +290,7 @@ public class ExternalActionActivity extends Activity implements INavigationLayou
                     }
 
                     AlertDialog.Builder builder = new AlertDialog.Builder(ExternalActionActivity.this);
-                    builder.setTitle(LocaleController.getString(R.string.NagramX));
+                    builder.setTitle(LocaleController.getString(R.string.SovietGram));
                     builder.setMessage(LocaleController.getString(R.string.PleaseLoginPassport));
                     builder.setPositiveButton(LocaleController.getString(R.string.OK), null);
                     builder.show();
@@ -417,6 +422,10 @@ public class ExternalActionActivity extends Activity implements INavigationLayou
         ConnectionsManager.getInstance(UserConfig.selectedAccount).setAppPaused(true, false);
         UserConfig.selectedAccount = account;
         UserConfig.getInstance(0).saveConfig(false);
+        // Same handover as LaunchActivity.switchToAccount: the scoped fake-identity settings follow the
+        // account that is now current, so an external intent handled under another account cannot leave
+        // one account's fake premium, number or look loaded for a different one.
+        tw.nekomimi.nekogram.helpers.SovietGramAccountScope.syncTo(account);
         if (!ApplicationLoader.mainInterfacePaused) {
             ConnectionsManager.getInstance(UserConfig.selectedAccount).setAppPaused(false, false);
         }

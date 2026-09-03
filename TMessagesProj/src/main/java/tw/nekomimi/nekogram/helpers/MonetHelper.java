@@ -1,7 +1,5 @@
 package tw.nekomimi.nekogram.helpers;
 
-import static org.telegram.ui.Components.Switch.SWITCH_STYLE_MD3;
-
 import android.graphics.Color;
 import android.os.Build;
 
@@ -17,8 +15,6 @@ import org.telegram.messenger.R;
 import org.telegram.ui.ActionBar.Theme;
 
 import java.util.HashMap;
-
-import xyz.nextalone.nagram.NaConfig;
 
 @RequiresApi(api = Build.VERSION_CODES.S)
 public class MonetHelper {
@@ -183,14 +179,14 @@ public class MonetHelper {
     }
 
     private static int darkenByPercent(int color, int percent) {
-        int normalizedPercent = Math.clamp(percent, 1, 100);
+        int normalizedPercent = Math.max(1, Math.min(percent, 100));
         if (normalizedPercent == 100) {
             return color;
         }
 
         float[] hsl = new float[3];
         ColorUtils.colorToHSL(color, hsl);
-        hsl[2] = Math.clamp(hsl[2] * normalizedPercent / 100f, 0f, 1f);
+        hsl[2] = Math.max(0f, Math.min(1f, hsl[2] * normalizedPercent / 100f));
 
         return ColorUtils.setAlphaComponent(ColorUtils.HSLToColor(hsl), Color.alpha(color));
     }
@@ -202,12 +198,6 @@ public class MonetHelper {
             }
         }
         return !value.isEmpty();
-    }
-
-    public static boolean useMonetMd3Colors() {
-        return NaConfig.INSTANCE.getSwitchStyle().Int() == SWITCH_STYLE_MD3
-            && Theme.getActiveTheme() != null
-            && Theme.getActiveTheme().isMonet();
     }
 
     /**

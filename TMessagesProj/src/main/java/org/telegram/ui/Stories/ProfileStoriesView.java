@@ -56,7 +56,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import xyz.nextalone.nagram.NaConfig;
+import sovietgram.com.NaConfig;
 
 public class ProfileStoriesView extends View implements NotificationCenter.NotificationCenterDelegate {
 
@@ -500,6 +500,11 @@ public class ProfileStoriesView extends View implements NotificationCenter.Notif
 
     @Override
     protected void dispatchDraw(Canvas canvas) {
+        // A custom avatar shape draws its own ring that follows the outline; this one is built from
+        // arcs placed by angle around a circle, so the two would cross rather than agree.
+        if (tw.nekomimi.nekogram.helpers.CustomProfileHelper.overridesStoryRing()) {
+            return;
+        }
         float rright = rightAnimated.set(this.right);
         float avatarPullProgress = Utilities.clamp((avatarContainer.getScaleX() - 1f) / 0.4f, 1f, 0f);
         float insetMain = lerp(dpf2(4f), dpf2(3.5f), avatarPullProgress);

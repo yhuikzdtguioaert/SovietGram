@@ -63,7 +63,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
-import xyz.nextalone.nagram.NaConfig;
+import sovietgram.com.NaConfig;
 
 public class WebBrowserSettings extends UniversalFragment implements NotificationCenter.NotificationCenterDelegate {
 

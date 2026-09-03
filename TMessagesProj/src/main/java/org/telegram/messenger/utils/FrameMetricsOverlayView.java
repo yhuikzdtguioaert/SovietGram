@@ -183,7 +183,7 @@ public final class FrameMetricsOverlayView extends View {
         super(context.getApplicationContext());
         bgPaint.setColor(0xB0000000);
         textPaint.setColor(0xFFFFFFFF);
-        textPaint.setTextSize(dp(9));
+        textPaint.setTextSize(dp(10));
         textPaint.setFakeBoldText(true);
         textPaint.setTypeface(AndroidUtilities.getTypeface(AndroidUtilities.TYPEFACE_ROBOTO_MONO));
 
@@ -317,7 +317,7 @@ public final class FrameMetricsOverlayView extends View {
     @Override
     protected void onDraw(Canvas canvas) {
         float pad = dp(8);
-        float line = dp(11);
+        float line = dp(14);
 
         // +3: blank line before counters + vsync/s + onDraw/s
         int lines = Metric.values().length + 6 + 3;
@@ -415,9 +415,9 @@ public final class FrameMetricsOverlayView extends View {
 
     @Override
     protected void onMeasure(int w, int h) {
-        int width  = dp(210);
+        int width  = dp(260);
         // +3 for blank separator + vsync/s + onDraw/s
-        int height = dp(8) * 2 + dp(11) * (Metric.values().length + 6 + 3);
+        int height = dp(8) * 2 + dp(14) * (Metric.values().length + 6 + 3);
         setMeasuredDimension(width, height);
     }
 }

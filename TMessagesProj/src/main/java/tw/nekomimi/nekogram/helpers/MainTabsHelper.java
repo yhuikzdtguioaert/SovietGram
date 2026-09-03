@@ -2,7 +2,7 @@ package tw.nekomimi.nekogram.helpers;
 
 import org.telegram.ui.MainTabsActivity;
 
-import xyz.nextalone.nagram.NaConfig;
+import sovietgram.com.NaConfig;
 
 public final class MainTabsHelper {
     public static final int MAIN_TABS_HEIGHT = 56;

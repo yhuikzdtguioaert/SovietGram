@@ -29,7 +29,6 @@ import org.telegram.ui.Components.AnimatedFileDrawable;
 import org.telegram.ui.Components.Paint.PaintTypeface;
 import org.telegram.ui.Components.Paint.Views.LinkPreview;
 import org.telegram.ui.Components.PhotoFilterView;
-import org.telegram.ui.Components.RLottieNative;
 import org.telegram.ui.Components.Reactions.ReactionsLayoutInBubble;
 import org.telegram.ui.Stories.recorder.CollageLayout;
 import org.telegram.ui.Stories.recorder.StoryEntry;
@@ -175,7 +174,8 @@ public class VideoEditedInfo {
         public TLRPC.Document document;
         public Object parentObject;
 
-        public RLottieNative lottieNative;
+        public int[] metadata;
+        public long ptr;
         public float currentFrame;
         public float framesPerDraw;
         public Bitmap bitmap;
@@ -392,7 +392,8 @@ public class VideoEditedInfo {
             entity.textViewY = textViewY;
             entity.document = document;
             entity.parentObject = parentObject;
-            entity.lottieNative = lottieNative;
+            entity.metadata = metadata;
+            entity.ptr = ptr;
             entity.currentFrame = currentFrame;
             entity.framesPerDraw = framesPerDraw;
             entity.bitmap = bitmap;

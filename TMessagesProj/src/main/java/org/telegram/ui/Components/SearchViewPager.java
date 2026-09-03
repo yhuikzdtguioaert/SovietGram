@@ -78,7 +78,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Set;
 
-import xyz.nextalone.nagram.NaConfig;
+import sovietgram.com.NaConfig;
 
 public class SearchViewPager extends ViewPagerFixed implements FilteredSearchView.UiCallback, NotificationCenter.NotificationCenterDelegate, IBlur3Capture {
 

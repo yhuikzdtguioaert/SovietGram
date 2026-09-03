@@ -71,14 +71,15 @@ import org.telegram.ui.Components.inset.WindowInsetsStateHolder;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Locale;
 
 import kotlin.Unit;
 import tw.nekomimi.nekogram.helpers.MessageHelper;
 import tw.nekomimi.nekogram.llm.LlmConfig;
 import tw.nekomimi.nekogram.translate.Translator;
 import tw.nekomimi.nekogram.ui.cells.NekoMessageCell;
-import xyz.nextalone.nagram.NaConfig;
-import xyz.nextalone.nagram.helper.BookmarksHelper;
+import sovietgram.com.NaConfig;
+import sovietgram.com.helper.BookmarksHelper;
 
 public class BookmarksActivity extends NekoDelegateFragment {
     private static final int OPTION_SHOW_IN_CHAT = 1;
@@ -113,6 +114,7 @@ public class BookmarksActivity extends NekoDelegateFragment {
     public BookmarksActivity(long dialogId) {
         this.dialogId = dialogId;
     }
+
 
     private void checkInsets() {
         if (listView != null) {
@@ -366,8 +368,7 @@ public class BookmarksActivity extends NekoDelegateFragment {
         });
 
         ActionBarMenu menu = actionBar.createMenu();
-        searchItem = menu.addItem(0, R.drawable.outline_header_search).setIsSearchField(true);
-        searchItem.setSearchPaddingStart(12);
+        searchItem = menu.addItem(0, R.drawable.ic_ab_search_solar).setIsSearchField(true);
         searchItem.setSearchFieldHint(getString(R.string.Search));
         searchItem.setActionBarMenuItemSearchListener(new ActionBarMenuItem.ActionBarMenuItemSearchListener() {
             @Override
@@ -515,6 +516,7 @@ public class BookmarksActivity extends NekoDelegateFragment {
             ((SizeNotifierFrameLayout) fragmentView).onResume();
         }
 
+
         updateActionBarCount();
         updateBookmarks();
     }
@@ -527,6 +529,7 @@ public class BookmarksActivity extends NekoDelegateFragment {
             ((SizeNotifierFrameLayout) fragmentView).onPause();
         }
 
+
         if (scrimPopupWindow != null) {
             scrimPopupWindow.dismiss();
             scrimPopupWindow = null;
@@ -536,6 +539,7 @@ public class BookmarksActivity extends NekoDelegateFragment {
     @Override
     public void onFragmentDestroy() {
         super.onFragmentDestroy();
+
 
         if (scrimPopupWindow != null) {
             scrimPopupWindow.dismiss();
@@ -947,15 +951,15 @@ public class BookmarksActivity extends NekoDelegateFragment {
         if (TextUtils.isEmpty(searchQuery)) {
             filteredMessages.addAll(bookmarkedMessages);
         } else {
-            String q = searchQuery.toLowerCase();
+            String q = searchQuery.toLowerCase(Locale.getDefault());
             for (MessageObject msg : bookmarkedMessages) {
                 String text = msg.messageOwner != null ? msg.messageOwner.message : null;
-                if (!TextUtils.isEmpty(text) && text.toLowerCase().contains(q)) {
+                if (!TextUtils.isEmpty(text) && text.toLowerCase(Locale.getDefault()).contains(q)) {
                     filteredMessages.add(msg);
                     continue;
                 }
                 String attachPath = msg.messageOwner != null ? msg.messageOwner.attachPath : null;
-                if (!TextUtils.isEmpty(attachPath) && attachPath.toLowerCase().contains(q)) {
+                if (!TextUtils.isEmpty(attachPath) && attachPath.toLowerCase(Locale.getDefault()).contains(q)) {
                     filteredMessages.add(msg);
                 }
             }

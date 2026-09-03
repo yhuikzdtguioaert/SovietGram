@@ -58,7 +58,7 @@ import tw.nekomimi.nekogram.helpers.MessageHelper;
 import tw.nekomimi.nekogram.translate.Translator;
 import tw.nekomimi.nekogram.translate.TranslatorKt;
 import tw.nekomimi.nekogram.translate.source.LLMTranslator;
-import xyz.nextalone.nagram.NaConfig;
+import sovietgram.com.NaConfig;
 
 public class TranslateController extends BaseController {
 
@@ -711,6 +711,7 @@ public class TranslateController extends BaseController {
             } else if (finalMessageObject.messageOwner.summarizedOpen) {
                 if (
                     finalMessageObject.messageOwner.translatedSummaryText == null ||
+                    MessageHelper.isLegacyTranslatedSummary(finalMessageObject.messageOwner.summaryText, finalMessageObject.messageOwner.translatedSummaryText) ||
                     !language.equals(finalMessageObject.messageOwner.translatedSummaryLanguage)
                 ) {
                     pushToSummarize(finalMessageObject, language, text -> {
@@ -1089,7 +1090,7 @@ public class TranslateController extends BaseController {
             source.entities = message.messageOwner.entities;
         }
 
-        // --- NagramX Start ---
+        // --- SovietGram Start ---
         if (MessageHelper.shouldSkipTranslation(message.messageOwner.message)) {
             return;
         }
@@ -1127,7 +1128,7 @@ public class TranslateController extends BaseController {
             });
             return;
         }
-        // --- NagramX End ---
+        // --- SovietGram End ---
 
         PendingTranslation pendingTranslation;
         synchronized (this) {
@@ -1418,7 +1419,7 @@ public class TranslateController extends BaseController {
 
         long dialogId = message.getDialogId();
 
-        // --- NagramX Start ---
+        // --- SovietGram Start ---
         if (NekoConfig.translationProvider.Int() != Translator.providerTelegram) {
             final TLRPC.MessageMedia media = MessageObject.getMedia(message);
             if (!(media instanceof TLRPC.TL_messageMediaPoll)) {
@@ -1458,7 +1459,7 @@ public class TranslateController extends BaseController {
             });
             return;
         }
-        // --- NagramX End ---
+        // --- SovietGram End ---
 
         PendingPollTranslation pendingTranslation;
         synchronized (this) {
@@ -2076,7 +2077,7 @@ public class TranslateController extends BaseController {
 
         translatingStories.add(key);
 
-        // --- NagramX Start ---
+        // --- SovietGram Start ---
         if (NekoConfig.translationProvider.Int() != Translator.providerTelegram) {
             Translator.translate(storyItem.caption, storyItem.entities, new Translator.Companion.TranslateCallBack2() {
                 @Override
@@ -2108,7 +2109,7 @@ public class TranslateController extends BaseController {
             });
             return;
         }
-        // --- NagramX End ---
+        // --- SovietGram End ---
 
         final TLRPC.TL_messages_translateText req = new TLRPC.TL_messages_translateText();
         req.flags |= 2;
@@ -2244,7 +2245,7 @@ public class TranslateController extends BaseController {
 
         translatingPhotos.add(key);
 
-        // --- NagramX Start ---
+        // --- SovietGram Start ---
         if (NekoConfig.translationProvider.Int() != Translator.providerTelegram) {
             final long start = System.currentTimeMillis();
             Translator.translate(messageObject.messageOwner.message, messageObject.messageOwner.entities, new Translator.Companion.TranslateCallBack2() {
@@ -2278,7 +2279,7 @@ public class TranslateController extends BaseController {
             });
             return;
         }
-        // --- NagramX End ---
+        // --- SovietGram End ---
 
         final TLRPC.TL_messages_translateText req = new TLRPC.TL_messages_translateText();
         req.flags |= 2;

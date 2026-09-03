@@ -1,35 +1,39 @@
 package tw.nekomimi.nekogram.helpers.remote;
 
-import android.os.Build;
+import android.text.TextUtils;
 
-import org.json.JSONException;
-import org.json.JSONObject;
 import org.telegram.messenger.BuildConfig;
 import org.telegram.messenger.FileLoader;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.Utilities;
-import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-import xyz.nextalone.nagram.NaConfig;
+import sovietgram.com.NaConfig;
 
 public class UpdateHelper extends BaseRemoteHelper {
 
     public static final int UPDATE_OFF = 0;
     public static final int UPDATE_CHANNEL_RELEASE = 1;
     public static final int UPDATE_CHANNEL_BETA = 2;
-    private boolean updateAlways = false;
+    private static final String DEFAULT_CHANGELOG = "SovietGram update";
+    private static final Pattern VERSION_CODE_PATTERN = Pattern.compile("\\((\\d+)\\)");
+    private static final Pattern VERSION_NAME_PATTERN = Pattern.compile("-v([^()]+)\\(");
 
     public static UpdateHelper getInstance() {
         return InstanceHolder.instance;
+    }
+
+    public static int getAutoUpdateChannel() {
+        int channel = NaConfig.INSTANCE.getAutoUpdateChannel().Int();
+        return channel == UPDATE_CHANNEL_BETA ? UPDATE_CHANNEL_RELEASE : channel;
     }
 
     public static void cleanAppUpdate() {
@@ -56,162 +60,7 @@ public class UpdateHelper extends BaseRemoteHelper {
 
     @Override
     protected String getTag() {
-        if (BuildConfig.DEBUG) return "updateDebug";
-        return NaConfig.INSTANCE.getAutoUpdateChannel().Int() == UPDATE_CHANNEL_RELEASE ? "updateRelease" : "updateBeta";
-    }
-
-    @SuppressWarnings("ConstantConditions")
-    private int getPreferredAbiFile(Map<String, Integer> files) {
-        for (String abi : Build.SUPPORTED_ABIS) {
-            if (files.containsKey(abi)) {
-                return files.get(abi);
-            }
-        }
-        return files.getOrDefault("universal", files.get("arm64-v8a"));
-    }
-
-    private String getPreferredUpdateUrl(String urlArm64, String urlArmeabiV7a) {
-        if (!urlArmeabiV7a.isEmpty()) {
-            for (String abi : Build.SUPPORTED_ABIS) {
-                if ("armeabi-v7a".equals(abi)) {
-                    return urlArmeabiV7a;
-                }
-                if ("arm64-v8a".equals(abi)) {
-                    break;
-                }
-            }
-        }
-        return urlArm64;
-    }
-
-    private Map<String, Integer> jsonToMap(JSONObject obj) {
-        Map<String, Integer> map = new HashMap<>();
-        List<String> abis = new ArrayList<>();
-        abis.add("arm64-v8a");
-        abis.add("universal");
-        try {
-            for (var abi : abis) {
-                map.put(abi, obj.getInt(abi));
-            }
-        } catch (JSONException ignored) {
-        }
-        return map;
-    }
-
-    private Update getShouldUpdateVersion(List<JSONObject> responses) {
-        int currentVersion = BuildConfig.VERSION_CODE;
-        long buildTimestamp = BuildConfig.BUILD_TIMESTAMP;
-        Update ref = null;
-        for (var string : responses) {
-            try {
-                int remoteVersion = string.getInt("version_code");
-                long remoteBuildTimestamp = string.optLong("build_timestamp", 0L);
-                boolean shouldUpdate = false;
-                if (remoteVersion > currentVersion) {
-                    shouldUpdate = true;
-                } else if (remoteVersion == currentVersion && remoteBuildTimestamp > buildTimestamp) {
-                    shouldUpdate = true;
-                }
-                if (shouldUpdate || updateAlways) {
-                    if (updateAlways) {
-                        updateAlways = false;
-                    }
-                    String urlArm64 = string.optString("url", "");
-                    String urlArmeabiV7a = string.optString("url_armeabi_v7a", "");
-                    ref = new Update(
-                            string.getBoolean("can_not_skip"),
-                            string.getString("version"),
-                            remoteVersion,
-                            string.getInt("sticker"),
-                            string.getInt("message"),
-                            jsonToMap(string.getJSONObject("document")),
-                            getPreferredUpdateUrl(urlArm64, urlArmeabiV7a)
-                    );
-                    break;
-                }
-            } catch (JSONException ignored) {
-            }
-        }
-        return ref;
-    }
-
-    private void getNewVersionMessagesCallback(Delegate delegate, Update json, HashMap<String, Integer> ids, TLObject response) {
-        var update = new TLRPC.TL_help_appUpdate();
-        update.version = json.version;
-        update.can_not_skip = json.canNotSkip;
-        if (json.url != null) {
-            update.url = json.url;
-            update.flags |= 4;
-        }
-        if (NaConfig.INSTANCE.getAutoUpdateChannel().Int() == UPDATE_OFF && !update.can_not_skip) {
-            delegate.onTLResponse(null, null);
-            return;
-        }
-        if (response != null) {
-            var res = (TLRPC.messages_Messages) response;
-            getMessagesController().removeDeletedMessagesFromArray(CHANNEL_METADATA_ID, res.messages);
-            var messages = new HashMap<Integer, TLRPC.Message>();
-            for (var message : res.messages) {
-                messages.put(message.id, message);
-            }
-            if (ids.containsKey("sticker")) {
-                var sticker = messages.get(ids.get("sticker"));
-                if (sticker != null && sticker.media != null) {
-                    update.sticker = sticker.media.document;
-                    update.flags |= 8;
-                }
-            }
-            if (ids.containsKey("message")) {
-                var message = messages.get(ids.get("message"));
-                if (message != null) {
-                    update.text = message.message;
-                    update.entities = message.entities;
-                }
-            }
-            if (ids.containsKey("document")) {
-                var file = messages.get(ids.get("document"));
-                if (file != null && file.media != null) {
-                    update.document = file.media.document;
-                    update.flags |= 2;
-                }
-            }
-        }
-        delegate.onTLResponse(update, null);
-    }
-
-    @Override
-    protected void onLoadSuccess(ArrayList<JSONObject> responses, Delegate delegate) {
-        var update = getShouldUpdateVersion(responses);
-        if (update == null) {
-            delegate.onTLResponse(null, null);
-            return;
-        }
-        var ids = new HashMap<String, Integer>();
-        if (update.sticker != null) {
-            ids.put("sticker", update.sticker);
-        }
-        if (update.message != null) {
-            ids.put("message", update.message);
-        }
-        // APK is served via `url` (GitHub Release) when present — skip the channel
-        // document lookup so we never request the placeholder id=0 from getMessages.
-        if (update.document != null && (update.url == null || update.url.isEmpty())) {
-            ids.put("document", getPreferredAbiFile(update.document));
-        }
-        if (ids.isEmpty()) {
-            getNewVersionMessagesCallback(delegate, update, null, null);
-        } else {
-            var req = new TLRPC.TL_channels_getMessages();
-            req.channel = getMessagesController().getInputChannel(CHANNEL_METADATA_ID);
-            req.id = new ArrayList<>(ids.values());
-            getConnectionsManager().sendRequest(req, (response1, error1) -> {
-                if (error1 == null) {
-                    getNewVersionMessagesCallback(delegate, update, ids, response1);
-                } else {
-                    delegate.onTLResponse(null, error1.text);
-                }
-            });
-        }
+        return "updateRelease";
     }
 
     public void checkNewVersionAvailable(Delegate delegate) {
@@ -219,31 +68,157 @@ public class UpdateHelper extends BaseRemoteHelper {
     }
 
     public void checkNewVersionAvailable(Delegate delegate, boolean updateAlways) {
-        this.updateAlways = updateAlways;
-        load(delegate);
+        loadMessages("", 50, (response, error) -> {
+            if (error != null) {
+                delegate.onTLResponse(null, error);
+                return;
+            }
+            if (response == null) {
+                delegate.onTLResponse(null, null);
+                return;
+            }
+            TLRPC.Message apkMessage = null;
+            TLRPC.Document sticker = pickRandomStickerDocument(response.messages);
+            for (var message : response.messages) {
+                if (getApkDocument(message) != null) {
+                    apkMessage = message;
+                    break;
+                }
+            }
+            TLRPC.TL_help_appUpdate update = buildUpdateFromMessage(apkMessage, sticker, updateAlways);
+            delegate.onTLResponse(update, null);
+        });
+    }
+
+    private TLRPC.Document getApkDocument(TLRPC.Message message) {
+        if (message == null || message.media == null || message.media.document == null) {
+            return null;
+        }
+        TLRPC.Document document = message.media.document;
+        String fileName = FileLoader.getDocumentFileName(document);
+        if (!isApkDocument(document, fileName)) {
+            return null;
+        }
+        return document;
+    }
+
+    private TLRPC.TL_help_appUpdate buildUpdateFromMessage(TLRPC.Message message, TLRPC.Document sticker, boolean updateAlways) {
+        TLRPC.Document document = getApkDocument(message);
+        if (document == null) {
+            return null;
+        }
+        String fileName = FileLoader.getDocumentFileName(document);
+        int remoteVersionCode = parseVersionCode(fileName);
+        String remoteVersionName = extractVersionName(fileName);
+        // SovietGram has two independent release counters: the monotonically increasing app build
+        // (1258, 1259, ...) and the Telegram source version (12.10.1, 12.10.2, ...).  Treating the
+        // pair as one compound version meant a publisher had to bump both fields at once.  A newer
+        // value in either dimension is now enough, exactly like two independent update tracks.
+        boolean shouldUpdate = IndependentVersionComparator.isUpdate(
+                remoteVersionCode, remoteVersionName,
+                BuildConfig.VERSION_CODE, BuildConfig.BUILD_VERSION_STRING);
+        if (!shouldUpdate && !updateAlways) {
+            return null;
+        }
+
+        var update = new TLRPC.TL_help_appUpdate();
+        update.version = TextUtils.isEmpty(remoteVersionName)
+                ? BuildConfig.BUILD_VERSION_STRING
+                : remoteVersionName;
+        update.can_not_skip = false;
+        update.text = extractCommitMessage(message.message);
+        update.document = document;
+        update.url = "https://t.me/" + CHANNEL_METADATA_NAME;
+        update.flags |= 2;
+        update.flags |= 4;
+        if (sticker != null) {
+            update.sticker = sticker;
+            update.flags |= 8;
+        }
+
+        if (getAutoUpdateChannel() == UPDATE_OFF && !update.can_not_skip && !updateAlways) {
+            return null;
+        }
+        return update;
+    }
+
+    private TLRPC.Document pickRandomStickerDocument(ArrayList<TLRPC.Message> messages) {
+        ArrayList<TLRPC.Document> stickers = new ArrayList<>();
+        for (var message : messages) {
+            if (message == null || message.media == null || message.media.document == null) {
+                continue;
+            }
+            TLRPC.Document document = message.media.document;
+            String fileName = FileLoader.getDocumentFileName(document);
+            if (!isApkDocument(document, fileName) && isStickerDocument(document)) {
+                stickers.add(document);
+            }
+        }
+        if (stickers.isEmpty()) {
+            return null;
+        }
+        return stickers.get(Utilities.random.nextInt(stickers.size()));
+    }
+
+    private boolean isStickerDocument(TLRPC.Document document) {
+        if (document == null || document.attributes == null) {
+            return false;
+        }
+        for (var attribute : document.attributes) {
+            if (attribute instanceof TLRPC.TL_documentAttributeSticker) {
+                return true;
+            }
+            if (attribute instanceof TLRPC.TL_documentAttributeCustomEmoji) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isApkDocument(TLRPC.Document document, String fileName) {
+        if (!TextUtils.isEmpty(fileName) && fileName.toLowerCase(Locale.US).endsWith(".apk")) {
+            return true;
+        }
+        return "application/vnd.android.package-archive".equals(document.mime_type);
+    }
+
+    private int parseVersionCode(String fileName) {
+        if (TextUtils.isEmpty(fileName)) {
+            return 0;
+        }
+        Matcher matcher = VERSION_CODE_PATTERN.matcher(fileName);
+        int versionCode = 0;
+        while (matcher.find()) {
+            try {
+                versionCode = Integer.parseInt(matcher.group(1));
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        return versionCode;
+    }
+
+    private String extractVersionName(String fileName) {
+        if (!TextUtils.isEmpty(fileName)) {
+            Matcher matcher = VERSION_NAME_PATTERN.matcher(fileName);
+            if (matcher.find()) {
+                return matcher.group(1).trim();
+            }
+        }
+        return "";
+    }
+
+    private String extractCommitMessage(String text) {
+        if (TextUtils.isEmpty(text)) {
+            return DEFAULT_CHANGELOG;
+        }
+        String changelog = text.trim();
+        if (TextUtils.isEmpty(changelog)) {
+            return DEFAULT_CHANGELOG;
+        }
+        return changelog;
     }
 
     private static final class InstanceHolder {
         private static final UpdateHelper instance = new UpdateHelper();
-    }
-
-    public static class Update {
-        public Boolean canNotSkip;
-        public String version;
-        public Integer versionCode;
-        public Integer sticker;
-        public Integer message;
-        public Map<String, Integer> document;
-        public String url;
-
-        public Update(Boolean canNotSkip, String version, int versionCode, int sticker, int message, Map<String, Integer> document, String url) {
-            this.canNotSkip = canNotSkip;
-            this.version = version;
-            this.versionCode = versionCode;
-            this.sticker = sticker;
-            this.message = message;
-            this.document = document;
-            this.url = url;
-        }
     }
 }

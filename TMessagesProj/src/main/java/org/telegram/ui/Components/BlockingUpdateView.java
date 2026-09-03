@@ -12,7 +12,6 @@ import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.text.SpannableStringBuilder;
-import android.text.TextUtils;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
@@ -37,11 +36,9 @@ import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.voip.CellFlickerDrawable;
 
-import java.io.File;
 import java.util.Locale;
 
 import tw.nekomimi.nekogram.TextViewEffects;
-import tw.nekomimi.nekogram.helpers.remote.ApkDownloader;
 import tw.nekomimi.nekogram.helpers.remote.UpdateHelper;
 
 public class BlockingUpdateView extends FrameLayout implements NotificationCenter.NotificationCenterDelegate {
@@ -70,7 +67,7 @@ public class BlockingUpdateView extends FrameLayout implements NotificationCente
         addView(view, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, AndroidUtilities.dp(176) + (Build.VERSION.SDK_INT >= 21 ? AndroidUtilities.statusBarHeight : 0)));
 
         ImageView imageView = new ImageView(context);
-        imageView.setImageResource(R.mipmap.ic_launcher_nagram_blue);
+        imageView.setImageResource(R.mipmap.ic_launcher_sovietuniongram);
         imageView.setScaleType(ImageView.ScaleType.CENTER);
         imageView.setPadding(0, 0, 0, AndroidUtilities.dp(14));
         view.addView(imageView, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER, 0, top, 0, 0));
@@ -98,7 +95,7 @@ public class BlockingUpdateView extends FrameLayout implements NotificationCente
         titleTextView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 20);
         titleTextView.setGravity(Gravity.CENTER_HORIZONTAL | Gravity.TOP);
         titleTextView.setTypeface(AndroidUtilities.bold());
-        titleTextView.setText(LocaleController.getString(R.string.UpdateTelegram).replace("Telegram", LocaleController.getString(R.string.NagramX)));
+        titleTextView.setText(LocaleController.getString(R.string.UpdateTelegram).replace("Telegram", LocaleController.getString(R.string.SovietGram)));
         container.addView(titleTextView, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL | Gravity.TOP));
 
         textView = new TextViewEffects(context);
@@ -142,32 +139,13 @@ public class BlockingUpdateView extends FrameLayout implements NotificationCente
         acceptButton.setPadding(AndroidUtilities.dp(34), 0, AndroidUtilities.dp(34), 0);
         addView(acceptButton, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, 46, Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM, 0, 0, 0, 45));
         acceptButton.setOnClickListener(view1 -> {
-            if (!TextUtils.isEmpty(appUpdate.url)) {
-                if (!ApplicationLoader.applicationLoaderInstance.openApkInstall(AndroidUtilities.findActivity(getContext()), ApkDownloader.getDestFile(appUpdate.url))) {
-                    ApkDownloader.download(appUpdate.url, new ApkDownloader.Callback() {
-                        @Override
-                        public void onProgress(float progress) {
-                            radialProgress.setProgress(progress, true);
-                        }
-
-                        @Override
-                        public void onSuccess(File file) {
-                            showProgress(false);
-                            ApplicationLoader.applicationLoaderInstance.openApkInstall(AndroidUtilities.findActivity(getContext()), file);
-                        }
-
-                        @Override
-                        public void onError(String message) {
-                            showProgress(false);
-                        }
-                    });
-                    showProgress(true);
-                }
-            } else if (appUpdate.document instanceof TLRPC.TL_document) {
+            if (appUpdate.document instanceof TLRPC.TL_document) {
                 if (!ApplicationLoader.applicationLoaderInstance.openApkInstall((Activity) getContext(), appUpdate.document)) {
                     FileLoader.getInstance(accountNum).loadFile(appUpdate.document, "update", FileLoader.PRIORITY_HIGH, 1);
                     showProgress(true);
                 }
+            } else if (appUpdate.url != null) {
+                Browser.openUrl(getContext(), appUpdate.url);
             }
         });
 
@@ -302,7 +280,7 @@ public class BlockingUpdateView extends FrameLayout implements NotificationCente
         if (getVisibility() != VISIBLE) {
             setVisibility(VISIBLE);
         }
-        SpannableStringBuilder builder = new SpannableStringBuilder(TextUtils.isEmpty(update.text) ? "" : update.text);
+        SpannableStringBuilder builder = new SpannableStringBuilder(update.text);
         MessageObject.addEntitiesToText(builder, update.entities, false, false, false, false);
         MessageObject.replaceAnimatedEmoji(builder, update.entities, textView.getPaint().getFontMetricsInt());
         textView.setText(builder);

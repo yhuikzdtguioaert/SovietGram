@@ -115,6 +115,8 @@ import org.telegram.ui.bots.WebViewRequestProps;
 import org.telegram.ui.web.SearchEngine;
 import org.telegram.ui.web.WebBrowserSettings;
 
+import tw.nekomimi.nekogram.helpers.LiveWallpaperHelper;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.util.ArrayList;
@@ -130,6 +132,8 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
     public final static int THEME_TYPE_NIGHT = 1;
     public final static int THEME_TYPE_OTHER = 2;
     public final static int THEME_TYPE_THEMES_BROWSER = 3;
+
+    private final static int LIVE_WALLPAPER_REQUEST_CODE = 4271;
 
     private ListAdapter listAdapter;
     private RecyclerListView listView;
@@ -150,6 +154,7 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
 
     @Keep
     private int backgroundRow;
+    private int liveWallpaperRow;
     private int textSizeHeaderRow;
     @Keep
     private int textSizeRow;
@@ -587,6 +592,7 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
 
         textSizeRow = -1;
         backgroundRow = -1;
+        liveWallpaperRow = -1;
         changeUserColor = -1;
         settingsRow = -1;
         directShareRow = -1;
@@ -663,6 +669,7 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
             textSizeHeaderRow = rowCount++;
             textSizeRow = rowCount++;
             backgroundRow = rowCount++;
+            liveWallpaperRow = rowCount++;
             changeUserColor = rowCount++;
             newThemeInfoRow = rowCount++;
             themeHeaderRow = rowCount++;
@@ -1127,6 +1134,34 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
                 }
             } else if (position == backgroundRow) {
                 presentFragment(new WallpapersListActivity(WallpapersListActivity.TYPE_ALL));
+            } else if (position == liveWallpaperRow) {
+                if (getParentActivity() == null) {
+                    return;
+                }
+                if (LiveWallpaperHelper.isEnabled()) {
+                    AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+                    builder.setTitle(getString(R.string.LiveWallpaper));
+                    builder.setItems(new CharSequence[]{
+                            getString(R.string.LiveWallpaperReplace),
+                            getString(R.string.LiveWallpaperRemove)
+                    }, (dialog, which) -> {
+                        if (which == 0) {
+                            pickLiveWallpaper();
+                        } else {
+                            LiveWallpaperHelper.clear();
+                            if (listAdapter != null) {
+                                listAdapter.notifyItemChanged(liveWallpaperRow);
+                            }
+                            BulletinFactory.of(this)
+                                    .createSimpleBulletin(R.raw.chats_infotip, getString(R.string.LiveWallpaperRemoved))
+                                    .show();
+                        }
+                    });
+                    builder.setNegativeButton(getString(R.string.Cancel), null);
+                    showDialog(builder.create());
+                } else {
+                    pickLiveWallpaper();
+                }
             } else if (position == changeUserColor) {
                 presentFragment(new PeerColorActivity(0).setOnApplied(this));
             } else if (position == sendByEnterRow) {
@@ -1558,6 +1593,45 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
         if (listAdapter != null) {
             updateRows(true);
         }
+    }
+
+    private void pickLiveWallpaper() {
+        if (getParentActivity() == null) {
+            return;
+        }
+        try {
+            Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+            intent.setType("video/*");
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
+            startActivityForResult(intent, LIVE_WALLPAPER_REQUEST_CODE);
+        } catch (Exception e) {
+            FileLog.e(e);
+        }
+    }
+
+    @Override
+    public void onActivityResultFragment(int requestCode, int resultCode, Intent data) {
+        if (requestCode != LIVE_WALLPAPER_REQUEST_CODE) {
+            return;
+        }
+        if (resultCode != Activity.RESULT_OK || data == null || data.getData() == null) {
+            return;
+        }
+        Uri uri = data.getData();
+        Utilities.globalQueue.postRunnable(() -> {
+            String path = LiveWallpaperHelper.importVideo(uri);
+            AndroidUtilities.runOnUIThread(() -> {
+                if (listAdapter != null && liveWallpaperRow >= 0) {
+                    listAdapter.notifyItemChanged(liveWallpaperRow);
+                }
+                BulletinFactory factory = BulletinFactory.of(this);
+                if (path != null) {
+                    factory.createSimpleBulletin(R.raw.chats_infotip, getString(R.string.LiveWallpaperSet)).show();
+                } else {
+                    factory.createErrorBulletin(getString(R.string.LiveWallpaperError)).show();
+                }
+            });
+        });
     }
 
     @Override
@@ -2684,6 +2758,12 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
                         cell.setSubtitle(null);
                         cell.setColors(Theme.key_windowBackgroundWhiteBlueText4, Theme.key_windowBackgroundWhiteBlueText4);
                         cell.setTextAndIcon(getString(R.string.ChangeChatBackground), R.drawable.msg_background, changeUserColor >= 0);
+                    } else if (position == liveWallpaperRow) {
+                        boolean live = LiveWallpaperHelper.isEnabled();
+                        cell.setSubtitle(live ? getString(R.string.LiveWallpaperEnabled) : null);
+                        cell.heightDp = live ? 60 : 48;
+                        cell.setColors(Theme.key_windowBackgroundWhiteBlueText4, Theme.key_windowBackgroundWhiteBlueText4);
+                        cell.setTextAndIcon(getString(R.string.LiveWallpaperSetUp), R.drawable.msg_videocall, changeUserColor >= 0);
                     } else if (position == editThemeRow) {
                         cell.setSubtitle(null);
                         cell.setColors(Theme.key_windowBackgroundWhiteBlueText4, Theme.key_windowBackgroundWhiteBlueText4);
@@ -2779,7 +2859,7 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
                 return TYPE_THEME_ACCENT_LIST;
             } else if (position == bubbleRadiusRow) {
                 return TYPE_BUBBLE_RADIUS;
-            } else if (position == backgroundRow || position == editThemeRow || position == createNewThemeRow ||
+            } else if (position == backgroundRow || position == liveWallpaperRow || position == editThemeRow || position == createNewThemeRow ||
                         position == liteModeRow || position == stickersRow) {
                 return TYPE_TEXT_PREFERENCE;
             } else if (position == swipeGestureRow) {

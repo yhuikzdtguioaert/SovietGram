@@ -6,14 +6,14 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
-import android.graphics.drawable.Drawable;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffColorFilter;
 import android.graphics.Typeface;
+import android.graphics.drawable.Drawable;
 import android.text.SpannableStringBuilder;
 import android.text.Spanned;
 import android.text.TextPaint;
 import android.text.TextUtils;
-import android.graphics.PorterDuff;
-import android.graphics.PorterDuffColorFilter;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -80,8 +80,8 @@ import tw.nekomimi.nekogram.ui.PopupBuilder;
 import tw.nekomimi.nekogram.ui.cells.EmojiSetCell;
 import tw.nekomimi.nekogram.ui.cells.StickerSizePreviewMessagesCell;
 import org.telegram.ui.Components.ActionButtonStyle;
-import xyz.nextalone.nagram.NaConfig;
-import xyz.nextalone.nagram.helper.DoubleTap;
+import sovietgram.com.NaConfig;
+import sovietgram.com.helper.DoubleTap;
 import xyz.nextalone.nagram.helper.ProtectedForward;
 
 @SuppressLint("RtlHardcoded")
@@ -209,8 +209,6 @@ public class NekoChatSettingsActivity extends BaseNekoXSettingsActivity implemen
     private final AbstractConfigCell headerMedia = cellGroup.appendCell(new ConfigCellHeader(getString(R.string.MediaSettings)));
     private final AbstractConfigCell showSmallGifRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getShowSmallGIF()));
     private final AbstractConfigCell takeGIFasVideoRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.takeGIFasVideo));
-    private final AbstractConfigCell swipeAllMediaRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getSwipeAllMedia(), getString(R.string.SwipeAllMediaAbout)));
-    private final AbstractConfigCell seamlessVideoHandoffRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getSeamlessVideoHandoff(), getString(R.string.SeamlessVideoHandoffAbout)));
     private final AbstractConfigCell autoPauseVideoRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.autoPauseVideo, getString(R.string.AutoPauseVideoAbout)));
     private final AbstractConfigCell mediaAutoRotateModeRow = cellGroup.appendCell(new ConfigCellSelectBox(null, NaConfig.INSTANCE.getMediaAutoRotateMode(), new String[]{
             getString(R.string.MediaAutoRotateOff),

@@ -1337,20 +1337,6 @@ public class FilterTabsView extends FrameLayout {
         scrollToTab(tabs.get(tabs.size() - 1), tabs.size() - 1);
     }
 
-    public void selectPrevTab() {
-        if (tabs.isEmpty() || currentPosition <= 0) {
-            return;
-        }
-        scrollToTab(tabs.get(currentPosition - 1), currentPosition - 1);
-    }
-
-    public void selectNextTab() {
-        if (tabs.isEmpty() || currentPosition >= tabs.size() - 1) {
-            return;
-        }
-        scrollToTab(tabs.get(currentPosition + 1), currentPosition + 1);
-    }
-
     public void setAnimationIdicatorProgress(float value) {
         animatingIndicatorProgress = value;
         listView.invalidateViews();
@@ -1881,7 +1867,10 @@ public class FilterTabsView extends FrameLayout {
                 requestLayout();
                 allTabsWidth = 0;
                 if (!NekoConfig.hideAllTab.Bool()) {
-                    findDefaultTab().setTitle(LocaleController.getString(R.string.FilterAllChats), null, false);
+                    final FilterTabsView.Tab defaultTab = findDefaultTab();
+                    if (defaultTab != null) {
+                        defaultTab.setTitle(LocaleController.getString(R.string.FilterAllChats), null, false);
+                    }
                 }
                 for (int b = 0; b < N; b++) {
                     allTabsWidth += tabs.get(b).getWidth(true) + dp(FolderIconHelper.getTabPadding());
@@ -1911,10 +1900,15 @@ public class FilterTabsView extends FrameLayout {
             invalidated = true;
             requestLayout();
             listView.setItemAnimator(itemAnimator);
-            adapter.notifyDataSetChanged();
+            if (adapter != null) {
+                adapter.notifyDataSetChanged();
+            }
             allTabsWidth = 0;
             if (!NekoConfig.hideAllTab.Bool()) {
-                findDefaultTab().setTitle(LocaleController.getString(R.string.FilterAllChats), null, false);
+                final FilterTabsView.Tab defaultTab = findDefaultTab();
+                if (defaultTab != null) {
+                    defaultTab.setTitle(LocaleController.getString(R.string.FilterAllChats), null, false);
+                }
             }
             for (int b = 0, N = tabs.size(); b < N; b++) {
                 allTabsWidth += tabs.get(b).getWidth(true) + dp(FolderIconHelper.getTabPadding());

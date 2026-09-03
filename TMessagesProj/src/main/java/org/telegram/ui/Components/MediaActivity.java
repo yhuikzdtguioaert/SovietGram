@@ -153,8 +153,6 @@ public class MediaActivity extends BaseFragment implements SharedMediaLayout.Sha
             applyBulletin = null;
             AndroidUtilities.runOnUIThread(runnable);
         }
-        sharedMediaPreloader.onDestroy(this);
-        sharedMediaPreloader.removeDelegate(this);
     }
 
     @Override
@@ -727,7 +725,7 @@ public class MediaActivity extends BaseFragment implements SharedMediaLayout.Sha
         };
         sharedMediaLayout.scrollSlidingTextTabStrip.setOpen(true);
         if (sharedMediaLayout.getSearchOptionsItem() != null) {
-            sharedMediaLayout.getSearchOptionsItem().setColorFilter(new PorterDuffColorFilter(getThemedColor(Theme.key_windowBackgroundWhiteBlackText), PorterDuff.Mode.SRC_IN));
+            sharedMediaLayout.getSearchOptionsItem().setColorFilter(new PorterDuffColorFilter(getThemedColor(Theme.key_windowBackgroundWhiteBlackText), PorterDuff.Mode.MULTIPLY));
         }
         sharedMediaLayout.setPinnedToTop(true);
         sharedMediaLayout.getSearchItem().setTranslationY(0);
@@ -1071,7 +1069,7 @@ public class MediaActivity extends BaseFragment implements SharedMediaLayout.Sha
 
     private void updateColors() {
         if (sharedMediaLayout.getSearchOptionsItem() != null) {
-            sharedMediaLayout.getSearchOptionsItem().setColorFilter(new PorterDuffColorFilter(getThemedColor(Theme.key_windowBackgroundWhiteBlackText), PorterDuff.Mode.SRC_IN));
+            sharedMediaLayout.getSearchOptionsItem().setColorFilter(new PorterDuffColorFilter(getThemedColor(Theme.key_windowBackgroundWhiteBlackText), PorterDuff.Mode.MULTIPLY));
         }
         actionBar.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundGray));
         actionBar.setItemsColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText), false);

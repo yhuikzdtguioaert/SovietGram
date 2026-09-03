@@ -48,14 +48,13 @@ import org.telegram.ui.Components.LoadingStickerDrawable;
 import org.telegram.ui.Components.RLottieDrawable;
 import org.telegram.ui.Components.RecyclableDrawable;
 import org.telegram.ui.Components.VectorAvatarThumbDrawable;
-import tw.nekomimi.nekogram.utils.AndroidUtil;
 
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import xyz.nextalone.nagram.NaConfig;
+import sovietgram.com.NaConfig;
 
 public class ImageReceiver implements NotificationCenter.NotificationCenterDelegate, AnimatedEmojiSpan.InvalidateHolder {
 
@@ -326,7 +325,6 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
     private boolean forceNotMedia;
     private boolean forceCrossfade;
     private boolean useRoundRadius = true;
-    private boolean useDirectBitmapDraw;
     private final int[] roundRadius = new int[4];
     private int[] emptyRoundRadius;
     private boolean isRoundRect = true;
@@ -1998,14 +1996,6 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
                 invert = thumbInvert;
             }
 
-            if (useDirectBitmapDraw && shaderToUse != null && drawable instanceof BitmapDrawable
-                    && Build.VERSION.SDK_INT >= 34) {
-                Bitmap directBitmap = ((BitmapDrawable) drawable).getBitmap();
-                if (directBitmap != null && AndroidUtil.hasGainmap(directBitmap)) {
-                    shaderToUse = null;
-                }
-            }
-
             float crossfadeProgress = currentAlpha;
             if (crossfadeByScale > 0) {
                 currentAlpha = Math.min(currentAlpha + crossfadeByScale * currentAlpha, 1);
@@ -2599,10 +2589,6 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
                 updateDrawableRadius(staticThumbDrawable);
             }
         }
-    }
-
-    public void setDirectBitmapDrawEnabled(boolean enabled) {
-        useDirectBitmapDraw = enabled;
     }
 
     public void setMark(Object mark) {

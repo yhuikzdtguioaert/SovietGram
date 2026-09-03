@@ -8,7 +8,6 @@ import android.animation.ObjectAnimator;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Canvas;
-import android.graphics.Typeface;
 import android.graphics.PorterDuff;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
@@ -37,7 +36,6 @@ import androidx.annotation.NonNull;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.AnimationNotificationsLocker;
 import org.telegram.messenger.LocaleController;
-import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.R;
 import org.telegram.ui.ActionBar.ActionBarMenuItem;
 import org.telegram.ui.ActionBar.Theme;
@@ -96,12 +94,7 @@ public class FragmentSearchField extends FrameLayout implements FactorAnimator.T
                 return super.onKeyDown(keyCode, event);
             }
         };
-        editText.setTextSize(TypedValue.COMPLEX_UNIT_DIP, Math.max(12, SharedConfig.fontSize - 2));
-        Typeface customRegular = tw.nekomimi.nekogram.helpers.TypefaceHelper.getCustomFontForCategory(tw.nekomimi.nekogram.helpers.TypefaceHelper.FONT_CATEGORY_REGULAR);
-        if (customRegular != null) {
-            editText.setTypeface(customRegular);
-        }
-        editText.setCursorSize(AndroidUtilities.dp(Math.max(12, SharedConfig.fontSize - 2) + 2));
+        editText.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 15);
         editText.setCursorWidth(1.5f);
         editText.setInputType(editText.getInputType() | InputType.TYPE_TEXT_VARIATION_FILTER);
         editText.setSingleLine(true);

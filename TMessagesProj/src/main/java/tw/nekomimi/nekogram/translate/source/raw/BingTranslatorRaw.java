@@ -2,12 +2,13 @@ package tw.nekomimi.nekogram.translate.source.raw;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.util.Log;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.telegram.messenger.ApplicationLoader;
-import org.telegram.messenger.FileLog;
+import org.telegram.messenger.BuildVars;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -22,6 +23,8 @@ import okhttp3.Response;
 import tw.nekomimi.nekogram.utils.HttpClient;
 
 public class BingTranslatorRaw {
+    private static final String NAX = "BingTranslatorRaw";
+
     private static final String PREF_NAME = "bing_translator_config";
     private static final String DEFAULT_HOST = "www.bing.com";
     private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36 Edg/151.0.4129.59";
@@ -38,22 +41,22 @@ public class BingTranslatorRaw {
     private long tokenExpiryInterval;
 
     public String translate(String text, String from, String to) throws IOException {
-        FileLog.d("Starting translation from " + from + " to " + to + ", text length: " + text.length());
+        if (BuildVars.LOGS_ENABLED) Log.d(NAX, "Starting translation from " + from + " to " + to + ", text length: " + text.length());
 
         loadConfigFromPrefs();
 
         if (isTokenExpired()) {
-            FileLog.d("Token expired, fetching new config");
+            if (BuildVars.LOGS_ENABLED) Log.d(NAX, "Token expired, fetching new config");
             fetchConfig();
         }
 
-        FileLog.d("performTranslation parameters - ig: " + ig + ", iid: " + iid + ", key: " + key + ", token: " + token);
+        if (BuildVars.LOGS_ENABLED) Log.d(NAX, "performTranslation parameters - ig: " + ig + ", iid: " + iid + ", key: " + key + ", token: " + token);
 
         return performTranslation(from, to, text);
     }
 
     private void fetchConfig() throws IOException {
-        FileLog.d("Fetching config from Bing translator");
+        if (BuildVars.LOGS_ENABLED) Log.d(NAX, "Fetching config from Bing translator");
         Request request = new Request.Builder()
             .url(getTranslatorUrl())
             .header("User-Agent", USER_AGENT)
@@ -78,7 +81,7 @@ public class BingTranslatorRaw {
             count.set(0);
 
             saveConfigToPrefs();
-            FileLog.d("Config fetched successfully");
+            if (BuildVars.LOGS_ENABLED) Log.d(NAX, "Config fetched successfully");
         } catch (JSONException | IllegalArgumentException e) {
             throw new IOException("Failed to parse Bing config", e);
         }
@@ -115,8 +118,8 @@ public class BingTranslatorRaw {
                 throw new IOException("Bing translation failed: HTTP " + response.code() + ": " + body);
             }
 
-            String contentType = response.header("Content-Type");
-            if (contentType != null && contentType.startsWith("application/json")) {
+            String contentType = response.header("Content-Type", "");
+            if (contentType.startsWith("application/json")) {
                 return extractTranslatedText(body);
             }
             if (response.header("isgenderdebiasedtranslation") != null) {
@@ -168,7 +171,7 @@ public class BingTranslatorRaw {
             JSONObject translation = translations.getJSONObject(0);
             return translation.getString("text");
         } catch (JSONException e) {
-            FileLog.e("Failed to parse translation response: ", e);
+            if (BuildVars.LOGS_ENABLED) Log.e(NAX, "Failed to parse translation response: ", e);
             throw new IOException("Failed to parse translation response", e);
         }
     }
@@ -191,7 +194,7 @@ public class BingTranslatorRaw {
         tokenTs = prefs.getLong("tokenTs", 0);
         tokenExpiryInterval = prefs.getLong("tokenExpiryInterval", 0);
         if (ig == null) fetchConfig();
-        FileLog.d("loadConfigFromPrefs, ig: " + ig + ", iid: " + iid + ", key: " + key + ", token: " + token + ", tokenTs: " + tokenTs + ", tokenExpiryInterval:" + tokenExpiryInterval);
+        if (BuildVars.LOGS_ENABLED) Log.d(NAX, "loadConfigFromPrefs, ig: " + ig + ", iid: " + iid + ", key: " + key + ", token: " + token + ", tokenTs: " + tokenTs + ", tokenExpiryInterval:" + tokenExpiryInterval);
     }
 
     private void saveConfigToPrefs() {
@@ -204,6 +207,6 @@ public class BingTranslatorRaw {
         editor.putLong("tokenTs", tokenTs);
         editor.putLong("tokenExpiryInterval", tokenExpiryInterval);
         editor.apply();
-        FileLog.d("saveConfigToPrefs, ig: " + ig + ", iid: " + iid + ", key: " + key + ", token: " + token + ", tokenTs: " + tokenTs + ", tokenExpiryInterval:" + tokenExpiryInterval);
+        if (BuildVars.LOGS_ENABLED) Log.d(NAX, "saveConfigToPrefs, ig: " + ig + ", iid: " + iid + ", key: " + key + ", token: " + token + ", tokenTs: " + tokenTs + ", tokenExpiryInterval:" + tokenExpiryInterval);
     }
 }

@@ -18,9 +18,6 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import androidx.annotation.NonNull;
-import androidx.appcompat.widget.AppCompatTextView;
-
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.Emoji;
@@ -86,7 +83,7 @@ public class EmojiSetCell extends FrameLayout {
             addView(radialProgress, LayoutHelper.createFrame(40, 40, (LocaleController.isRTL ? Gravity.LEFT : Gravity.RIGHT) | Gravity.TOP, (LocaleController.isRTL ? 10 : 0), 9, (LocaleController.isRTL ? 0 : 10), 0));
         }
 
-        textView = new AppCompatTextView(context) {
+        textView = new TextView(context) {
             @Override
             public void setText(CharSequence text, BufferType type) {
                 text = Emoji.replaceEmoji(text, getPaint().getFontMetricsInt(), false);
@@ -227,7 +224,7 @@ public class EmojiSetCell extends FrameLayout {
     }
 
     @Override
-    protected void onDraw(@NonNull Canvas canvas) {
+    protected void onDraw(Canvas canvas) {
         if (needDivider) {
             canvas.drawLine(LocaleController.isRTL ? 0 : AndroidUtilities.dp(!selection ? 21 : 71), getHeight() - 1, getWidth() - getPaddingRight() - (LocaleController.isRTL ? AndroidUtilities.dp(!selection ? 21 : 71) : 0), getHeight() - 1, Theme.dividerPaint);
         }
@@ -264,6 +261,7 @@ public class EmojiSetCell extends FrameLayout {
     public void setProgress(float percentage, long downBytes, boolean animated) {
         radialProgress.setProgress(percentage);
         valueTextView.setText(LocaleController.formatString(
+                "AccDescrDownloadProgress",
                 R.string.AccDescrDownloadProgress,
                 AndroidUtilities.formatFileSize(downBytes),
                 AndroidUtilities.formatFileSize(pack.getFileSize())
@@ -272,7 +270,8 @@ public class EmojiSetCell extends FrameLayout {
 
     public void checkDownloaded(boolean animated) {
         if ("default".equals(pack.getPackId())) return;
-        if (pack instanceof EmojiHelper.EmojiPackInfo packInfo) {
+        if (pack instanceof EmojiHelper.EmojiPackInfo) {
+            EmojiHelper.EmojiPackInfo packInfo = (EmojiHelper.EmojiPackInfo) pack;
             if (EmojiHelper.getInstance().isPackDownloaded(packInfo)) {
                 setProgress(false, animated);
                 if (EmojiHelper.getInstance().isPackInstalled(packInfo)) {

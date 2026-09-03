@@ -23,7 +23,7 @@ import java.util.Locale;
 import java.util.Objects;
 
 import tw.nekomimi.nekogram.ui.icons.IconsResources;
-import xyz.nextalone.nagram.NaConfig;
+import sovietgram.com.NaConfig;
 
 public class TimeStringHelper {
     public static SpannableStringBuilder deletedSpan;

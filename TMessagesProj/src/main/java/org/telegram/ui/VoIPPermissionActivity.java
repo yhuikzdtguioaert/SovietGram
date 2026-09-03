@@ -16,6 +16,12 @@ import java.util.ArrayList;
 
 @TargetApi(23)
 public class VoIPPermissionActivity extends Activity {
+	/** Same reason as {@link BasePermissionsActivity#getResources()}: icon packs apply per context. */
+	@Override
+	public android.content.res.Resources getResources() {
+		return tw.nekomimi.nekogram.ui.icons.IconsResources.wrap(super.getResources());
+	}
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);

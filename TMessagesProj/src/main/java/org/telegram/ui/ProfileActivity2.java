@@ -87,6 +87,8 @@ import java.time.Period;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+import tw.nekomimi.nekogram.helpers.ServerFragmentHelper;
+
 public class ProfileActivity2 extends BaseFragment implements
     NotificationCenter.NotificationCenterDelegate,
     SharedMediaLayout.SharedMediaPreloaderDelegate,
@@ -670,7 +672,7 @@ public class ProfileActivity2 extends BaseFragment implements
                     final TL_fragment.TL_inputCollectibleUsername input = new TL_fragment.TL_inputCollectibleUsername();
                     input.username = usernameObj.username;
                     req.collectible = input;
-                    int reqId = getConnectionsManager().sendRequest(req, (res, err) -> AndroidUtilities.runOnUIThread(() -> {
+                    int reqId = ServerFragmentHelper.sendCollectibleInfo(getConnectionsManager(), req, (res, err) -> AndroidUtilities.runOnUIThread(() -> {
                         setLoadingSpan(null);
                         if (res instanceof TL_fragment.TL_collectibleInfo) {
                             if (getContext() == null) return;
@@ -716,7 +718,35 @@ public class ProfileActivity2 extends BaseFragment implements
         if (item.id == ID_BIZ_HOURS) {
             hoursExpanded = !hoursExpanded;
             listView.adapter.update(true);
+        } else if (item.id == ID_PHONE) {
+            showFragmentPhoneSheet();
         }
+    }
+
+    /**
+     * A Fragment number is a collectible just like the Fragment usernames handled above, so tapping
+     * one opens the same card. Ordinary numbers keep doing nothing on tap, as before.
+     */
+    private void showFragmentPhoneSheet() {
+        final String phone = TextUtils.isEmpty(vcardPhone) ? (user != null ? user.phone : null) : vcardPhone;
+        if (user == null || phone == null || !phone.matches("888\\d{8}") || getContext() == null) {
+            return;
+        }
+        final TL_fragment.TL_inputCollectiblePhone input = new TL_fragment.TL_inputCollectiblePhone();
+        input.phone = phone;
+        final TL_fragment.TL_getCollectibleInfo req = new TL_fragment.TL_getCollectibleInfo();
+        req.collectible = input;
+        final int reqId = ServerFragmentHelper.sendCollectibleInfo(getConnectionsManager(), req, (res, err) -> AndroidUtilities.runOnUIThread(() -> {
+            if (getContext() == null) {
+                return;
+            }
+            if (res instanceof TL_fragment.TL_collectibleInfo) {
+                FragmentUsernameBottomSheet.open(getContext(), FragmentUsernameBottomSheet.TYPE_PHONE, phone, user, (TL_fragment.TL_collectibleInfo) res, getResourceProvider());
+            } else {
+                BulletinFactory.showError(err);
+            }
+        }));
+        getConnectionsManager().bindRequestToGuid(reqId, getClassGuid());
     }
 
     private boolean onLongClick(UItem item, View view, int position, float x, float y) {

@@ -36,11 +36,6 @@ public class MemberRequestCell extends FrameLayout {
         super(context);
 
         avatarImageView.setRoundRadius(AndroidUtilities.dp(23));
-        avatarImageView.setOnClickListener(v -> {
-            if (clickListener != null && importer != null) {
-                clickListener.onAvatarClicked(this);
-            }
-        });
         addView(avatarImageView, LayoutHelper.createFrame(46, 46, LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT, 12, 8, 12, 0));
 
         nameTextView.setGravity(LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT);
@@ -95,7 +90,7 @@ public class MemberRequestCell extends FrameLayout {
         addView(dismissButton, dismissLayoutParams);
 
         TextView banButton = new TextView(getContext());
-        banButton.setBackground(Theme.AdaptiveRipple.filledRectByKey(Theme.key_text_RedRegular, 16));
+        banButton.setBackground(Theme.AdaptiveRipple.filledRectByKey(Theme.key_text_RedRegular, 4));
         banButton.setGravity((LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT) | Gravity.CENTER_VERTICAL);
         banButton.setMaxLines(1);
         banButton.setPadding(btnPadding, 0, btnPadding, 0);
@@ -172,7 +167,5 @@ public class MemberRequestCell extends FrameLayout {
         void onDismissClicked(TLRPC.TL_chatInviteImporter importer);
 
         void onBanClicked(TLRPC.TL_chatInviteImporter importer);
-
-        void onAvatarClicked(MemberRequestCell cell);
     }
 }

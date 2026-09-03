@@ -2,7 +2,6 @@ package org.telegram.ui.Components;
 
 import android.content.Context;
 import android.graphics.PorterDuff;
-import android.graphics.Typeface;
 import android.graphics.PorterDuffColorFilter;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -16,7 +15,6 @@ import android.widget.FrameLayout;
 import android.widget.ImageView;
 
 import org.telegram.messenger.AndroidUtilities;
-import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.R;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.ActionBar.ThemeDescription;
@@ -103,12 +101,7 @@ public class SearchField extends FrameLayout {
                 return super.onTouchEvent(event);
             }
         };
-        int searchFontSize = Math.max(12, SharedConfig.fontSize - 2);
-        searchEditText.setTextSize(TypedValue.COMPLEX_UNIT_DIP, searchFontSize);
-        Typeface customRegular = tw.nekomimi.nekogram.helpers.TypefaceHelper.getCustomFontForCategory(tw.nekomimi.nekogram.helpers.TypefaceHelper.FONT_CATEGORY_REGULAR);
-        if (customRegular != null) {
-            searchEditText.setTypeface(customRegular);
-        }
+        searchEditText.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
         searchEditText.setHintTextColor(getThemedColor(Theme.key_dialogSearchHint));
         searchEditText.setTextColor(getThemedColor(Theme.key_dialogSearchText));
         searchEditText.setBackgroundDrawable(null);
@@ -119,7 +112,7 @@ public class SearchField extends FrameLayout {
         searchEditText.setGravity((supportRtl ? LayoutHelper.getAbsoluteGravityStart() : Gravity.LEFT) | Gravity.CENTER_VERTICAL);
         searchEditText.setImeOptions(EditorInfo.IME_ACTION_SEARCH | EditorInfo.IME_FLAG_NO_EXTRACT_UI);
         searchEditText.setCursorColor(getThemedColor(Theme.key_featuredStickers_addedIcon));
-        searchEditText.setCursorSize(AndroidUtilities.dp(searchFontSize + 2));
+        searchEditText.setCursorSize(AndroidUtilities.dp(20));
         searchEditText.setCursorWidth(1.5f);
         if (supportRtl) {
             lp = LayoutHelper.createFrameRelatively(LayoutHelper.MATCH_PARENT, 40, Gravity.START | Gravity.TOP, horizontalMargin + 2 + 38, 9, horizontalMargin + 2 + 30, 0);

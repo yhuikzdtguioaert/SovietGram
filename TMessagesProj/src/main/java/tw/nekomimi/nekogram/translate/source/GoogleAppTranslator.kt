@@ -13,7 +13,7 @@ import tw.nekomimi.nekogram.translate.HTMLKeeper
 import tw.nekomimi.nekogram.translate.TransUtils
 import tw.nekomimi.nekogram.translate.Translator
 import tw.nekomimi.nekogram.utils.HttpClient
-import xyz.nextalone.nagram.NaConfig
+import sovietgram.com.NaConfig
 import java.io.IOException
 
 object GoogleAppTranslator : Translator {

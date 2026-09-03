@@ -13,28 +13,44 @@ import androidx.annotation.NonNull;
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
 
-import java.util.Map;
+import org.telegram.tgnet.ConnectionsManager;
 
-import xyz.nextalone.nagram.NaConfig;
+import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.ApplicationLoader;
+import org.telegram.messenger.BuildVars;
+import org.telegram.messenger.FileLog;
+import org.telegram.messenger.PushListenerController;
+
+import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 public class GcmPushListenerService extends FirebaseMessagingService {
 
     @Override
     public void onMessageReceived(RemoteMessage message) {
-        if (isGooglePushDisabled()) return;
-
         String from = message.getFrom();
         Map<String, String> data = message.getData();
         long time = message.getSentTime();
 
-        FileLog.d("FCM received data: " + data + " from: " + from);
+        // Keep a release-build logcat breadcrumb without writing encrypted payloads or tokens.
+        MessagesController.getGlobalNotificationsSettings().edit()
+                .putLong("last_fcm_receive_time", System.currentTimeMillis())
+                .apply();
+        android.util.Log.i("SovietGramPush", "FCM received: sender=" + from + ", keys=" + data.keySet().size());
 
-        PushListenerController.processRemoteMessage(PushListenerController.PUSH_TYPE_FIREBASE, data.get("p"), time);
+        String payload = data.get("p");
+        if (payload != null && !payload.isEmpty()) {
+            PushListenerController.processRemoteMessage(PushListenerController.PUSH_TYPE_FIREBASE, payload, time);
+        } else {
+            // A collapsed/data-less wake-up still means Telegram has state for us. Sync every
+            // signed-in account instead of dropping the wake-up or crashing on a null payload.
+            wakeAccountsForSync();
+        }
     }
 
     @Override
     public void onNewToken(@NonNull String token) {
-        if (isGooglePushDisabled()) return;
         AndroidUtilities.runOnUIThread(() -> {
             if (BuildVars.LOGS_ENABLED) {
                 FileLog.d("Refreshed FCM token: " + token);
@@ -44,8 +60,37 @@ public class GcmPushListenerService extends FirebaseMessagingService {
         });
     }
 
-    private static boolean isGooglePushDisabled() {
-        int pushServiceType = NaConfig.getPreferences().getInt(NaConfig.INSTANCE.getPushServiceType().getKey(), 1);
-        return pushServiceType != 1 && pushServiceType != 3;
+    @Override
+    public void onDeletedMessages() {
+        // FCM collapsed or evicted older pushes. A full difference sync recovers every missed
+        // notification while the system-awakened service still owns execution time.
+        android.util.Log.w("SovietGramPush", "FCM deleted messages; forcing account difference sync");
+        wakeAccountsForSync();
+        ApplicationLoader.runPushHealthCheck();
+    }
+
+    private static void wakeAccountsForSync() {
+        CountDownLatch completed = new CountDownLatch(1);
+        AndroidUtilities.runOnUIThread(() -> {
+            ApplicationLoader.postInitApplication();
+            Utilities.stageQueue.postRunnable(() -> {
+                try {
+                    for (int account = 0; account < UserConfig.MAX_ACCOUNT_COUNT; account++) {
+                        if (!UserConfig.getInstance(account).isClientActivated()) {
+                            continue;
+                        }
+                        ConnectionsManager.onInternalPushReceived(account);
+                        ConnectionsManager.getInstance(account).resumeNetworkMaybe();
+                    }
+                } finally {
+                    completed.countDown();
+                }
+            });
+        });
+        try {
+            completed.await(20, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 }

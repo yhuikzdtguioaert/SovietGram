@@ -2,15 +2,28 @@ package org.telegram.messenger;
 
 import android.os.SystemClock;
 import android.text.TextUtils;
+import android.util.Log;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.messaging.FirebaseMessaging;
 
+import org.telegram.messenger.ApplicationLoader;
+import org.telegram.messenger.BuildVars;
+import org.telegram.messenger.FileLog;
+import org.telegram.messenger.PushListenerController;
+import org.telegram.messenger.SharedConfig;
+import org.telegram.messenger.Utilities;
+
+import java.util.concurrent.atomic.AtomicBoolean;
+
 public class GooglePushListenerServiceProvider implements PushListenerController.IPushListenerServiceProvider {
 
     private Boolean hasServices;
+    private final AtomicBoolean tokenRequestInFlight = new AtomicBoolean(false);
+    private int retryAttempt;
+    private static final long[] RETRY_DELAYS_MS = {5_000L, 30_000L, 120_000L, 600_000L};
 
     public GooglePushListenerServiceProvider() {}
 
@@ -26,36 +39,61 @@ public class GooglePushListenerServiceProvider implements PushListenerController
 
     @Override
     public void onRequestPushToken() {
-        String currentPushString = SharedConfig.pushString;
+        final String currentPushString = SharedConfig.pushString;
         if (!TextUtils.isEmpty(currentPushString)) {
             if (BuildVars.DEBUG_PRIVATE_VERSION) {
                 FileLog.d("FCM regId = " + currentPushString);
             }
+            // Re-assert the last known-good token immediately. A transient Firebase failure below
+            // must never replace a working registration with an empty value.
+            PushListenerController.sendRegistrationToServer(getPushType(), currentPushString);
+            Log.i("SovietGramPush", "FCM cached token reasserted");
         } else {
             FileLog.d("FCM Registration not found.");
+            Log.w("SovietGramPush", "FCM cached token missing; requesting a new token");
         }
+        requestToken(0L);
+    }
+
+    private void requestToken(long delayMs) {
         Utilities.globalQueue.postRunnable(() -> {
+            if (!tokenRequestInFlight.compareAndSet(false, true)) return;
             try {
                 SharedConfig.pushStringGetTimeStart = SystemClock.elapsedRealtime();
                 FirebaseApp.initializeApp(ApplicationLoader.applicationContext);
                 FirebaseMessaging.getInstance().getToken()
                         .addOnCompleteListener(task -> {
+                            tokenRequestInFlight.set(false);
                             SharedConfig.pushStringGetTimeEnd = SystemClock.elapsedRealtime();
                             if (!task.isSuccessful()) {
-                                FileLog.d("Failed to get regid");
-                                SharedConfig.pushStringStatus = "__FIREBASE_FAILED__";
-                                PushListenerController.sendRegistrationToServer(getPushType(), null);
+                                if (BuildVars.LOGS_ENABLED) {
+                                    FileLog.d("Failed to refresh FCM regid; keeping last known token");
+                                }
+                                SharedConfig.pushStringStatus = "__FIREBASE_RETRYING__";
+                                Log.w("SovietGramPush", "FCM token refresh failed; retry scheduled");
+                                scheduleRetry();
                                 return;
                             }
                             String token = task.getResult();
                             if (!TextUtils.isEmpty(token)) {
+                                retryAttempt = 0;
                                 PushListenerController.sendRegistrationToServer(getPushType(), token);
+                                Log.i("SovietGramPush", "FCM token refreshed and sent for all accounts");
+                            } else {
+                                scheduleRetry();
                             }
                         });
             } catch (Throwable e) {
+                tokenRequestInFlight.set(false);
                 FileLog.e(e);
+                scheduleRetry();
             }
-        });
+        }, delayMs);
+    }
+
+    private void scheduleRetry() {
+        final int index = Math.min(retryAttempt++, RETRY_DELAYS_MS.length - 1);
+        requestToken(RETRY_DELAYS_MS[index]);
     }
 
     @Override

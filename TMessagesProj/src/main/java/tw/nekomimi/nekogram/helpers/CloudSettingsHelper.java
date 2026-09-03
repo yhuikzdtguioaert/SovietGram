@@ -7,7 +7,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Handler;
-import android.os.Looper;
 import android.text.TextUtils;
 import android.util.Base64;
 import android.util.SparseArray;
@@ -17,8 +16,6 @@ import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-
-import androidx.core.view.accessibility.AccessibilityNodeInfoCompat;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
@@ -54,7 +51,7 @@ public class CloudSettingsHelper {
     public static final SharedPreferences.OnSharedPreferenceChangeListener listener = (preferences, key) -> CloudSettingsHelper.getInstance().doAutoSync();
     private static final SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences("nekocloud", Context.MODE_PRIVATE);
     private final SparseArray<Long> cloudSyncedDate = new SparseArray<>();
-    private final Handler handler = new Handler(Looper.getMainLooper());
+    private final Handler handler = new Handler();
     private long localSyncedDate = preferences.getLong("updated_at", -1);
     private boolean autoSync = preferences.getBoolean("auto_sync", false);
 
@@ -181,7 +178,7 @@ public class CloudSettingsHelper {
                     }
                 } else {
                     AlertDialog restart = new AlertDialog(context, 0);
-                    restart.setTitle(getString(R.string.NagramX));
+                    restart.setTitle(getString(R.string.SovietGram));
                     restart.setMessage(getString(R.string.RestartAppToTakeEffect));
                     restart.setPositiveButton(getString(R.string.OK), (__, ___) -> AppRestartHelper.triggerRebirth(context, new Intent(context, LaunchActivity.class)));
                     restart.show();
@@ -477,9 +474,7 @@ public class CloudSettingsHelper {
             super.onInitializeAccessibilityNodeInfo(info);
             info.setClassName("android.widget.CheckBox");
             info.setCheckable(true);
-            AccessibilityNodeInfoCompat.wrap(info).setChecked(checkBox.isChecked()
-                    ? AccessibilityNodeInfoCompat.CHECKED_STATE_TRUE
-                    : AccessibilityNodeInfoCompat.CHECKED_STATE_FALSE);
+            info.setChecked(checkBox.isChecked());
             StringBuilder sb = new StringBuilder();
             sb.append(textView.getText());
             if (!TextUtils.isEmpty(valueTextView.getText())) {

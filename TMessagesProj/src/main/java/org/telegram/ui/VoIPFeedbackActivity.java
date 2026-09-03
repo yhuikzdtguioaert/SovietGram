@@ -7,6 +7,12 @@ import android.view.WindowManager;
 import org.telegram.ui.Components.voip.VoIPHelper;
 
 public class VoIPFeedbackActivity extends Activity {
+	/** Same reason as {@link BasePermissionsActivity#getResources()}: icon packs apply per context. */
+	@Override
+	public android.content.res.Resources getResources() {
+		return tw.nekomimi.nekogram.ui.icons.IconsResources.wrap(super.getResources());
+	}
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		getWindow().addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED);

@@ -3285,13 +3285,20 @@ public class RecyclerListView extends RecyclerView implements IBlur3Capture {
         setSections(dp(12), dp(16), topPadding);
     }
     public void setSections(int padding, float roundRadius, boolean topPadding) {
+        setSections(padding, roundRadius, topPadding, this::drawBackgroundRect);
+    }
+    /** {@link #setSections(int, float, boolean)} with something painted in place of the plain card. */
+    public void setSections(int padding, float roundRadius, boolean topPadding, Utilities.Callback5<Canvas, RectF, Float, Float, Float> drawSectionBackground) {
         setSections(
-            view -> !(view instanceof TextInfoPrivacyCell || view instanceof ShadowSectionCell || view instanceof FiltersSetupActivity.HintInnerCell || view instanceof GraySectionCell || view instanceof CollapseTextCell) && !Objects.equals(view.getTag(), TAG_NOT_SECTION),
+            RecyclerListView::isDefaultSectionView,
             padding,
             roundRadius,
-            this::drawBackgroundRect,
+            drawSectionBackground,
             topPadding
         );
+    }
+    private static boolean isDefaultSectionView(View view) {
+        return !(view instanceof TextInfoPrivacyCell || view instanceof ShadowSectionCell || view instanceof FiltersSetupActivity.HintInnerCell || view instanceof GraySectionCell || view instanceof CollapseTextCell) && !Objects.equals(view.getTag(), TAG_NOT_SECTION);
     }
     private static Pair<Utilities.CallbackReturn<View, Boolean>, Utilities.CallbackReturn<Integer, Boolean>> cachedIsViewTypeShadow(RecyclerListView listView, Utilities.CallbackReturn<View, Boolean> isSectionView) {
         SparseIntArray cache = new SparseIntArray();

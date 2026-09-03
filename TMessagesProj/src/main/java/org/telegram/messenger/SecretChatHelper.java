@@ -36,7 +36,7 @@ import java.util.Locale;
 import java.util.concurrent.ConcurrentHashMap;
 
 import tw.nekomimi.nekogram.utils.AlertUtil;
-import xyz.nextalone.nagram.NaConfig;
+import sovietgram.com.NaConfig;
 import com.radolyn.ayugram.AyuConstants;
 import com.radolyn.ayugram.messages.AyuMessagesController;
 import com.radolyn.ayugram.messages.AyuSavePreferences;
@@ -2024,7 +2024,7 @@ public class SecretChatHelper extends BaseController {
                                     FileLog.e(e);
                                 }
                                 AlertDialog.Builder builder = new AlertDialog.Builder(context);
-                                builder.setTitle(LocaleController.getString(R.string.NagramX));
+                                builder.setTitle(LocaleController.getString(R.string.SovietGram));
                                 builder.setMessage(LocaleController.getString(R.string.CreateEncryptedChatError));
                                 builder.setPositiveButton(LocaleController.getString(R.string.OK), null);
                                 builder.show().setCanceledOnTouchOutside(true);

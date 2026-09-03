@@ -15,7 +15,6 @@ import org.telegram.ui.LaunchActivity;
 
 import java.nio.charset.StandardCharsets;
 
-@SuppressWarnings("BooleanMethodIsAlwaysInverted")
 public class PasscodeHelper {
     private static final SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences("nekopasscode", Context.MODE_PRIVATE);
 

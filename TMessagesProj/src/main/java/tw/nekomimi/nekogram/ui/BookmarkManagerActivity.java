@@ -76,7 +76,7 @@ import java.util.Map;
 
 import tw.nekomimi.nekogram.ui.cells.BookmarksChatCell;
 import tw.nekomimi.nekogram.utils.AlertUtil;
-import xyz.nextalone.nagram.helper.BookmarksHelper;
+import sovietgram.com.helper.BookmarksHelper;
 
 public class BookmarkManagerActivity extends BaseFragment {
 
@@ -1117,7 +1117,7 @@ public class BookmarkManagerActivity extends BaseFragment {
                         float pageDelta = dx / getMeasuredWidth();
                         duration = (int) ((pageDelta + 1.0f) * 100.0f);
                     }
-                    duration = Math.clamp(duration, 150, 600);
+                    duration = Math.max(150, Math.min(duration, 600));
                     tabsAnimation.setDuration(duration);
                     tabsAnimation.addListener(new AnimatorListenerAdapter() {
                         @Override

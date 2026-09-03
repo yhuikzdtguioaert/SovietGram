@@ -7,6 +7,7 @@ import okhttp3.Request
 import org.json.JSONException
 import org.json.JSONObject
 import org.telegram.messenger.FileLog
+import org.telegram.messenger.BuildConfig
 import org.telegram.messenger.LocaleController.getString
 import org.telegram.messenger.R
 import org.telegram.tgnet.TLRPC
@@ -75,7 +76,7 @@ object GoogleTranslator : Translator {
             ).addQueryParameter("query.target_language", to)
             .addQueryParameter("query.display_language", "en-US")
             .addQueryParameter("data_types", "TRANSLATION")
-            .addQueryParameter("key", "AIzaSyDLEeFI5OtFBwYBIoK_jj5m32rZK5CkCXA")
+            .addQueryParameter("key", BuildConfig.GOOGLE_TRANSLATE_API_KEY)
             .addQueryParameter("query.text", text)
         val httpUrl = urlBuilder.build()
 

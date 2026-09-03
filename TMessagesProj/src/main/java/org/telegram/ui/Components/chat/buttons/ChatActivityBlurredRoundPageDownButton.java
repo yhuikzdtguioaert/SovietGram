@@ -79,6 +79,11 @@ public class ChatActivityBlurredRoundPageDownButton extends FrameLayout {
         buttonView.reverseIconByY();
     }
 
+    /** @see ChatActivityBlurredRoundButton#setLegacyStyle() */
+    public void setLegacyStyle() {
+        buttonView.setLegacyStyle();
+    }
+
     public void updateColors() {
         if (buttonView != null) {
             buttonView.updateColors();

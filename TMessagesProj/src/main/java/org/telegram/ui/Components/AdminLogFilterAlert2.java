@@ -27,7 +27,7 @@ import org.telegram.ui.Stories.recorder.ButtonWithCounterView;
 
 import java.util.ArrayList;
 
-import xyz.nextalone.nagram.NaConfig;
+import sovietgram.com.NaConfig;
 
 public class AdminLogFilterAlert2 extends BottomSheetWithRecyclerListView {
 

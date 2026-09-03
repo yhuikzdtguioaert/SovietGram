@@ -14,7 +14,6 @@ import android.graphics.Shader;
 import android.os.Build;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.annotation.RawRes;
 import androidx.annotation.RequiresApi;
 import androidx.core.graphics.ColorUtils;
@@ -24,7 +23,6 @@ import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.R;
 import org.telegram.messenger.Utilities;
 import org.telegram.messenger.utils.ColorShader;
-import org.telegram.ui.Components.blur3.utils.BitmapChangeTracker;
 import org.telegram.ui.Components.blur3.utils.BitmapMemoizedMetadata;
 
 import java.lang.ref.WeakReference;
@@ -35,299 +33,226 @@ public class MotionBackgroundPaint {
     private static final int MODE_POS = 1;
     private static final int MODE_NEG = 2;
 
+    private final Paint paint = new Paint();
+    private final Paint paintHwAgsl = new Paint();
+
+    private final BitmapShaderState gradientShader = new BitmapShaderState(Shader.TileMode.CLAMP);
+    private final BitmapShaderState gradientSoftLightShader = new BitmapShaderState(Shader.TileMode.CLAMP);
+    private final BitmapShaderState patternShader = new BitmapShaderState(Shader.TileMode.REPEAT);
+    private final ColorShaderState colorShader = new ColorShaderState();
+    private final ColorShaderState alphaShader = new ColorShaderState();
+
     private final BitmapMemoizedMetadata<Bitmap> patterAlphaBitmapMemo = new BitmapMemoizedMetadata<>(MotionBackgroundPaint::getAlphaChannel);
     private final BitmapMemoizedSoftLight gradientSoftLightBitmapMemo = new BitmapMemoizedSoftLight();
 
-    private final ShaderImpl shaderImpl = new ShaderImpl();
-    private final @Nullable AgslImpl agslImpl;
+    private int lastMode;
+    private int lastModeHwAgsl;
+    private float lastHwIntensity;
 
-    private int gradientWidth, gradientHeight;
-    private int patternWidth, patternHeight;
+    private final RuntimeShaderState runtimeShaderNegative;
+    private final RuntimeShaderState runtimeShaderPositive;
 
     public MotionBackgroundPaint() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            agslImpl = new AgslImpl();
+            runtimeShaderPositive = new RuntimeShaderState(R.raw.wallpaper_pos_intensity);
+            runtimeShaderNegative = new RuntimeShaderState(R.raw.wallpaper_neg_intensity);
         } else {
-            agslImpl = null;
+            runtimeShaderPositive = runtimeShaderNegative = null;
         }
+
+        final PorterDuffXfermode xRef = new PorterDuffXfermode(PorterDuff.Mode.SRC);
+        paint.setFilterBitmap(true);
+        paint.setXfermode(xRef);
+        paintHwAgsl.setXfermode(xRef);
     }
 
     public Paint getPaint(@NonNull Bitmap gradient, @NonNull Bitmap pattern, final int patternColor, int patternAlpha, int intensity, boolean isHardwareAccelerated) {
-        final Bitmap patternAlphaBitmap = patterAlphaBitmapMemo.get(pattern);
-        final Bitmap gradientSoftLight;
-        if (intensity >= 0) {
-            final int colorForShader = ColorUtils.setAlphaComponent(patternColor, Color.alpha(patternColor) * patternAlpha * intensity / 25500);
-            gradientSoftLight = gradientSoftLightBitmapMemo.get(gradient, colorForShader);
+        if (isHardwareAccelerated && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            return getPaintHwAgsl(gradient, pattern, patternColor, patternAlpha, intensity);
         } else {
-            gradientSoftLight = null;
-        }
-
-        gradientWidth = gradient.getWidth();
-        gradientHeight = gradient.getHeight();
-        patternWidth = patternAlphaBitmap.getWidth();
-        patternHeight = patternAlphaBitmap.getHeight();
-
-        if (agslImpl != null && isHardwareAccelerated && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            return agslImpl.getPaint(gradient, patternAlphaBitmap, gradientSoftLight, patternAlpha, intensity);
-        } else {
-            return shaderImpl.getPaint(gradient, patternAlphaBitmap, gradientSoftLight, patternAlpha, intensity);
-        }
-    }
-
-
-
-    /* Implementations */
-
-    private static class ShaderImpl {
-        private final Paint paint = new Paint();
-
-        private final BitmapShaderState gradientShader = new BitmapShaderState(Shader.TileMode.CLAMP);
-        private final BitmapShaderState gradientSoftLightShader = new BitmapShaderState(Shader.TileMode.CLAMP);
-        private final BitmapShaderState patternShader = new BitmapShaderState(Shader.TileMode.REPEAT);
-        private final ColorShaderState colorShader = new ColorShaderState();
-        private final ColorShaderState alphaShader = new ColorShaderState();
-
-        private final float[] tmpOut = new float[4];
-
-        private int lastMode;
-
-        ShaderImpl() {
-            paint.setFilterBitmap(true);
-            paint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC));
-        }
-
-        Paint getPaint(@NonNull Bitmap gradient, @NonNull Bitmap patternAlphaBitmap, @Nullable Bitmap gradientSoftLight, int patternAlpha, int intensity) {
-            boolean changed = false;
-            changed |= gradientShader.setup(gradient);
-            changed |= patternShader.setup(patternAlphaBitmap);
-
-            if (intensity >= 0) {
-                changed |= gradientSoftLightShader.setup(gradientSoftLight);
-
-                if (changed || lastMode != MODE_POS) {
-                    lastMode = MODE_POS;
-                    paint.setShader(new ComposeShader(
-                            gradientShader.shader,
-                            new ComposeShader(
-                                    gradientSoftLightShader.shader,
-                                    patternShader.shader,
-                                    PorterDuff.Mode.DST_IN
-                            ), PorterDuff.Mode.SRC_OVER));
-                }
-            } else {
-                final int alphaForShader = patternAlpha * -intensity / 100;
-                changed |= alphaShader.setup(ColorUtils.setAlphaComponent(Color.WHITE, alphaForShader));
-                changed |= colorShader.setup(Color.BLACK);
-
-                if (changed || lastMode != MODE_NEG) {
-                    lastMode = MODE_NEG;
-                    paint.setShader(new ComposeShader(
-                            colorShader.shader,
-                            new ComposeShader(
-                                    new ComposeShader(
-                                            gradientShader.shader,
-                                            patternShader.shader,
-                                            PorterDuff.Mode.DST_IN
-                                    ),
-                                    alphaShader.shader,
-                                    PorterDuff.Mode.MULTIPLY
-                            ), PorterDuff.Mode.SRC_OVER));
-                }
-            }
-
-            return paint;
-        }
-
-        void applyGradientMatrix(Matrix matrix) {
-            gradientShader.setLocalMatrix(matrix);
-            gradientSoftLightShader.setLocalMatrix(matrix);
-        }
-
-        void applyPatternMatrix(Matrix matrix) {
-            matrixToScaleTranslate(matrix, tmpOut);
-            patternShader.setLocalMatrix(matrix);
-            patternShader.setUseNearestInterpolation(isOne(tmpOut[0]) && isOne(tmpOut[1]));
-        }
-
-        private static class ColorShaderState {
-            ColorShader shader;
-            int color;
-
-            boolean setup(int color) {
-                if (shader == null || this.color != color) {
-                    this.color = color;
-                    shader = new ColorShader(color);
-                    return true;
-                }
-                return false;
-            }
+            return getPaintSw(gradient, pattern, patternColor, patternAlpha, intensity);
         }
     }
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
-    private static class AgslImpl {
-        private final Paint paint = new Paint();
+    private Paint getPaintHwAgsl(@NonNull Bitmap gradient, @NonNull Bitmap pattern,
+                                 final int patternColor, int patternAlpha, int intensity) {
+        boolean changed = false;
+        changed |= gradientShader.setup(gradient);
+        changed |= patternShader.setup(patterAlphaBitmapMemo.get(pattern));
 
-        private final BitmapShaderState gradientShader = new BitmapShaderState(Shader.TileMode.CLAMP);
-        private final BitmapShaderState gradientSoftLightShader = new BitmapShaderState(Shader.TileMode.CLAMP);
-        private final BitmapShaderState patternShader = new BitmapShaderState(Shader.TileMode.REPEAT);
+        if (intensity >= 0) {
+            final int colorForShader = ColorUtils.setAlphaComponent(patternColor, Color.alpha(patternColor) * patternAlpha * intensity / 25500);
+            changed |= gradientSoftLightShader.setup(gradientSoftLightBitmapMemo.get(gradient, colorForShader));
 
-        private final RuntimeShaderState runtimeShaderPositive = new RuntimeShaderState(R.raw.wallpaper_pos_intensity);
-        private final RuntimeShaderState runtimeShaderNegative = new RuntimeShaderState(R.raw.wallpaper_neg_intensity);
-
-        private final float[] tmpOut = new float[4];
-
-        private int lastMode;
-        private float lastIntensity;
-
-        AgslImpl() {
-            paint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC));
-        }
-
-        Paint getPaint(@NonNull Bitmap gradient, @NonNull Bitmap patternAlphaBitmap, @Nullable Bitmap gradientSoftLight, int patternAlpha, int intensity) {
-            boolean changed = false;
-            changed |= gradientShader.setup(gradient);
-            changed |= patternShader.setup(patternAlphaBitmap);
-
-            if (intensity >= 0) {
-                changed |= gradientSoftLightShader.setup(gradientSoftLight);
-
-                if (changed || lastMode != MODE_POS) {
-                    lastMode = MODE_POS;
-                    runtimeShaderPositive.shader.setInputBuffer("shaderPattern", patternShader.shader);
-                    runtimeShaderPositive.shader.setInputBuffer("shaderGradient", gradientShader.shader);
-                    runtimeShaderPositive.shader.setInputBuffer("shaderGradientSoftLight", gradientSoftLightShader.shader);
-                    runtimeShaderPositive.setMatrixUniforms();
-                    paint.setShader(runtimeShaderPositive.shader);
-                }
-            } else {
-                final float normalizedIntensity = MathUtils.clamp(patternAlpha * (-intensity) / 25500f, 0, 1);
-                if (changed || lastIntensity != normalizedIntensity || lastMode != MODE_NEG) {
-                    lastMode = MODE_NEG;
-                    lastIntensity = normalizedIntensity;
-                    runtimeShaderNegative.shader.setInputBuffer("shaderPattern", patternShader.shader);
-                    runtimeShaderNegative.shader.setInputBuffer("shaderGradient", gradientShader.shader);
-                    runtimeShaderNegative.shader.setFloatUniform("intensity", normalizedIntensity);
-                    runtimeShaderNegative.setMatrixUniforms();
-                    paint.setShader(runtimeShaderNegative.shader);
-                }
+            if (changed || lastModeHwAgsl != MODE_POS) {
+                lastModeHwAgsl = MODE_POS;
+                runtimeShaderPositive.shader.setInputShader("shaderPattern", patternShader.shader);
+                runtimeShaderPositive.shader.setInputShader("shaderGradient", gradientShader.shader);
+                runtimeShaderPositive.shader.setInputShader("shaderGradientSoftLight", gradientSoftLightShader.shader);
+                runtimeShaderPositive.shader.setFloatUniform("transformGradient", runtimeShaderPositive.transformGradient);
+                runtimeShaderPositive.shader.setFloatUniform("transformPattern", runtimeShaderPositive.transformPattern);
+                paintHwAgsl.setShader(runtimeShaderPositive.shader);
             }
-
-            return paint;
-        }
-
-        void applyGradientMatrix(Matrix matrix) {
-            matrixToScaleTranslate(matrix, tmpOut);
-            runtimeShaderPositive.setMiniMatrixGradient(tmpOut);
-            runtimeShaderNegative.setMiniMatrixGradient(tmpOut);
-        }
-
-        void applyPatternMatrix(Matrix matrix) {
-            matrixToScaleTranslate(matrix, tmpOut);
-            patternShader.setUseNearestInterpolation(isOne(tmpOut[0]) && isOne(tmpOut[1]));
-            runtimeShaderPositive.setMiniMatrixPattern(tmpOut);
-            runtimeShaderNegative.setMiniMatrixPattern(tmpOut);
-        }
-
-        private static class RuntimeShaderState {
-            private final RuntimeShader shader;
-            private final float[] transformGradient = new float[] { 1, 1, 0, 0 };
-            private final float[] transformPattern = new float[] { 1, 1, 0, 0 };
-
-            RuntimeShaderState(@RawRes int res) {
-                shader = new RuntimeShader(AndroidUtilities.readRes(res));
-            }
-
-            void setMiniMatrixGradient(float[] miniMatrix) {
-                if (!Arrays.equals(miniMatrix, transformGradient)) {
-                    System.arraycopy(miniMatrix, 0, transformGradient, 0, 4);
-                    setMatrixUniformGradient();
-                }
-            }
-
-            void setMiniMatrixPattern(float[] miniMatrix) {
-                if (!Arrays.equals(miniMatrix, transformPattern)) {
-                    System.arraycopy(miniMatrix, 0, transformPattern, 0, 4);
-                    setMatrixUniformPattern();
-                }
-            }
-
-            private void setMatrixUniformGradient() {
-                shader.setFloatUniform("transformGradient", transformGradient);
-            }
-
-            private void setMatrixUniformPattern() {
-                shader.setFloatUniform("transformPattern", transformPattern);
-            }
-
-            private void setMatrixUniforms() {
-                setMatrixUniformGradient();
-                setMatrixUniformPattern();
+        } else {
+            final float normalizedIntensity = MathUtils.clamp(patternAlpha * (-intensity) / 25500f, 0, 1);
+            if (changed || lastHwIntensity != normalizedIntensity || lastModeHwAgsl != MODE_NEG) {
+                lastModeHwAgsl = MODE_NEG;
+                lastHwIntensity = normalizedIntensity;
+                runtimeShaderNegative.shader.setInputShader("shaderPattern", patternShader.shader);
+                runtimeShaderNegative.shader.setInputShader("shaderGradient", gradientShader.shader);
+                runtimeShaderNegative.shader.setFloatUniform("intensity", normalizedIntensity);
+                runtimeShaderNegative.shader.setFloatUniform("transformGradient", runtimeShaderNegative.transformGradient);
+                runtimeShaderNegative.shader.setFloatUniform("transformPattern", runtimeShaderNegative.transformPattern);
+                paintHwAgsl.setShader(runtimeShaderNegative.shader);
             }
         }
+
+        return paintHwAgsl;
     }
 
+    private Paint getPaintSw(@NonNull Bitmap gradient, @NonNull Bitmap pattern, final int patternColor, int patternAlpha, int intensity) {
+        boolean changed = false;
+        changed |= gradientShader.setup(gradient);
+        changed |= patternShader.setup(patterAlphaBitmapMemo.get(pattern));
 
+        if (intensity >= 0) {
+            final int colorForShader = ColorUtils.setAlphaComponent(patternColor, Color.alpha(patternColor) * patternAlpha * intensity / 25500);
+            changed |= gradientSoftLightShader.setup(gradientSoftLightBitmapMemo.get(gradient, colorForShader));
 
-    /* Local Matrix */
+            if (changed || lastMode != MODE_POS) {
+                lastMode = MODE_POS;
+                paint.setShader(new ComposeShader(
+                        gradientShader.shader,
+                        new ComposeShader(
+                                gradientSoftLightShader.shader,
+                                patternShader.shader,
+                                PorterDuff.Mode.DST_IN
+                        ), PorterDuff.Mode.SRC_OVER));
+            }
+        } else {
+            final int alphaForShader = patternAlpha * -intensity / 100;
+            changed |= alphaShader.setup(ColorUtils.setAlphaComponent(Color.WHITE, alphaForShader));
+            changed |= colorShader.setup(Color.BLACK);
 
-    private final Matrix tmpMatrix = new Matrix();
-    private final RectF tmpRectF = new RectF();
+            if (changed || lastMode != MODE_NEG) {
+                lastMode = MODE_NEG;
+                paint.setShader(new ComposeShader(
+                        colorShader.shader,
+                        new ComposeShader(
+                                new ComposeShader(
+                                        gradientShader.shader,
+                                        patternShader.shader,
+                                        PorterDuff.Mode.DST_IN
+                                ),
+                                alphaShader.shader,
+                                PorterDuff.Mode.MULTIPLY
+                        ), PorterDuff.Mode.SRC_OVER));
+            }
+        }
+
+        return paint;
+    }
 
     public void applyGradientMatrix(RectF bounds) {
-        tmpRectF.set(0, 0, gradientWidth, gradientHeight);
+        tmpRectF.set(0, 0, gradientShader.width, gradientShader.height);
         tmpMatrix.setRectToRect(tmpRectF, bounds, Matrix.ScaleToFit.FILL);
-
-        shaderImpl.applyGradientMatrix(tmpMatrix);
-        if (agslImpl != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            agslImpl.applyGradientMatrix(tmpMatrix);
+        gradientShader.shader.setLocalMatrix(tmpMatrix);
+        if (gradientSoftLightShader.shader != null) {
+            gradientSoftLightShader.shader.setLocalMatrix(tmpMatrix);
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            matrixToScaleTranslate(tmpMatrix, tmpOut);
+            runtimeShaderPositive.setMiniMatrixGradient(tmpOut);
+            runtimeShaderNegative.setMiniMatrixGradient(tmpOut);
         }
     }
 
     public void applyPatternMatrix(RectF bounds) {
-        tmpRectF.set(0, 0, patternWidth, patternHeight);
+        tmpRectF.set(0, 0, patternShader.width, patternShader.height);
         tmpMatrix.setRectToRect(tmpRectF, bounds, Matrix.ScaleToFit.FILL);
         applyPatternMatrix(tmpMatrix);
     }
 
     public void applyPatternMatrix(Matrix matrix) {
-        shaderImpl.applyPatternMatrix(matrix);
-        if (agslImpl != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            agslImpl.applyPatternMatrix(matrix);
+        matrixToScaleTranslate(matrix, tmpOut);
+
+        patternShader.shader.setLocalMatrix(matrix);
+        patternShader.setUseNearestInterpolation(isOne(tmpOut[0]) && isOne(tmpOut[1]));
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            runtimeShaderPositive.setMiniMatrixPattern(tmpOut);
+            runtimeShaderNegative.setMiniMatrixPattern(tmpOut);
         }
     }
 
+    private static boolean isOne(float x) {
+        return Math.abs(x - 1.0f) <= 1e-4f;
+    }
 
+    private final Matrix tmpMatrix = new Matrix();
+    private final RectF tmpRectF = new RectF();
 
-    /* Utils */
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+    private static class RuntimeShaderState {
+        private final RuntimeShader shader;
+        private final float[] transformGradient = new float[] { 1, 1, 0, 0 };
+        private final float[] transformPattern = new float[] { 1, 1, 0, 0 };
+
+        public RuntimeShaderState(@RawRes int res) {
+            shader = new RuntimeShader(AndroidUtilities.readRes(res));
+        }
+
+        public void setMiniMatrixGradient(float[] miniMatrix) {
+            if (!Arrays.equals(miniMatrix, transformGradient)) {
+                System.arraycopy(miniMatrix, 0, transformGradient, 0, 4);
+                shader.setFloatUniform("transformGradient", transformGradient);
+            }
+        }
+
+        public void setMiniMatrixPattern(float[] miniMatrix) {
+            if (!Arrays.equals(miniMatrix, transformPattern)) {
+                System.arraycopy(miniMatrix, 0, transformPattern, 0, 4);
+                shader.setFloatUniform("transformPattern", transformPattern);
+            }
+        }
+    }
+
+    private static class ColorShaderState {
+        ColorShader shader;
+        int color;
+
+        public boolean setup(int color) {
+            if (shader == null || this.color != color) {
+                this.color = color;
+                shader = new ColorShader(color);
+                return true;
+            }
+            return false;
+        }
+    }
 
     private static class BitmapShaderState {
         final Shader.TileMode tileMode;
-        final Matrix localMatrix = new Matrix();
         boolean useNearestInterpolation;
 
         BitmapShader shader;
         WeakReference<Bitmap> bitmap;
+        int width, height;
 
-        BitmapShaderState(Shader.TileMode tileMode) {
+        public BitmapShaderState(Shader.TileMode tileMode) {
             this.tileMode = tileMode;
         }
 
-        void setLocalMatrix(Matrix m) {
-            localMatrix.set(m);
-            if (shader != null) {
-                shader.setLocalMatrix(m);
-            }
-        }
+        public boolean setup(Bitmap b) {
+            width = b.getWidth();
+            height = b.getHeight();
 
-        boolean setup(Bitmap b) {
             if (bitmap != null && bitmap.get() == b) {
                 return false;
             }
 
             bitmap = new WeakReference<>(b);
             shader = new BitmapShader(b, tileMode, tileMode);
-            shader.setLocalMatrix(localMatrix);
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 shader.setFilterMode(useNearestInterpolation ?
                     BitmapShader.FILTER_MODE_NEAREST :
@@ -337,7 +262,7 @@ public class MotionBackgroundPaint {
             return true;
         }
 
-        void setUseNearestInterpolation(boolean useNearestInterpolation) {
+        public void setUseNearestInterpolation(boolean useNearestInterpolation) {
             if (this.useNearestInterpolation != useNearestInterpolation) {
                 this.useNearestInterpolation = useNearestInterpolation;
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && shader != null) {
@@ -350,23 +275,27 @@ public class MotionBackgroundPaint {
     }
 
     private static class BitmapMemoizedSoftLight {
-        private final BitmapChangeTracker lastBitmap = new BitmapChangeTracker();
+        private WeakReference<Bitmap> ref;
+        private long generationId;
         private int lastColor;
         private Bitmap memoized;
 
         public Bitmap get(@NonNull Bitmap bitmap, int color) {
-            final boolean changed = lastBitmap.isInvalidated(bitmap)
-                || color != lastColor || memoized == null;
+            final Bitmap oldBitmap = ref != null ? ref.get() : null;
+            final long generationIdToSet = !bitmap.isRecycled() ? bitmap.getGenerationId() : 0;
 
-            if (changed) {
-                if (memoized == null || memoized.getWidth() != bitmap.getWidth() || memoized.getHeight() != bitmap.getHeight()) {
-                    memoized = Bitmap.createBitmap(bitmap);
-                }
-                Utilities.applySoftLight(bitmap, memoized, color);
-
-                lastBitmap.set(bitmap);
-                lastColor = color;
+            if (oldBitmap == bitmap && generationIdToSet == generationId && color == lastColor) {
+                return memoized;
             }
+
+            ref = new WeakReference<>(bitmap);
+            generationId = generationIdToSet;
+            lastColor = color;
+
+            if (memoized == null || memoized.getWidth() != bitmap.getWidth() || memoized.getHeight() != bitmap.getHeight()) {
+                memoized = Bitmap.createBitmap(bitmap);
+            }
+            Utilities.applySoftLight(bitmap, memoized, color);
 
             return memoized;
         }
@@ -379,11 +308,8 @@ public class MotionBackgroundPaint {
         return bitmap.extractAlpha();
     }
 
-    private static boolean isOne(float x) {
-        return Math.abs(x - 1.0f) <= 1e-4f;
-    }
-
     private final static float[] tmpPts = new float[4];
+    private final static float[] tmpOut = new float[4];
     private final static Matrix tmpInverse = new Matrix();
 
     private static void matrixToScaleTranslate(Matrix matrix, float[] out) {

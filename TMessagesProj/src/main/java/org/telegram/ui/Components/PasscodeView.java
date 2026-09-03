@@ -27,6 +27,10 @@ import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.SystemClock;
+
+import androidx.annotation.IdRes;
+import androidx.core.content.ContextCompat;
+
 import android.text.Editable;
 import android.text.InputFilter;
 import android.text.InputType;
@@ -63,11 +67,16 @@ import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.BotWebViewVibrationEffect;
 import org.telegram.messenger.FileLog;
+import org.telegram.messenger.LocaleController;
+import org.telegram.messenger.NotificationCenter;
+import org.telegram.messenger.ApplicationLoader;
+import org.telegram.messenger.FileLog;
 import org.telegram.messenger.FingerprintController;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
 import org.telegram.messenger.SharedConfig;
+import org.telegram.messenger.support.fingerprint.FingerprintManagerCompat;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.LaunchActivity;
 import org.telegram.ui.Stories.recorder.KeyboardNotifier;
@@ -1211,7 +1220,7 @@ public class PasscodeView extends FrameLayout implements NotificationCenter.Noti
                         }
                     });
                     final BiometricPrompt.PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
-                            .setTitle(LocaleController.getString(R.string.UnlockToUse).replace("Telegram", LocaleController.getString(R.string.NagramX)))
+                            .setTitle(LocaleController.getString(R.string.UnlockToUse).replace("Telegram", LocaleController.getString(R.string.SovietGram)))
                             .setNegativeButtonText(LocaleController.getString(R.string.UsePIN))
                             .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG)
                             .build();
@@ -1232,7 +1241,8 @@ public class PasscodeView extends FrameLayout implements NotificationCenter.Noti
         Activity parentActivity = AndroidUtilities.findActivity(getContext());
         if (Build.VERSION.SDK_INT >= 23 && parentActivity != null && SharedConfig.useFingerprintLock) {
             try {
-                return BiometricManager.from(getContext()).canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG) == BiometricManager.BIOMETRIC_SUCCESS && FingerprintController.isKeyReady() && !FingerprintController.checkDeviceFingerprintsChanged();
+                FingerprintManagerCompat fingerprintManager = FingerprintManagerCompat.from(ApplicationLoader.applicationContext);
+                return fingerprintManager.isHardwareDetected() && fingerprintManager.hasEnrolledFingerprints() && FingerprintController.isKeyReady() && !FingerprintController.checkDeviceFingerprintsChanged();
             } catch (Throwable e) {
                 FileLog.e(e);
             }
@@ -1245,7 +1255,8 @@ public class PasscodeView extends FrameLayout implements NotificationCenter.Noti
         Activity parentActivity = AndroidUtilities.findActivity(getContext());
         if (Build.VERSION.SDK_INT >= 23 && parentActivity != null && SharedConfig.useFingerprintLock) {
             try {
-                if (BiometricManager.from(getContext()).canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG) == BiometricManager.BIOMETRIC_SUCCESS && FingerprintController.isKeyReady() && !FingerprintController.checkDeviceFingerprintsChanged()) {
+                FingerprintManagerCompat fingerprintManager = FingerprintManagerCompat.from(ApplicationLoader.applicationContext);
+                if (fingerprintManager.isHardwareDetected() && fingerprintManager.hasEnrolledFingerprints() && FingerprintController.isKeyReady() && !FingerprintController.checkDeviceFingerprintsChanged()) {
                     hasFingerprint = true;
                     fingerprintView.setVisibility(VISIBLE);
                 } else {

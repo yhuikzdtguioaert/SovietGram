@@ -23,6 +23,8 @@ import org.telegram.messenger.FileLog;
 import java.nio.ByteBuffer;
 import java.util.regex.Pattern;
 
+import tw.nekomimi.nekogram.helpers.VoiceChangerHelper;
+
 public class AudioRecordJNI {
 
 	private AudioRecord audioRecord;
@@ -137,6 +139,8 @@ public class AudioRecordJNI {
 			}
 			thread = null;
 		}
+		// Released after the thread is joined, so the last frame can never race the queue away.
+		VoiceChangerHelper.call().release();
 		if (audioRecord != null) {
 			audioRecord.release();
 			audioRecord = null;
@@ -180,6 +184,9 @@ public class AudioRecordJNI {
 			throw new IllegalStateException("thread already started");
 		}
 		running = true;
+		// The preset is read once per call, so switching voices mid-call takes effect on the next
+		// one instead of splitting this one. Resampling always lands the frame at 48 kHz mono.
+		VoiceChangerHelper.call().start(48000, 1);
 		final ByteBuffer tmpBuf = needResampling ? ByteBuffer.allocateDirect(882 * 2) : null;
 		thread = new Thread(() -> {
 			while (running) {
@@ -194,6 +201,9 @@ public class AudioRecordJNI {
 						audioRecord.stop();
 						break;
 					}
+					// Reshapes the microphone signal for Voice Changer. The native side reads this
+					// very buffer, so the frame is rewritten in place.
+					VoiceChangerHelper.call().process(buffer, 960 * 2);
 					nativeCallback(buffer);
 				} catch (Exception e) {
 					VLog.e(e);
