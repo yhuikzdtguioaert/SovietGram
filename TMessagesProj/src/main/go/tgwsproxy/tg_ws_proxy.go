@@ -45,6 +45,7 @@ import (
 	"crypto/rand"
 	"crypto/sha1"
 	"crypto/sha256"
+	"crypto/tls"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
@@ -67,8 +68,6 @@ import (
 	"syscall"
 	"time"
 	"unsafe"
-
-	utls "github.com/refraction-networking/utls"
 )
 
 // ---------------------------------------------------------------------------
@@ -864,7 +863,9 @@ func SafeClose(conn net.Conn) {
 	_ = conn.Close()
 }
 
-var tlsSessionCache = utls.NewLRUClientSessionCache(100)
+var tlsConfigPool = &tls.Config{
+	ClientSessionCache: tls.NewLRUClientSessionCache(100),
+}
 
 const (
 	opText   = 0x1
@@ -1088,16 +1089,14 @@ func wsConnectOnce(ctx context.Context, dialAddr, domain, path string, timeout t
 		Timeout: timeout,
 	}
 
-	tlsCfg := &utls.Config{
-		ServerName:         domain,
-		InsecureSkipVerify: false,
-		MinVersion:         utls.VersionTLS12,
-		NextProtos:         []string{"http/1.1"},
-		ClientSessionCache: tlsSessionCache,
-	}
+	tlsCfg := tlsConfigPool.Clone()
+	tlsCfg.ServerName = domain
 	// The relay is reached by IP on some paths, but its certificate is for `domain`.
 	// ServerName keeps SNI/hostname verification correct while the default root pool validates
 	// the chain. Skipping verification here turned encrypted traffic into unauthenticated traffic.
+	tlsCfg.InsecureSkipVerify = false
+	tlsCfg.MinVersion = tls.VersionTLS12
+
 	targetAddr := net.JoinHostPort(dialAddr, "443")
 	rawConn, err := dialer.DialContext(ctx, "tcp", targetAddr)
 	if err != nil {
@@ -1106,9 +1105,7 @@ func wsConnectOnce(ctx context.Context, dialAddr, domain, path string, timeout t
 
 	setSockOpts(rawConn)
 
-	// Match a current Chrome ClientHello (GREASE, extension set/order and key shares) instead of
-	// Go's distinctive TLS fingerprint.  Certificate-chain and hostname verification stay strict.
-	tlsConn := utls.UClient(rawConn, tlsCfg, utls.HelloChrome_Auto)
+	tlsConn := tls.Client(rawConn, tlsCfg)
 	handshakeTimeout := wsHandshakeTimeout(timeout)
 	handshakeCtx, cancel := context.WithTimeout(ctx, handshakeTimeout)
 	defer cancel()
@@ -3228,18 +3225,6 @@ func Java_sovietgram_com_proxy_NativeTgWsProxyBridge_setCfProxyConfig(env *C.JNI
 		priorityInt = 1
 	}
 	SetCfProxyConfig(enabledInt, priorityInt, cUserDomain)
-}
-
-//export Java_sovietgram_com_proxy_NativeTgWsProxyBridge_setFakeTls
-func Java_sovietgram_com_proxy_NativeTgWsProxyBridge_setFakeTls(env *C.JNIEnv, clazz C.jclass, enabled C.jboolean, jDomain C.jstring) {
-	cDomain := C.CString(jstringToGoString(env, jDomain))
-	defer C.free(unsafe.Pointer(cDomain))
-
-	enabledInt := C.int(0)
-	if enabled != 0 {
-		enabledInt = 1
-	}
-	SetFakeTls(enabledInt, cDomain)
 }
 
 //export Java_sovietgram_com_proxy_NativeTgWsProxyBridge_getStats

@@ -56,8 +56,6 @@ class TgWsProxyService : Service() {
     private var lastPort = 1488
     private var lastPoolSize = 4
     private var lastCfEnabled = true
-    private var lastFakeTlsEnabled = true
-    private var lastFakeTlsDomain = "www.cloudflare.com"
     // What the notification currently on screen was built with, or null when this
     // instance has posted nothing yet. Only used to notice that the preference
     // flipped since the last post (the two variants live on different channels and
@@ -93,8 +91,6 @@ class TgWsProxyService : Service() {
                 val port = intent.getIntExtra(EXTRA_PORT, 1488)
                 val poolSize = intent.getIntExtra(EXTRA_POOL_SIZE, 4)
                 val cfEnabled = intent.getBooleanExtra(EXTRA_CFPROXY_ENABLED, true)
-                val fakeTlsEnabled = intent.getBooleanExtra(EXTRA_FAKE_TLS_ENABLED, true)
-                val fakeTlsDomain = intent.getStringExtra(EXTRA_FAKE_TLS_DOMAIN).orEmpty()
                 val secret = intent.getStringExtra(EXTRA_SECRET_KEY).orEmpty()
                 // A live notification cannot move between channels, so a flipped
                 // preference means the whole thing is rebuilt under the other id.
@@ -124,7 +120,7 @@ class TgWsProxyService : Service() {
                 if (!enabled) {
                     removeForegroundNotification()
                 }
-                startProxy(port, poolSize, cfEnabled, fakeTlsEnabled, fakeTlsDomain, secret)
+                startProxy(port, poolSize, cfEnabled, secret)
             }
             ACTION_UPDATE_NOTIFICATION -> {
                 // Visibility toggled from settings while the proxy is up. Only
@@ -222,7 +218,7 @@ class TgWsProxyService : Service() {
         }
     }
 
-    private fun startProxy(port: Int, poolSize: Int, cfEnabled: Boolean, fakeTlsEnabled: Boolean, fakeTlsDomain: String, secret: String) {
+    private fun startProxy(port: Int, poolSize: Int, cfEnabled: Boolean, secret: String) {
         if (stopInProgress) {
             return
         }
@@ -230,8 +226,6 @@ class TgWsProxyService : Service() {
         lastPort = port
         lastPoolSize = poolSize
         lastCfEnabled = cfEnabled
-        lastFakeTlsEnabled = fakeTlsEnabled
-        lastFakeTlsDomain = fakeTlsDomain
         lastSecret = secret
 
         if (running) {
@@ -252,7 +246,6 @@ class TgWsProxyService : Service() {
                 NativeTgWsProxy.setPoolSize(poolSize)
                 NativeTgWsProxy.setCfProxyCacheDir(cacheDir.absolutePath)
                 NativeTgWsProxy.setCfProxyConfig(cfEnabled, true, "")
-                NativeTgWsProxy.setFakeTls(fakeTlsEnabled, fakeTlsDomain)
                 val result = NativeTgWsProxy.start(TgWsProxyController.LOCAL_HOST, port, "", secret, true)
                 if (result != 0) {
                     FileLog.e("TG WS Proxy start error: $result")
@@ -288,14 +281,12 @@ class TgWsProxyService : Service() {
             val port = lastPort
             val poolSize = lastPoolSize
             val cfEnabled = lastCfEnabled
-            val fakeTlsEnabled = lastFakeTlsEnabled
-            val fakeTlsDomain = lastFakeTlsDomain
             val secret = lastSecret
             stopNative("restart")
             running = false
             portUp = false
             delay(350)
-            startProxy(port, poolSize, cfEnabled, fakeTlsEnabled, fakeTlsDomain, secret)
+            startProxy(port, poolSize, cfEnabled, secret)
         }
     }
 
@@ -415,7 +406,6 @@ class TgWsProxyService : Service() {
                 NativeTgWsProxy.setPoolSize(lastPoolSize)
                 NativeTgWsProxy.setCfProxyCacheDir(cacheDir.absolutePath)
                 NativeTgWsProxy.setCfProxyConfig(lastCfEnabled, true, "")
-                NativeTgWsProxy.setFakeTls(lastFakeTlsEnabled, lastFakeTlsDomain)
                 NativeTgWsProxy.start(TgWsProxyController.LOCAL_HOST, lastPort, "", lastSecret, true)
             } catch (e: Throwable) {
                 FileLog.e(e)
@@ -810,8 +800,6 @@ class TgWsProxyService : Service() {
         const val EXTRA_PORT = "port"
         const val EXTRA_POOL_SIZE = "pool_size"
         const val EXTRA_CFPROXY_ENABLED = "cfproxy_enabled"
-        const val EXTRA_FAKE_TLS_ENABLED = "fake_tls_enabled"
-        const val EXTRA_FAKE_TLS_DOMAIN = "fake_tls_domain"
         const val EXTRA_SECRET_KEY = "secret_key"
 
         private const val CHANNEL_ID = "sovietgram_tg_ws_proxy"

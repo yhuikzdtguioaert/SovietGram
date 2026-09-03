@@ -67,8 +67,6 @@ object TgWsProxyController {
             putExtra(TgWsProxyService.EXTRA_PORT, port)
             putExtra(TgWsProxyService.EXTRA_POOL_SIZE, NaConfig.tgWsProxyPool.Int())
             putExtra(TgWsProxyService.EXTRA_CFPROXY_ENABLED, NaConfig.tgWsProxyCloudflareCdn.Bool())
-            putExtra(TgWsProxyService.EXTRA_FAKE_TLS_ENABLED, isFakeTlsEnabled())
-            putExtra(TgWsProxyService.EXTRA_FAKE_TLS_DOMAIN, fakeTlsDomain())
             putExtra(TgWsProxyService.EXTRA_SECRET_KEY, getRawSecret(secret))
         }
         // Always a foreground service. A plain startService() is killed by the
@@ -181,31 +179,6 @@ object TgWsProxyController {
         NaConfig.getPreferences().edit().putBoolean(NaConfig.tgWsProxyNotificationEnabled.key, enabled).commit()
     }
 
-    @JvmStatic
-    fun isFakeTlsEnabled(): Boolean =
-        NaConfig.getPreferences().getBoolean(NaConfig.tgWsProxyFakeTls.key, true)
-
-    @JvmStatic
-    fun setFakeTlsEnabled(enabled: Boolean) {
-        NaConfig.tgWsProxyFakeTls.setConfigBool(enabled)
-        NaConfig.getPreferences().edit().putBoolean(NaConfig.tgWsProxyFakeTls.key, enabled).commit()
-    }
-
-    @JvmStatic
-    fun fakeTlsDomain(): String = normalizeFakeTlsDomain(
-        NaConfig.getPreferences().getString(
-            NaConfig.tgWsProxyFakeTlsDomain.key,
-            "www.cloudflare.com"
-        ).orEmpty()
-    )
-
-    @JvmStatic
-    fun setFakeTlsDomain(domain: String) {
-        val normalized = normalizeFakeTlsDomain(domain)
-        NaConfig.tgWsProxyFakeTlsDomain.setConfigString(normalized)
-        NaConfig.getPreferences().edit().putString(NaConfig.tgWsProxyFakeTlsDomain.key, normalized).commit()
-    }
-
     /**
      * Applies a notification-visibility change to the live service without
      * restarting the proxy. Going through startFromSettings() would tear the
@@ -248,8 +221,6 @@ object TgWsProxyController {
         NaConfig.tgWsProxyPool.changed(preferences.getInt(NaConfig.tgWsProxyPool.key, 4))
         NaConfig.tgWsProxySecret.changed(preferences.getString(NaConfig.tgWsProxySecret.key, "") ?: "")
         NaConfig.tgWsProxyCloudflareCdn.changed(preferences.getBoolean(NaConfig.tgWsProxyCloudflareCdn.key, true))
-        NaConfig.tgWsProxyFakeTls.changed(preferences.getBoolean(NaConfig.tgWsProxyFakeTls.key, true))
-        NaConfig.tgWsProxyFakeTlsDomain.changed(preferences.getString(NaConfig.tgWsProxyFakeTlsDomain.key, "www.cloudflare.com") ?: "www.cloudflare.com")
         NaConfig.tgWsProxyNotificationEnabled.changed(preferences.getBoolean(NaConfig.tgWsProxyNotificationEnabled.key, false))
     }
 
@@ -261,13 +232,7 @@ object TgWsProxyController {
     }
 
     private fun applyTelegramProxy(port: Int, secret: String) {
-        val normalizedSecret = normalizeSecret(secret)
-        val mtprotoSecret = if (isFakeTlsEnabled()) {
-            "ee" + getRawSecret(normalizedSecret) + fakeTlsDomain().toByteArray(Charsets.UTF_8)
-                .joinToString("") { "%02x".format(it) }
-        } else {
-            normalizedSecret
-        }
+        val mtprotoSecret = normalizeSecret(secret)
         removeLocalProxyEntries()
         val proxyInfo = SharedConfig.addProxy(
             SharedConfig.ProxyInfo(LOCAL_HOST, port, "", "", mtprotoSecret)
@@ -314,18 +279,6 @@ object TgWsProxyController {
     private fun getRawSecret(value: String): String {
         val secret = normalizeSecret(value)
         return secret.substring(SECRET_PREFIX.length)
-    }
-
-    private fun normalizeFakeTlsDomain(value: String): String {
-        val domain = value.trim().lowercase().trimEnd('.')
-        if (domain.length in 1..253 && domain.split('.').all { label ->
-                label.isNotEmpty() && label.length <= 63 &&
-                    label.first() != '-' && label.last() != '-' &&
-                    label.all { it in 'a'..'z' || it in '0'..'9' || it == '-' }
-            }) {
-            return domain
-        }
-        return "www.cloudflare.com"
     }
 
     private fun isValidRawSecret(value: String): Boolean {

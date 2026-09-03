@@ -77,33 +77,12 @@ object VlessConfig {
             put("settings", JSONObject().apply {
                 put("vnext", JSONArray().apply { put(vnext) })
             })
-            put("streamSettings", buildStreamSettings(link).apply {
-                // Route the outer TLS/Reality handshake through Xray's fragment dialer.  Only
-                // ClientHello records are split, with short randomized bounds, which hides the
-                // stable TLS packet signature without adding latency to the encrypted session.
-                put("sockopt", JSONObject().apply {
-                    put("dialerProxy", "tls-fragment")
-                    put("tcpNoDelay", true)
-                    put("tcpKeepAliveIdle", 60)
-                    put("tcpKeepAliveInterval", 30)
-                })
-            })
+            put("streamSettings", buildStreamSettings(link))
         }
 
         val direct = JSONObject().apply {
             put("protocol", "freedom")
             put("tag", "direct")
-        }
-        val tlsFragment = JSONObject().apply {
-            put("protocol", "freedom")
-            put("tag", "tls-fragment")
-            put("settings", JSONObject().apply {
-                put("fragment", JSONObject().apply {
-                    put("packets", "tlshello")
-                    put("length", "10-35")
-                    put("interval", "5-15")
-                })
-            })
         }
 
         val config = JSONObject().apply {
@@ -121,7 +100,6 @@ object VlessConfig {
             put("inbounds", JSONArray().apply { put(inbound) })
             put("outbounds", JSONArray().apply {
                 put(outbound)
-                put(tlsFragment)
                 put(direct)
             })
         }
@@ -136,12 +114,12 @@ object VlessConfig {
         when (link.security) {
             "tls" -> stream.put("tlsSettings", JSONObject().apply {
                 put("serverName", link.serverName())
-                // Browser uTLS fingerprint and ordinary browser ALPN make the
-                // outer encrypted connection blend with regular HTTPS while
-                // remaining compatible with link-provided overrides.
-                put("fingerprint", link.fingerprint.ifBlank { "chrome" })
-                val effectiveAlpn = link.alpn.ifEmpty { listOf("h2", "http/1.1") }
-                put("alpn", JSONArray().apply { effectiveAlpn.forEach { put(it) } })
+                if (link.fingerprint.isNotBlank()) {
+                    put("fingerprint", link.fingerprint)
+                }
+                if (link.alpn.isNotEmpty()) {
+                    put("alpn", JSONArray().apply { link.alpn.forEach { put(it) } })
+                }
                 put("allowInsecure", false)
             })
             "reality" -> stream.put("realitySettings", JSONObject().apply {
