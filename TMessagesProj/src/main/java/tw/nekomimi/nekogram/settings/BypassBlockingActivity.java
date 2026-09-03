@@ -39,8 +39,6 @@ public class BypassBlockingActivity extends BaseNekoSettingsActivity {
     private int secretKeyRow;
     private int generateSecretKeyRow;
     private int cloudflareCdnRow;
-    private int fakeTlsRow;
-    private int fakeTlsDomainRow;
     private int notificationEnabledRow;
     private int shadowRow;
 
@@ -64,11 +62,9 @@ public class BypassBlockingActivity extends BaseNekoSettingsActivity {
             secretKeyRow = addRow("TgWsProxySecret");
             generateSecretKeyRow = addRow("TgWsProxyGenerateSecretKey");
             cloudflareCdnRow = addRow("TgWsProxyCloudflareCdn");
-            fakeTlsRow = addRow("TgWsProxyFakeTls");
-            fakeTlsDomainRow = NaConfig.INSTANCE.getTgWsProxyFakeTls().Bool() ? addRow("TgWsProxyFakeTlsDomain") : -1;
             notificationEnabledRow = addRow("TgWsProxyNotificationEnabled");
         } else {
-            portRow = wsPoolRow = secretKeyRow = generateSecretKeyRow = cloudflareCdnRow = fakeTlsRow = fakeTlsDomainRow = notificationEnabledRow = -1;
+            portRow = wsPoolRow = secretKeyRow = generateSecretKeyRow = cloudflareCdnRow = notificationEnabledRow = -1;
         }
         shadowRow = addRow();
 
@@ -143,16 +139,6 @@ public class BypassBlockingActivity extends BaseNekoSettingsActivity {
             if (view instanceof TextCheckCell checkCell) {
                 checkCell.setChecked(NaConfig.INSTANCE.getTgWsProxyCloudflareCdn().Bool());
             }
-        } else if (position == fakeTlsRow) {
-            boolean enabled = !TgWsProxyController.isFakeTlsEnabled();
-            TgWsProxyController.setFakeTlsEnabled(enabled);
-            TgWsProxyController.restartIfEnabled(context);
-            if (view instanceof TextCheckCell checkCell) {
-                checkCell.setChecked(enabled);
-            }
-            view.postDelayed(this::refreshRows, 180);
-        } else if (position == fakeTlsDomainRow) {
-            showFakeTlsDomainDialog();
         } else if (position == notificationEnabledRow) {
             // Toggled off the persisted value, the same one the service reads,
             // so the row and the notification can never disagree.
@@ -375,31 +361,6 @@ public class BypassBlockingActivity extends BaseNekoSettingsActivity {
         showDialog(builder.create());
     }
 
-    private void showFakeTlsDomainDialog() {
-        Context context = getParentActivity();
-        if (context == null) {
-            return;
-        }
-        AlertDialog.Builder builder = new AlertDialog.Builder(context, resourcesProvider);
-        builder.setTitle(getString(R.string.TgWsProxyFakeTlsDomain));
-        LinearLayout layout = new LinearLayout(context);
-        layout.setOrientation(LinearLayout.VERTICAL);
-        EditTextBoldCursor input = createEditText(context);
-        input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
-        input.setSingleLine(true);
-        input.setText(TgWsProxyController.fakeTlsDomain());
-        input.setSelection(input.length());
-        layout.addView(input, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, dp(8), 0, dp(10), 0));
-        builder.setView(layout);
-        builder.setNegativeButton(getString(R.string.Cancel), null);
-        builder.setPositiveButton(getString(R.string.Save), (dialog, which) -> {
-            TgWsProxyController.setFakeTlsDomain(input.getText().toString());
-            TgWsProxyController.restartIfEnabled(context);
-            listAdapter.notifyItemChanged(fakeTlsDomainRow);
-        });
-        showDialog(builder.create());
-    }
-
     private EditTextBoldCursor createEditText(Context context) {
         EditTextBoldCursor editText = new EditTextBoldCursor(context);
         editText.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 18);
@@ -459,8 +420,6 @@ public class BypassBlockingActivity extends BaseNekoSettingsActivity {
                         cell.setTextAndCheck(getString(R.string.TgWsProxy), TgWsProxyController.isEnabled(), false);
                     } else if (position == cloudflareCdnRow) {
                         cell.setTextAndCheck(getString(R.string.TgWsProxyCloudflareCdn), NaConfig.INSTANCE.getTgWsProxyCloudflareCdn().Bool(), false);
-                    } else if (position == fakeTlsRow) {
-                        cell.setTextAndCheck(getString(R.string.TgWsProxyFakeTls), TgWsProxyController.isFakeTlsEnabled(), fakeTlsDomainRow != -1);
                     } else if (position == notificationEnabledRow) {
                         cell.setTextAndCheck(getString(R.string.TgWsProxyNotificationEnabled), TgWsProxyController.isNotificationEnabled(), false);
                     } else if (position == vlessEnabledRow) {
@@ -482,8 +441,6 @@ public class BypassBlockingActivity extends BaseNekoSettingsActivity {
                         cell.setTextAndValue(getString(R.string.TgWsProxySecretKey), getSecretPreview(), true);
                     } else if (position == generateSecretKeyRow) {
                         cell.setTextAndIcon(getString(R.string.TgWsProxyGenerateSecretKey), R.drawable.msg_retry_solar, true);
-                    } else if (position == fakeTlsDomainRow) {
-                        cell.setTextAndValue(getString(R.string.TgWsProxyFakeTlsDomain), TgWsProxyController.fakeTlsDomain(), true);
                     } else if (position == vlessLinkRow) {
                         cell.setTextAndValue(getString(R.string.VlessVpnLink), getVlessLinkPreview(), true);
                     } else if (position == vlessSettingsRow) {
@@ -499,10 +456,10 @@ public class BypassBlockingActivity extends BaseNekoSettingsActivity {
         public int getItemViewType(int position) {
             if (position == headerRow || position == vlessHeaderRow) {
                 return TYPE_HEADER;
-            } else if (position == tgWsProxyRow || position == cloudflareCdnRow || position == fakeTlsRow || position == notificationEnabledRow
+            } else if (position == tgWsProxyRow || position == cloudflareCdnRow || position == notificationEnabledRow
                     || position == vlessEnabledRow || position == vlessNotificationRow) {
                 return TYPE_CHECK;
-            } else if (position == portRow || position == wsPoolRow || position == secretKeyRow || position == fakeTlsDomainRow
+            } else if (position == portRow || position == wsPoolRow || position == secretKeyRow
                     || position == generateSecretKeyRow || position == vlessLinkRow
                     || position == vlessSettingsRow) {
                 return TYPE_SETTINGS;
