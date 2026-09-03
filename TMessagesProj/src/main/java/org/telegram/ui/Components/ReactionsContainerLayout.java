@@ -81,9 +81,6 @@ import org.telegram.ui.Components.Reactions.HwEmojis;
 import org.telegram.ui.Components.Reactions.ReactionsEffectOverlay;
 import org.telegram.ui.Components.Reactions.ReactionsLayoutInBubble;
 import org.telegram.ui.Components.Reactions.ReactionsUtils;
-import org.telegram.ui.Components.blur3.BlurredBackgroundDrawableViewFactory;
-import org.telegram.ui.Components.blur3.drawable.BlurredBackgroundDrawable;
-import org.telegram.ui.Components.blur3.drawable.color.BlurredBackgroundProvider;
 import org.telegram.ui.PremiumPreviewFragment;
 import org.telegram.ui.SelectAnimatedEmojiDialog;
 import org.telegram.ui.Stars.StarsReactionsSheet;
@@ -95,7 +92,7 @@ import java.util.List;
 
 import tw.nekomimi.nekogram.NekoConfig;
 import tw.nekomimi.nekogram.helpers.PinnedElementsHelper;
-import xyz.nextalone.nagram.NaConfig;
+import sovietgram.com.NaConfig;
 
 public class ReactionsContainerLayout extends FrameLayout implements NotificationCenter.NotificationCenterDelegate {
 
@@ -517,9 +514,6 @@ public class ReactionsContainerLayout extends FrameLayout implements Notificatio
             return;
         }
         reactionsWindow = new CustomEmojiReactionsWindow(type, fragment, allReactionsList, selectedReactions, this, resourcesProvider, forceAttachToParent);
-        if (backgroundFactory != null) {
-            reactionsWindow.setBackgroundFactory(backgroundFactory, backgroundColorProvider);
-        }
         reactionsWindow.setLongPressEnabled(delegate == null || delegate.allowLongPress());
         invalidateLoopViews();
         reactionsWindow.onDismissListener(() -> {
@@ -627,32 +621,6 @@ public class ReactionsContainerLayout extends FrameLayout implements Notificatio
         listAdapter.updateItems(animated);
     }
 
-    private BlurredBackgroundDrawable blurredBackgroundDrawable;
-    private BlurredBackgroundDrawable blurredBackgroundDrawable1;
-    private BlurredBackgroundDrawable blurredBackgroundDrawable2;
-
-    private BlurredBackgroundDrawableViewFactory backgroundFactory;
-    private BlurredBackgroundProvider backgroundColorProvider;
-
-    public void setBackgroundFactory(BlurredBackgroundDrawableViewFactory backgroundFactory, BlurredBackgroundProvider backgroundColorProvider) {
-        this.backgroundFactory = backgroundFactory;
-        this.backgroundColorProvider = backgroundColorProvider;
-        this.blurredBackgroundDrawable = backgroundFactory.create(this, true)
-            .setColorProvider(backgroundColorProvider)
-            .setRadius(dp(24))
-            .setPadding(dp(8));
-        this.blurredBackgroundDrawable1 = backgroundFactory.create(this, true)
-            .setColorProvider(backgroundColorProvider)
-            .setRadius(dp(8))
-            .setPadding(dp(8));
-        this.blurredBackgroundDrawable2 = backgroundFactory.create(this, true)
-            .setColorProvider(backgroundColorProvider)
-            .setRadius(dp(4))
-            .setPadding(dp(8));
-    }
-
-
-
     @Override
     protected void dispatchDraw(Canvas canvas) {
         long dt = Math.min(16, System.currentTimeMillis() - lastUpdate);
@@ -727,9 +695,7 @@ public class ReactionsContainerLayout extends FrameLayout implements Notificatio
         if (type != TYPE_STORY) {
             shadow.setAlpha((int) (Utilities.clamp(1f - (customEmojiReactionsEnterProgress / 0.05f), 1f, 0f) * 255));
             shadow.setBounds((int) (getPaddingLeft() + (getWidth() - getPaddingRight() + shadowPad.right) * lt - shadowPad.left), getPaddingTop() - shadowPad.top - (int) expandSize, (int) ((getWidth() - getPaddingRight() + shadowPad.right) * rt), getHeight() - getPaddingBottom() + shadowPad.bottom + (int) expandSize);
-            if (blurredBackgroundDrawable == null) {
-                shadow.draw(canvas);
-            }
+            shadow.draw(canvas);
         }
 
         canvas.restoreToCount(s);
@@ -743,16 +709,7 @@ public class ReactionsContainerLayout extends FrameLayout implements Notificatio
             if (type == TYPE_STORY || delegate.drawBackground()) {
                 delegate.drawRoundRect(canvas, rect, radius, getX(), getY(), 255, false);
             } else {
-                if (blurredBackgroundDrawable != null) {
-                    rect.round(AndroidUtilities.rectTmp2);
-                    AndroidUtilities.rectTmp2.inset(-dp(8), -dp(8));
-
-                    blurredBackgroundDrawable.setBounds(AndroidUtilities.rectTmp2);
-                    blurredBackgroundDrawable.setAlpha(bgPaint.getAlpha());
-                    blurredBackgroundDrawable.draw(canvas);
-                } else {
-                    canvas.drawRoundRect(rect, radius, radius, bgPaint);
-                }
+                canvas.drawRoundRect(rect, radius, radius, bgPaint);
             }
 
             if (hasStar) {
@@ -937,17 +894,7 @@ public class ReactionsContainerLayout extends FrameLayout implements Notificatio
             rectF.set(cx - br, cy - br, cx + br, cy + br);
             delegate.drawRoundRect(canvas, rectF, br, getX(), getY(), alpha, false);
         } else {
-            if (blurredBackgroundDrawable1 != null) {
-                AndroidUtilities.rectTmp.set(cx - br, cy - br, cx + br, cy + br);
-                AndroidUtilities.rectTmp.round(AndroidUtilities.rectTmp2);
-                AndroidUtilities.rectTmp2.inset(-dp(8), -dp(8));
-
-                blurredBackgroundDrawable1.setBounds(AndroidUtilities.rectTmp2);
-                blurredBackgroundDrawable1.setAlpha(bgPaint.getAlpha());
-                blurredBackgroundDrawable1.draw(canvas);
-            } else {
-                canvas.drawCircle(cx, cy, br, bgPaint);
-            }
+            canvas.drawCircle(cx, cy, br, bgPaint);
         }
 
         cx = LocaleController.isRTL || mirrorX ? bigCircleOffset - bigCircleRadius : getWidth() - bigCircleOffset + bigCircleRadius;
@@ -961,17 +908,7 @@ public class ReactionsContainerLayout extends FrameLayout implements Notificatio
             rectF.set(cx - sr, cy - sr, cx + sr, cy + sr);
             delegate.drawRoundRect(canvas, rectF, sr, getX(), getY(), alpha, false);
         } else {
-            if (blurredBackgroundDrawable2 != null) {
-                AndroidUtilities.rectTmp.set(cx - sr, cy - sr, cx + sr, cy + sr);
-                AndroidUtilities.rectTmp.round(AndroidUtilities.rectTmp2);
-                AndroidUtilities.rectTmp2.inset(-dp(8), -dp(8));
-
-                blurredBackgroundDrawable2.setBounds(AndroidUtilities.rectTmp2);
-                blurredBackgroundDrawable2.setAlpha(bgPaint.getAlpha());
-                blurredBackgroundDrawable2.draw(canvas);
-            } else {
-                canvas.drawCircle(cx, cy, sr, bgPaint);
-            }
+            canvas.drawCircle(cx, cy, sr, bgPaint);
         }
         canvas.restore();
 

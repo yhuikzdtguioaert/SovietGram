@@ -2,7 +2,6 @@ package org.telegram.messenger.pip;
 
 import android.app.Activity;
 import android.app.PictureInPictureParams;
-import android.app.PictureInPictureUiState;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -81,7 +80,6 @@ class PipActivityHandler implements IPipActivityHandler {
 
     private boolean isActivityStarted;
     private boolean isInPictureInPictureModeInternal;
-    private boolean isInPictureInPictureStash;
     private PictureInPictureParams pictureInPictureParams;
 
     @Override
@@ -164,7 +162,7 @@ class PipActivityHandler implements IPipActivityHandler {
 
     @Override
     public void onConfigurationChanged(Configuration ignoredNewConfig) {
-        Log.i(PipUtils.TAG, "[Activity] onConfigurationChanged");
+        android.util.Log.i(PipUtils.TAG, "[Activity] onConfigurationChanged");
     }
 
     @Override
@@ -173,29 +171,6 @@ class PipActivityHandler implements IPipActivityHandler {
         this.pictureInPictureParams = params;
     }
 
-    @Override
-    public void onPictureInPictureUiStateChanged(@NonNull PictureInPictureUiState pipState) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
-                Log.i(PipUtils.TAG, "[Activity] onPictureInPictureUiStateChanged " + pipState.isStashed() + " " + pipState.isTransitioningToPip());
-                if (pipState.isTransitioningToPip() && hasContentForPictureInPictureMode()) {
-                    dispatchStartEnterPip();
-                }
-            } else {
-                Log.i(PipUtils.TAG, "[Activity] onPictureInPictureUiStateChanged " + pipState.isStashed());
-            }
-
-            final boolean stashed = pipState.isStashed();
-            if (isInPictureInPictureStash != stashed) {
-                isInPictureInPictureStash = stashed;
-                if (stashed) {
-                    dispatchStashStartPip();
-                } else {
-                    dispatchStashEndPip();
-                }
-            }
-        }
-    }
 
 
     /* Internal */
@@ -231,7 +206,6 @@ class PipActivityHandler implements IPipActivityHandler {
 
     private void dispatchStartEnterPip() {
         isInPictureInPictureModeInternal = true;
-        isInPictureInPictureStash = false;
         for (IPipActivityListener listener: listeners) {
             listener.onStartEnterToPip();
         }
@@ -242,18 +216,6 @@ class PipActivityHandler implements IPipActivityHandler {
         dispatchEnterAnimationEnd();
         for (IPipActivityListener listener: listeners) {
             listener.onCompleteEnterToPip();
-        }
-    }
-
-    private void dispatchStashStartPip() {
-        for (IPipActivityListener listener: listeners) {
-            listener.onPipStashStart();
-        }
-    }
-
-    private void dispatchStashEndPip() {
-        for (IPipActivityListener listener: listeners) {
-            listener.onPipStashEnd();
         }
     }
 

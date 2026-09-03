@@ -19,12 +19,9 @@ import android.graphics.Rect;
 import android.graphics.RectF;
 import android.os.Build;
 import android.text.Layout;
-import android.text.NoCopySpan;
-import android.text.SpanWatcher;
 import android.text.SpannableStringBuilder;
 import android.text.Spanned;
 import android.text.StaticLayout;
-import android.text.TextWatcher;
 import android.util.SparseArray;
 import android.util.SparseIntArray;
 import android.util.TypedValue;
@@ -52,7 +49,6 @@ import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.Emoji;
 import org.telegram.messenger.FileLog;
-import org.telegram.messenger.LanguageDetector;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.R;
@@ -69,6 +65,7 @@ import org.telegram.ui.ArticleViewer;
 import org.telegram.ui.Components.AnimatedEmojiSpan;
 import org.telegram.ui.Components.CornerPath;
 import org.telegram.ui.Components.LayoutHelper;
+import org.telegram.ui.Components.LinkPath;
 import org.telegram.ui.Components.RecyclerListView;
 import org.telegram.ui.RestrictedLanguagesSelectActivity;
 
@@ -81,6 +78,11 @@ import tw.nekomimi.nekogram.translate.Translator;
 import tw.nekomimi.nekogram.translate.TranslatorKt;
 import tw.nekomimi.nekogram.utils.AlertUtil;
 import tw.nekomimi.nekogram.utils.ProxyUtil;
+import sovietgram.com.NaConfig;
+
+import static com.google.zxing.common.detector.MathUtils.distance;
+import static org.telegram.ui.ActionBar.FloatingToolbar.STYLE_THEME;
+import static org.telegram.ui.ActionBar.Theme.key_chat_inTextSelectionHighlight;
 
 public abstract class TextSelectionHelper<Cell extends TextSelectionHelper.SelectableView> {
 
@@ -239,7 +241,7 @@ public abstract class TextSelectionHelper<Cell extends TextSelectionHelper.Selec
                     offset = text.length() - 1;
                 }
             }
-            if (offset >= 0 && offset < text.length() && text.charAt(offset) != '\n') {
+            if (offset >= 0 && offset < text.length() && (text.charAt(offset) != '\n' || EntitiesHelper.isInsideTableSelectionSpan(text, offset))) {
                 int maybeTextX = TextSelectionHelper.this.maybeTextX;
                 int maybeTextY = TextSelectionHelper.this.maybeTextY;
                 clear();
@@ -248,7 +250,13 @@ public abstract class TextSelectionHelper<Cell extends TextSelectionHelper.Selec
                 selectionStart = offset;
                 selectionEnd = selectionStart;
 
-                if (text instanceof Spanned) {
+                int[] tableRange = EntitiesHelper.getTableSelectionRange(text, selectionStart);
+                if (tableRange != null) {
+                    selectionStart = tableRange[0];
+                    selectionEnd = tableRange[1];
+                }
+
+                if (selectionStart == selectionEnd && text instanceof Spanned) {
                     boolean found = false;
                     Emoji.EmojiSpan[] spans = ((Spanned) text).getSpans(0, text.length(), Emoji.EmojiSpan.class);
                     for (Emoji.EmojiSpan emojiSpan : spans) {
@@ -390,7 +398,7 @@ public abstract class TextSelectionHelper<Cell extends TextSelectionHelper.Selec
                             offset = text.length() - 1;
                         }
                     }
-                    if (offset >= 0 && offset < text.length() && text.charAt(offset) != '\n') {
+                    if (offset >= 0 && offset < text.length() && (text.charAt(offset) != '\n' || EntitiesHelper.isInsideTableSelectionSpan(text, offset))) {
                         AndroidUtilities.cancelRunOnUIThread(startSelectionRunnable);
                         AndroidUtilities.runOnUIThread(startSelectionRunnable, longpressDelay);
                         tryCapture = true;
@@ -687,11 +695,6 @@ public abstract class TextSelectionHelper<Cell extends TextSelectionHelper.Selec
         if (popupWindow != null) {
             popupWindow.dismiss();
         }
-    }
-
-    public void hideActionsMenu() {
-        AndroidUtilities.cancelRunOnUIThread(showActionsRunnable);
-        hideActions();
     }
 
     public TextSelectionOverlay getOverlayView(Context context) {
@@ -2950,42 +2953,6 @@ public abstract class TextSelectionHelper<Cell extends TextSelectionHelper.Selec
         SparseArray<CharSequence> prefixTextByPosition = new SparseArray<>();
         SparseIntArray childCountByPosition = new SparseIntArray();
 
-        private static CharSequence detachedText(CharSequence text) {
-            if (text == null) {
-                return "";
-            }
-            if (!(text instanceof Spanned)) {
-                return text.toString();
-            }
-
-            final Spanned source = (Spanned) text;
-            final SpannableStringBuilder copy = new SpannableStringBuilder(text.toString());
-            final Object[] spans = source.getSpans(0, source.length(), Object.class);
-            for (Object span : spans) {
-                if (span instanceof TextWatcher || span instanceof SpanWatcher || span instanceof NoCopySpan) {
-                    continue;
-                }
-                final int start = source.getSpanStart(span);
-                final int end = source.getSpanEnd(span);
-                if (start < 0 || end < start || start > copy.length()) {
-                    continue;
-                }
-                copy.setSpan(span, start, Math.min(end, copy.length()), source.getSpanFlags(span));
-            }
-            return copy;
-        }
-
-        private void cacheLayoutBlock(int position, int childPosition, TextLayoutBlock block) {
-            final int key = position + (childPosition << 16);
-            textByPosition.put(key, detachedText(block.getText()));
-            final CharSequence prefix = block.getPrefix();
-            if (prefix == null) {
-                prefixTextByPosition.remove(key);
-            } else {
-                prefixTextByPosition.put(key, detachedText(prefix));
-            }
-        }
-
         public LinearLayoutManager layoutManager;
 
         public ArticleTextSelectionHelper() {
@@ -3287,7 +3254,8 @@ public abstract class TextSelectionHelper<Cell extends TextSelectionHelper.Selec
             int n = arrayList.size();
             childCountByPosition.put(position, n);
             for (int i = 0; i < n; i++) {
-                cacheLayoutBlock(position, i, arrayList.get(i));
+                textByPosition.put(position + (i << 16), arrayList.get(i).getText());
+                prefixTextByPosition.put(position + (i << 16), arrayList.get(i).getPrefix());
             }
         }
 
@@ -3553,18 +3521,13 @@ public abstract class TextSelectionHelper<Cell extends TextSelectionHelper.Selec
         }
 
         public void cacheText(int pos, CharSequence text, CharSequence prefix) {
-            final int key = pos + (0 << 16);
-            textByPosition.put(key, detachedText(text));
-            if (prefix == null) {
-                prefixTextByPosition.remove(key);
-            } else {
-                prefixTextByPosition.put(key, detachedText(prefix));
-            }
+            textByPosition.put(pos + (0 << 16), text == null ? "" : text);
+            if (prefix != null) prefixTextByPosition.put(pos + (0 << 16), prefix);
             childCountByPosition.put(pos, Math.max(1, childCountByPosition.get(pos)));
         }
 
         public void cacheChildText(int pos, int childPos, CharSequence text) {
-            textByPosition.put(pos + (childPos << 16), detachedText(text));
+            textByPosition.put(pos + (childPos << 16), text == null ? "" : text);
             childCountByPosition.put(pos, Math.max(childPos + 1, childCountByPosition.get(pos)));
         }
 
@@ -3574,7 +3537,8 @@ public abstract class TextSelectionHelper<Cell extends TextSelectionHelper.Selec
             int n = arrayList.size();
             childCountByPosition.put(pos, n);
             for (int i = 0; i < n; i++) {
-                cacheLayoutBlock(pos, i, arrayList.get(i));
+                textByPosition.put(pos + (i << 16), arrayList.get(i).getText());
+                prefixTextByPosition.put(pos + (i << 16), arrayList.get(i).getPrefix());
             }
         }
 
@@ -3696,7 +3660,8 @@ public abstract class TextSelectionHelper<Cell extends TextSelectionHelper.Selec
             int n = arrayList.size();
             childCountByPosition.put(position, n);
             for (int i = 0; i < n; i++) {
-                cacheLayoutBlock(position, i, arrayList.get(i));
+                textByPosition.put(position + (i << 16), arrayList.get(i).getText());
+                prefixTextByPosition.put(position + (i << 16), arrayList.get(i).getPrefix());
             }
         }
 

@@ -11,7 +11,6 @@ import androidx.annotation.Nullable;
 import com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector;
 
 import org.telegram.messenger.AndroidUtilities;
-import org.telegram.messenger.BuildConfig;
 import org.telegram.messenger.pip.activity.IPipActivityActionListener;
 import org.telegram.messenger.pip.activity.IPipActivityAnimationListener;
 import org.telegram.messenger.pip.activity.IPipActivityHandler;
@@ -31,70 +30,58 @@ public class PipActivityController {
         this.activity = activity;
         this.handler = new PipActivityHandler(activity);
 
-        if (BuildConfig.DEBUG) {
-            handler.addPipListener(new IPipActivityListener() {
-                @Override
-                public void onStartEnterToPip() {
-                    Log.d(PipUtils.TAG, "onStartEnterToPip");
-                }
+        handler.addPipListener(new IPipActivityListener() {
+            @Override
+            public void onStartEnterToPip() {
+                Log.d(PipUtils.TAG, "onStartEnterToPip");
+            }
 
-                @Override
-                public void onCompleteEnterToPip() {
-                    Log.d(PipUtils.TAG, "onCompleteEnterToPip");
-                }
+            @Override
+            public void onCompleteEnterToPip() {
+                Log.d(PipUtils.TAG, "onCompleteEnterToPip");
+            }
 
-                @Override
-                public void onPipStashStart() {
-                    Log.d(PipUtils.TAG, "onPipStashStart");
-                }
+            @Override
+            public void onStartExitFromPip(boolean byActivityStop) {
+                Log.d(PipUtils.TAG, "onStartExitFromPip: byActivityStop=" + byActivityStop);
+            }
 
-                @Override
-                public void onPipStashEnd() {
-                    Log.d(PipUtils.TAG, "onPipStashStop");
-                }
+            @Override
+            public void onCompleteExitFromPip(boolean byActivityStop) {
+                Log.d(PipUtils.TAG, "onCompleteExitFromPip: byActivityStop=" + byActivityStop);
+            }
+        });
+        handler.addAnimationListener(new IPipActivityAnimationListener() {
+            @Override
+            public void onEnterAnimationStart(long estimatedDuration) {
+                Log.d(PipUtils.TAG, "onEnterAnimationStart: estimatedDuration=" + estimatedDuration);
+            }
 
-                @Override
-                public void onStartExitFromPip(boolean byActivityStop) {
-                    Log.d(PipUtils.TAG, "onStartExitFromPip: byActivityStop=" + byActivityStop);
-                }
+            @Override
+            public void onEnterAnimationEnd(long duration) {
+                Log.d(PipUtils.TAG, "onEnterAnimationEnd: duration=" + duration);
+            }
 
-                @Override
-                public void onCompleteExitFromPip(boolean byActivityStop) {
-                    Log.d(PipUtils.TAG, "onCompleteExitFromPip: byActivityStop=" + byActivityStop);
-                }
-            });
-            handler.addAnimationListener(new IPipActivityAnimationListener() {
-                @Override
-                public void onEnterAnimationStart(long estimatedDuration) {
-                    Log.d(PipUtils.TAG, "onEnterAnimationStart: estimatedDuration=" + estimatedDuration);
-                }
+            @Override
+            public void onLeaveAnimationStart(long estimatedDuration) {
+                Log.d(PipUtils.TAG, "onLeaveAnimationStart: estimatedDuration=" + estimatedDuration);
+            }
 
-                @Override
-                public void onEnterAnimationEnd(long duration) {
-                    Log.d(PipUtils.TAG, "onEnterAnimationEnd: duration=" + duration);
-                }
+            @Override
+            public void onLeaveAnimationEnd(long duration) {
+                Log.d(PipUtils.TAG, "onLeaveAnimationEnd: duration=" + duration);
+            }
 
-                @Override
-                public void onLeaveAnimationStart(long estimatedDuration) {
-                    Log.d(PipUtils.TAG, "onLeaveAnimationStart: estimatedDuration=" + estimatedDuration);
-                }
+            @Override
+            public void onTransitionAnimationFrame() {
+                Log.d(PipUtils.TAG, "onTransitionAnimationFrame");
+            }
 
-                @Override
-                public void onLeaveAnimationEnd(long duration) {
-                    Log.d(PipUtils.TAG, "onLeaveAnimationEnd: duration=" + duration);
-                }
-
-                @Override
-                public void onTransitionAnimationFrame() {
-                    Log.d(PipUtils.TAG, "onTransitionAnimationFrame");
-                }
-
-                @Override
-                public void onTransitionAnimationProgress(float estimatedProgress) {
-                    Log.d(PipUtils.TAG, "onTransitionAnimationProgress: estimatedProgress=" + estimatedProgress);
-                }
-            });
-        }
+            @Override
+            public void onTransitionAnimationProgress(float estimatedProgress) {
+                Log.d(PipUtils.TAG, "onTransitionAnimationProgress: estimatedProgress=" + estimatedProgress);
+            }
+        });
     }
 
     public IPipActivityHandler getHandler() {

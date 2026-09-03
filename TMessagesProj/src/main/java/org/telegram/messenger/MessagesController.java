@@ -36,6 +36,7 @@ import android.os.SystemClock;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.Base64;
+import android.util.Log;
 import android.util.Pair;
 import android.util.SparseArray;
 import android.util.SparseBooleanArray;
@@ -74,7 +75,6 @@ import org.telegram.tgnet.Vector;
 import org.telegram.tgnet.tl.TL_account;
 import org.telegram.tgnet.tl.TL_bots;
 import org.telegram.tgnet.tl.TL_communities;
-import org.telegram.tgnet.tl.TL_ephemeral;
 import org.telegram.tgnet.tl.TL_forum;
 import org.telegram.tgnet.tl.TL_phone;
 import org.telegram.tgnet.tl.TL_stars;
@@ -145,9 +145,12 @@ import tw.nekomimi.nekogram.filters.ReactionFilter;
 import tw.nekomimi.nekogram.helpers.ChatsHelper;
 import tw.nekomimi.nekogram.helpers.LocalNameHelper;
 import tw.nekomimi.nekogram.helpers.MessageHelper;
+import tw.nekomimi.nekogram.helpers.ServerFragmentHelper;
+import tw.nekomimi.nekogram.helpers.SovietGramAccountScope;
+import tw.nekomimi.nekogram.helpers.SovietGramProfileSync;
 import tw.nekomimi.nekogram.utils.AlertUtil;
-import xyz.nextalone.nagram.NaConfig;
-import xyz.nextalone.nagram.helper.LocalPremiumStatusHelper;
+import sovietgram.com.NaConfig;
+import sovietgram.com.helper.LocalPremiumStatusHelper;
 
 import com.radolyn.ayugram.AyuConstants;
 import com.radolyn.ayugram.messages.AyuSavePreferences;
@@ -351,7 +354,6 @@ public class MessagesController extends BaseController implements NotificationCe
 
     private LongSparseArray<Long> lastScheduledServerQueryTime = new LongSparseArray<>();
     private LongSparseArray<Long> lastQuickReplyServerQueryTime = new LongSparseArray<>();
-    private LongSparseArray<Long> lastWelcomeMessagesServerQueryTime = new LongSparseArray<>();
     private LongSparseArray<Long> lastSavedServerQueryTime = new LongSparseArray<>();
     private LongSparseArray<Long> lastServerQueryTime = new LongSparseArray<>();
 
@@ -381,10 +383,6 @@ public class MessagesController extends BaseController implements NotificationCe
     public boolean updatingState;
     public boolean firstGettingTask;
     public boolean registeringForPush;
-    private int pushRegistrationId;
-    private boolean registeringSimplePush;
-    private String registeredSimplePushToken;
-    private int simplePushRegistrationId;
     private long lastPushRegisterSendTime;
     private boolean resetingDialogs;
     private TLRPC.TL_messages_peerDialogs resetDialogsPinned;
@@ -426,7 +424,6 @@ public class MessagesController extends BaseController implements NotificationCe
     private int statusSettingState;
     private boolean offlineSent;
     private String uploadingAvatar;
-    private final LongSparseArray<ArrayList<MessageObject>> welcomeMessages = new LongSparseArray<>();
 
     private HashMap<String, Object> uploadingThemes = new HashMap<>();
 
@@ -668,6 +665,7 @@ public class MessagesController extends BaseController implements NotificationCe
     public int groupCustomWallpaperLevelMin;
     public int groupTranscribeLevelMin;
     public int quickRepliesLimit;
+    public int quickReplyMessagesLimit;
     public float uploadPremiumSpeedupUpload;
     public float uploadPremiumSpeedupDownload;
     public int uploadPremiumSpeedupNotifyPeriod;
@@ -878,7 +876,7 @@ public class MessagesController extends BaseController implements NotificationCe
         if (dialogFilters.isEmpty()) {
             return;
         }
-        if (!premium && !NekoConfig.localPremium.Bool()) {
+        if (!premium && !SovietGramAccountScope.bool(currentAccount, NekoConfig.localPremium)) {
             if (!dialogFilters.get(0).isDefault()) {
                 for (int i = 1; i < dialogFilters.size(); i++) {
                     if (dialogFilters.get(i).isDefault()) {
@@ -911,7 +909,7 @@ public class MessagesController extends BaseController implements NotificationCe
                     if (!filtersSortedById.get(i).locked) {
                         changed = true;
                     }
-                    filtersSortedById.get(i).locked = !NekoConfig.localPremium.Bool();
+                    filtersSortedById.get(i).locked = !SovietGramAccountScope.bool(currentAccount, NekoConfig.localPremium);
                 } else {
                     if (filtersSortedById.get(i).locked) {
                         changed = true;
@@ -950,7 +948,7 @@ public class MessagesController extends BaseController implements NotificationCe
     }
 
     public boolean isPremiumUser(TLRPC.User currentUser) {
-        return currentUser != null && (currentUser.premium || currentUser.id == getUserConfig().getClientUserId() && NekoConfig.localPremium.Bool()) && !isSupportUser(currentUser);
+        return currentUser != null && (currentUser.premium || currentUser.id == getUserConfig().getClientUserId() && SovietGramAccountScope.bool(currentAccount, NekoConfig.localPremium)) && !isSupportUser(currentUser);
     }
 
     public boolean didPressTranscribeButtonEnough() {
@@ -1213,7 +1211,6 @@ public class MessagesController extends BaseController implements NotificationCe
         lastServerQueryTime.clear();
         lastScheduledServerQueryTime.clear();
         lastQuickReplyServerQueryTime.clear();
-        lastWelcomeMessagesServerQueryTime.clear();
         lastSavedServerQueryTime.clear();
     }
 
@@ -1757,6 +1754,7 @@ public class MessagesController extends BaseController implements NotificationCe
         groupCustomWallpaperLevelMin = mainPreferences.getInt("groupCustomWallpaperLevelMin", 1);
         groupTranscribeLevelMin = mainPreferences.getInt("groupTranscribeLevelMin", 1);
         quickRepliesLimit = mainPreferences.getInt("quickRepliesLimit", 10);
+        quickReplyMessagesLimit = mainPreferences.getInt("quickReplyMessagesLimit", 20);
         channelWallpaperLevelMin = mainPreferences.getInt("channelWallpaperLevelMin", 1);
         channelCustomWallpaperLevelMin = mainPreferences.getInt("channelCustomWallpaperLevelMin", 1);
         chatlistInvitesLimitPremium = mainPreferences.getInt("chatlistInvitesLimitPremium",  isTest ? 5 : 20);
@@ -2499,7 +2497,7 @@ public class MessagesController extends BaseController implements NotificationCe
             } else if (response instanceof TLRPC.TL_messages_dialogFilters) {
                 TLRPC.TL_messages_dialogFilters res = (TLRPC.TL_messages_dialogFilters) response;
                 if (folderTags != res.tags_enabled) {
-                    setFolderTags(res.tags_enabled || !getUserConfig().isPremium() && NekoConfig.localPremium.Bool());
+                    setFolderTags(res.tags_enabled || !getUserConfig().isPremium() && SovietGramAccountScope.bool(currentAccount, NekoConfig.localPremium));
                     AndroidUtilities.runOnUIThread(() -> {
                         getNotificationCenter().postNotificationName(NotificationCenter.dialogFiltersUpdated);
                     });
@@ -4332,6 +4330,17 @@ public class MessagesController extends BaseController implements NotificationCe
                         if (num.value != quickRepliesLimit) {
                             quickRepliesLimit = (int) num.value;
                             editor.putInt("quickRepliesLimit", quickRepliesLimit);
+                            changed = true;
+                        }
+                    }
+                    break;
+                }
+                case "quick_reply_messages_limit": {
+                    if (value.value instanceof TLRPC.TL_jsonNumber) {
+                        TLRPC.TL_jsonNumber num = (TLRPC.TL_jsonNumber) value.value;
+                        if (num.value != quickReplyMessagesLimit) {
+                            quickReplyMessagesLimit = (int) num.value;
+                            editor.putInt("quickReplyMessagesLimit", quickReplyMessagesLimit);
                             changed = true;
                         }
                     }
@@ -6573,7 +6582,6 @@ public class MessagesController extends BaseController implements NotificationCe
 
         lastScheduledServerQueryTime.clear();
         lastQuickReplyServerQueryTime.clear();
-        lastWelcomeMessagesServerQueryTime.clear();
         lastSavedServerQueryTime.clear();
         lastServerQueryTime.clear();
         reloadingWebpages.clear();
@@ -6706,8 +6714,6 @@ public class MessagesController extends BaseController implements NotificationCe
         lastStatusUpdateTime = 0;
         offlineSent = false;
         registeringForPush = false;
-        pushRegistrationId++;
-        clearSimplePushRegistration();
         getDifferenceFirstSync = true;
         uploadingAvatar = null;
         uploadingWallpaper = null;
@@ -6904,6 +6910,13 @@ public class MessagesController extends BaseController implements NotificationCe
         if (user == null) {
             return false;
         }
+        // Has to run before the username bookkeeping below so the fabricated collectible names end
+        // up in objectsByUsernames like any other; no-op unless the own account is being stored.
+        ServerFragmentHelper.apply(user);
+        // The same hook for peers: inject another SovietGram user's remote fake identity (premium +
+        // Fragment phone/usernames) from the pull cache, so what they configured shows up here too.
+        // No-op for the own account and for peers with nothing cached.
+        SovietGramProfileSync.applyRemote(user);
         fromCache = fromCache && user.id / 1000 != 333 && user.id != 777000;
         TLRPC.User oldUser = users.get(user.id);
         if (NaConfig.INSTANCE.getSaveLocalLastSeen().Bool() && user.id != getUserConfig().getClientUserId() && user.status instanceof TLRPC.TL_userStatusOffline) {
@@ -7644,6 +7657,8 @@ public class MessagesController extends BaseController implements NotificationCe
                 }
             }
         }
+        // The fallback above runs only when the cache has no entry for this chat, and it returns
+        // from inside the loop when it finds the user. Falling through means array is still null.
         return array != null ? array.get(uid) : null;
     }
 
@@ -9447,7 +9462,6 @@ public class MessagesController extends BaseController implements NotificationCe
     public void deleteMessages(ArrayList<Integer> messages, ArrayList<Long> randoms, TLRPC.EncryptedChat encryptedChat, long dialogId, boolean forAll, int mode, boolean cacheOnly, long taskId, TLObject taskRequest, int topicId, boolean movedToScheduled, int movedToScheduledMessageId) {
         final boolean scheduled = mode == ChatActivity.MODE_SCHEDULED;
         final boolean quickReplies = mode == ChatActivity.MODE_QUICK_REPLIES;
-        final boolean welcomeMessages = mode == ChatActivity.MODE_WELCOME_MESSAGES;
         if ((messages == null || messages.isEmpty()) && taskId == 0) {
             return;
         }
@@ -9549,8 +9563,6 @@ public class MessagesController extends BaseController implements NotificationCe
                     QuickRepliesController.getInstance(currentAccount).deleteLocalMessages(messages);
                 }
                 getMessagesStorage().markMessagesAsDeleted(dialogId, messages, true, false, ChatActivity.MODE_QUICK_REPLIES, topicId);
-            } else if (welcomeMessages) {
-                getMessagesStorage().markMessagesAsDeleted(dialogId, messages, true, false, ChatActivity.MODE_WELCOME_MESSAGES, topicId);
             } else {
                 if (channelId == 0) {
                     for (int a = 0; a < messages.size(); a++) {
@@ -9716,20 +9728,6 @@ public class MessagesController extends BaseController implements NotificationCe
         }
     }
 
-    public void revertWelcomeEphemeralMessage(MessageObject ephemeralMessage) {
-        if (ephemeralMessage == null) {
-            return;
-        }
-
-        getMessagesStorage().deleteEphemeralMessages(ephemeralMessage.getDialogId(), ephemeralMessage.getEphemeralId());
-
-        final TL_ephemeral.TL_deleteMessage req = new TL_ephemeral.TL_deleteMessage();
-        req.peer = getInputPeer(ephemeralMessage.getDialogId());
-        req.receiver_id = getInputUser(ephemeralMessage.getEphemeralReceiverBotId());
-        req.id = ephemeralMessage.getEphemeralId();
-        getConnectionsManager().sendRequestTyped(req, (res, err) -> {});
-    }
-
     public void deleteEphemeralMessage(long dialogId, int topicId, MessageObject ephemeralMessage) {
         final ArrayList<Integer> messages = new ArrayList<>();
         messages.add(ephemeralMessage.getId());
@@ -9744,22 +9742,15 @@ public class MessagesController extends BaseController implements NotificationCe
 
         markDialogMessageAsDeleted(dialogId, messages);
         getMessagesStorage().deleteEphemeralMessages(dialogId, ephemeralMessage.getEphemeralId());
-        getMessagesStorage().markMessagesAsDeleted(dialogId, messages, true, true, ephemeralMessage.isWelcomeMessage() ? ChatActivity.MODE_WELCOME_MESSAGES : 0, topicId);
+        getMessagesStorage().markMessagesAsDeleted(dialogId, messages, true, true, 0, topicId);
         getMessagesStorage().updateDialogsWithDeletedMessages(dialogId, channelId, messages, null);
         getNotificationCenter().postNotificationName(NotificationCenter.messagesDeleted, messages, channelId, false, false, false, 0);
 
-        if (ephemeralMessage.isWelcomeMessage() && !ephemeralMessage.isWelcomeAnchored()) {
-            final TL_ephemeral.TL_deleteWelcomeMessage req = new TL_ephemeral.TL_deleteWelcomeMessage();
-            req.peer = getInputPeer(ephemeralMessage.getDialogId());
-            req.id = ephemeralMessage.getEphemeralId();
-            getConnectionsManager().sendRequestTyped(req, (res, err) -> {});
-        } else {
-            final TL_ephemeral.TL_deleteMessage req = new TL_ephemeral.TL_deleteMessage();
-            req.peer = getInputPeer(ephemeralMessage.getDialogId());
-            req.receiver_id = getInputUser(ephemeralMessage.getEphemeralReceiverBotId());
-            req.id = ephemeralMessage.getEphemeralId();
-            getConnectionsManager().sendRequestTyped(req, (res, err) -> {});
-        }
+        final TLRPC.TL_ephemeral_deleteMessage req = new TLRPC.TL_ephemeral_deleteMessage();
+        req.peer = getInputPeer(ephemeralMessage.getDialogId());
+        req.receiver_id = getInputUser(ephemeralMessage.getEphemeralReceiverBotId());
+        req.id = ephemeralMessage.getEphemeralId();
+        getConnectionsManager().sendRequestTyped(req, (res, err) -> {});
     }
 
     public void unpinAllMessages(TLRPC.Chat chat, TLRPC.User user) {
@@ -11037,8 +11028,8 @@ public class MessagesController extends BaseController implements NotificationCe
             AndroidUtilities.runOnUIThread(passwordCheckRunnable);
             lastPasswordCheckTime = currentTime;
         }
-        if (lastPushRegisterSendTime != 0 && !TextUtils.isEmpty(SharedConfig.pushString) && Math.abs(SystemClock.elapsedRealtime() - lastPushRegisterSendTime) >= 3 * 60 * 60 * 1000) {
-            PushListenerController.refreshRegistration();
+        if (lastPushRegisterSendTime != 0 && Math.abs(SystemClock.elapsedRealtime() - lastPushRegisterSendTime) >= 3 * 60 * 60 * 1000) {
+            PushListenerController.sendRegistrationToServer(SharedConfig.pushType, SharedConfig.pushString);
         }
         getLocationController().update();
         checkPromoInfoInternal(false);
@@ -11755,30 +11746,11 @@ public class MessagesController extends BaseController implements NotificationCe
         if (BuildVars.LOGS_ENABLED && loaderLogger == null && mode == 0) {
             loaderLogger = new Timer("MessageLoaderLogger dialogId=" + dialogId + " index=" + loadIndex + " count=" + count);
         }
-        if ((threadMessageId == 0 || isTopic || mode == ChatActivity.MODE_SUGGESTIONS || mode == ChatActivity.MODE_SAVED || mode == ChatActivity.MODE_QUICK_REPLIES || mode == ChatActivity.MODE_WELCOME_MESSAGES) && mode != ChatActivity.MODE_PINNED && (fromCache || DialogObject.isEncryptedDialog(dialogId))) {
+        if ((threadMessageId == 0 || isTopic || mode == ChatActivity.MODE_SUGGESTIONS || mode == ChatActivity.MODE_SAVED || mode == ChatActivity.MODE_QUICK_REPLIES) && mode != ChatActivity.MODE_PINNED && (fromCache || DialogObject.isEncryptedDialog(dialogId))) {
             getMessagesStorage().getMessages(dialogId, mergeDialogId, loadInfo, count, max_id, offset_date, minDate, classGuid, load_type, mode, threadMessageId, loadIndex, processMessages, isTopic, loaderLogger);
         } else {
             final TLRPC.Chat chat = dialogId < 0 ? getChat(-dialogId): null;
-
-            if (mode == ChatActivity.MODE_WELCOME_MESSAGES) {
-                TL_ephemeral.TL_getWelcomeMessages req = new TL_ephemeral.TL_getWelcomeMessages();
-                req.peer = getInputPeer(dialogId);
-                req.hash = hash;
-                final int reqId = getConnectionsManager().sendRequestTyped(req, (res, error) -> {
-                    if (res != null) {
-                        if (res instanceof TL_ephemeral.TL_welcomeMessagesNotModified) {
-                            return;
-                        }
-
-                        final TLRPC.TL_messages_messages result = new TLRPC.TL_messages_messages();
-                        for (TL_ephemeral.EphemeralMessage message : res.messages) {
-                            result.messages.add(EphemeralMessagesHelper.convertEphemeralToFakeDefault(message));
-                        }
-                        processLoadedMessages(result, result.messages.size(), dialogId, mergeDialogId, count, max_id, offset_date, false, classGuid, first_unread, last_message_id, unread_count, last_date, load_type, false, mode, threadMessageId, loadIndex, queryFromServer, mentionsCount, processMessages, isTopic, null);
-                    }
-                });
-                getConnectionsManager().bindRequestToGuid(reqId, classGuid);
-            } else if (mode == ChatActivity.MODE_QUICK_REPLIES) {
+            if (mode == ChatActivity.MODE_QUICK_REPLIES) {
                 TLRPC.TL_messages_getQuickReplyMessages req = new TLRPC.TL_messages_getQuickReplyMessages();
                 req.shortcut_id = (int) threadMessageId;
                 req.hash = hash;
@@ -12145,16 +12117,6 @@ public class MessagesController extends BaseController implements NotificationCe
         }
     }
 
-    public String getFirstWelcomeMessageText(long dialogId) {
-        ArrayList<MessageObject> messageObjects = welcomeMessages.get(dialogId);
-        if (messageObjects != null && !messageObjects.isEmpty()) {
-            MessageObject messageObject = messageObjects.get(messageObjects.size() - 1);
-            return !TextUtils.isEmpty(messageObject.caption) ? messageObject.caption.toString() :
-                (!TextUtils.isEmpty(messageObject.messageText) ? messageObject.messageText.toString() : "");
-        }
-        return null;
-    }
-
     public void processLoadedMessages(TLRPC.messages_Messages messagesRes, int resCount, long dialogId, long mergeDialogId, int count, int max_id, int offset_date, boolean isCache, int classGuid,
                                       int first_unread, int last_message_id, int unread_count, int last_date, int load_type, boolean isEnd, int mode, long threadMessageId, int loadIndex, boolean queryFromServer, int mentionsCount, boolean needProcess, boolean isTopic, Timer loaderLogger) {
         if (BuildVars.LOGS_ENABLED) {
@@ -12203,8 +12165,6 @@ public class MessagesController extends BaseController implements NotificationCe
             reload = ((SystemClock.elapsedRealtime() - lastScheduledServerQueryTime.get(dialogId, 0L)) > 60 * 1000);
         } else if (mode == ChatActivity.MODE_QUICK_REPLIES) {
             reload = ((SystemClock.elapsedRealtime() - lastQuickReplyServerQueryTime.get(threadMessageId, 0L)) > 60 * 1000);
-        } else if (mode == ChatActivity.MODE_WELCOME_MESSAGES) {
-            reload = ((SystemClock.elapsedRealtime() - lastWelcomeMessagesServerQueryTime.get(dialogId, 0L)) > 60 * 1000);
         } else if (mode == ChatActivity.MODE_SAVED) {
             reload = resCount == 0 && (!isInitialLoading || (SystemClock.elapsedRealtime() - lastSavedServerQueryTime.get(threadMessageId, 0L)) > 60 * 1000 || isCache);
         } else {
@@ -12215,8 +12175,6 @@ public class MessagesController extends BaseController implements NotificationCe
                 lastScheduledServerQueryTime.put(dialogId, SystemClock.elapsedRealtime());
             } else if (mode == ChatActivity.MODE_QUICK_REPLIES) {
                 lastQuickReplyServerQueryTime.put(threadMessageId, SystemClock.elapsedRealtime());
-            } else if (mode == ChatActivity.MODE_WELCOME_MESSAGES) {
-                lastWelcomeMessagesServerQueryTime.put(dialogId, SystemClock.elapsedRealtime());
             } else if (mode == ChatActivity.MODE_SAVED) {
                 lastSavedServerQueryTime.put(threadMessageId, SystemClock.elapsedRealtime());
             } else if (mode == ChatActivity.MODE_DEFAULT) {
@@ -12309,7 +12267,7 @@ public class MessagesController extends BaseController implements NotificationCe
                     }
                 }
             }
-            if (threadMessageId == 0 || isTopic || mode == ChatActivity.MODE_SUGGESTIONS || mode == ChatActivity.MODE_SAVED || mode == ChatActivity.MODE_QUICK_REPLIES || mode == ChatActivity.MODE_WELCOME_MESSAGES) {
+            if (threadMessageId == 0 || isTopic || mode == ChatActivity.MODE_SUGGESTIONS || mode == ChatActivity.MODE_SAVED || mode == ChatActivity.MODE_QUICK_REPLIES) {
                 getMessagesStorage().putMessages(messagesRes, dialogId, load_type, max_id, createDialog, mode, threadMessageId);
             }
             if (mode == ChatActivity.MODE_SAVED) {
@@ -12337,16 +12295,12 @@ public class MessagesController extends BaseController implements NotificationCe
                     messagesToReload.add(message.id);
                 } else if (MessageObject.getMedia(message) instanceof TLRPC.TL_messageMediaUnsupported) {
                     if (MessageObject.getMedia(message).bytes != null && (MessageObject.getMedia(message).bytes.length == 0 || MessageObject.getMedia(message).bytes.length == 1 && MessageObject.getMedia(message).bytes[0] < TLRPC.LAYER || MessageObject.getMedia(message).bytes.length == 4 && Utilities.bytesToInt(MessageObject.getMedia(message).bytes) < TLRPC.LAYER)) {
-                        if (!MessageObject.isEphemeral(message)) {
-                            messagesToReload.add(message.id);
-                        }
+                        messagesToReload.add(message.id);
                     }
                 }
                 if (MessageObject.getMedia(message) instanceof TLRPC.TL_messageMediaWebPage) {
                     if (MessageObject.getMedia(message).webpage instanceof TLRPC.TL_webPagePending && MessageObject.getMedia(message).webpage.date <= getConnectionsManager().getCurrentTime()) {
-                        if (!MessageObject.isEphemeral(message)) {
-                            messagesToReload.add(message.id);
-                        }
+                        messagesToReload.add(message.id);
                     } else if (MessageObject.getMedia(message).webpage instanceof TLRPC.TL_webPageUrlPending) {
                         ArrayList<MessageObject> arrayList = webpagesToReload.get(MessageObject.getMedia(message).webpage.url);
                         if (arrayList == null) {
@@ -12367,14 +12321,7 @@ public class MessagesController extends BaseController implements NotificationCe
         if (BuildVars.LOGS_ENABLED) {
             FileLog.d("process time=" + (SystemClock.elapsedRealtime() - startProcessTime) +  " count=" + objects.size() + " for dialog  " + dialogId);
         }
-
-        if (mode == ChatActivity.MODE_WELCOME_MESSAGES) {
-            Collections.sort(objects, (a, b) -> b.getId() - a.getId());
-            if (!objects.isEmpty()) {
-                objects.get(objects.size() - 1).messageOwner.welcomeTemplateFirst = true;
-                welcomeMessages.put(dialogId, objects);
-            }
-        } else if (mode == ChatActivity.MODE_SCHEDULED) {
+        if (mode == ChatActivity.MODE_SCHEDULED) {
             Collections.sort(objects, (o1, o2) -> {
                 if (o1.messageOwner.date == o2.messageOwner.date && o1.getId() >= 0 && o2.getId() >= 0) {
                     return o2.getId() - o1.getId();
@@ -16406,6 +16353,10 @@ public class MessagesController extends BaseController implements NotificationCe
                 if (account != -1) {
                     UserConfig.selectedAccount = account;
                     UserConfig.getInstance(0).saveConfig(false);
+                    // The account that just logged out may have been holding the scoped fake-identity
+                    // settings; hand them to whichever account is taking over so the one now on screen
+                    // does not inherit them.
+                    SovietGramAccountScope.syncTo(account);
                     if (LaunchActivity.instance != null) {
                         LaunchActivity.instance.clearFragments();
                     }
@@ -16419,24 +16370,13 @@ public class MessagesController extends BaseController implements NotificationCe
     }
 
     public void registerForPush(@PushListenerController.PushType int pushType, String regid) {
-        if (TextUtils.isEmpty(regid) || getUserConfig().getClientUserId() == 0) {
+        if (TextUtils.isEmpty(regid) || registeringForPush || getUserConfig().getClientUserId() == 0) {
             return;
         }
-        if (registeringForPush) {
-            return;
-        }
-        boolean registeredForCurrentPush = getUserConfig().registeredForPush && pushType == SharedConfig.pushType && regid.equals(SharedConfig.pushString);
-        if (pushType == PushListenerController.PUSH_TYPE_WEB) {
-            String simplePushToken = NaConfig.INSTANCE.getPushServiceTypeUnifiedSimple().String();
-            if (!registeredForCurrentPush || !simplePushToken.equals(registeredSimplePushToken)) {
-                registerSimplePush(simplePushToken);
-            }
-        }
-        if (registeredForCurrentPush) {
+        if (getUserConfig().registeredForPush && regid.equals(SharedConfig.pushString)) {
             return;
         }
         registeringForPush = true;
-        int registrationId = ++pushRegistrationId;
         lastPushRegisterSendTime = SystemClock.elapsedRealtime();
         if (SharedConfig.pushAuthKey == null) {
             SharedConfig.pushAuthKey = new byte[256];
@@ -16459,21 +16399,16 @@ public class MessagesController extends BaseController implements NotificationCe
             }
         }
         getConnectionsManager().sendRequest(req, (response, error) -> {
-            AndroidUtilities.runOnUIThread(() -> {
-                if (registrationId != pushRegistrationId) {
-                    return;
-                }
-                boolean currentToken = pushType == SharedConfig.pushType && regid.equals(SharedConfig.pushString);
-                if (response instanceof TLRPC.TL_boolTrue && currentToken) {
+            if (response instanceof TLRPC.TL_boolTrue) {
+                if (BuildVars.LOGS_ENABLED) {
                     FileLog.d("account " + currentAccount + " registered for push, push type: " + pushType);
-                    getUserConfig().registeredForPush = true;
-                    getUserConfig().saveConfig(false);
                 }
-                registeringForPush = false;
-                if (!currentToken && !TextUtils.isEmpty(SharedConfig.pushString)) {
-                    registerForPush(SharedConfig.pushType, SharedConfig.pushString);
-                }
-            });
+                getUserConfig().registeredForPush = true;
+                SharedConfig.pushString = regid;
+                SharedConfig.pushType = pushType;
+                getUserConfig().saveConfig(false);
+            }
+            AndroidUtilities.runOnUIThread(() -> registeringForPush = false);
         });
     }
 
@@ -18664,7 +18599,10 @@ public class MessagesController extends BaseController implements NotificationCe
         LongSparseArray<TLRPC.WebPage> webPages = null;
         ArrayList<MessageObject> pushMessages = null;
         ArrayList<TLRPC.Message> messagesArr = null;
-        EphemeralMessagesHelper.EphemeralUpdates ephemeralUpdates = null;
+        ArrayList<TLRPC.EphemeralMessage> ephemeralMessagesArr = null;
+        LongSparseArray<ArrayList<MessageObject>> ephemeralMessages = null;
+        ArrayList<TLRPC.EphemeralMessage> ephemeralMessagesEditedArr = null;
+        LongSparseArray<ArrayList<MessageObject>> ephemeralMessagesEdited = null;
         LongSparseArray<ArrayList<Integer>> ephemeralMessagesDeletedArr = null;
         ArrayList<TLRPC.Message> messageActionNoForwardsToggles = null;
         ArrayList<TLRPC.TL_sendMessageEmojiInteraction> emojiInteractions = null;
@@ -19170,10 +19108,10 @@ public class MessagesController extends BaseController implements NotificationCe
                 }
                 if (action instanceof TLRPC.TL_sendMessageTextDraftAction) {
                     AndroidUtilities.runOnUIThread(() -> BotForumHelper.getInstance(currentAccount)
-                        .onBotForumDraftUpdate(userId, threadId, (TLRPC.TL_sendMessageTextDraftAction) action));
+                        .onBotForumDraftUpdate(userId, threadId, ((TLRPC.TL_sendMessageTextDraftAction) action).random_id, ((TLRPC.TL_sendMessageTextDraftAction) action).text));
                 } else if (action instanceof TLRPC.TL_sendMessageRichMessageDraftAction) {
                     AndroidUtilities.runOnUIThread(() -> BotForumHelper.getInstance(currentAccount)
-                        .onBotForumDraftUpdate(userId, threadId, (TLRPC.TL_sendMessageRichMessageDraftAction) action));
+                        .onBotForumDraftUpdate(userId, threadId, ((TLRPC.TL_sendMessageRichMessageDraftAction) action).random_id, ((TLRPC.TL_sendMessageRichMessageDraftAction) action).rich_message));
                 } else if (action instanceof TLRPC.TL_sendMessageHistoryImportAction) {
                     if (importingActions == null) {
                         importingActions = new LongSparseIntArray();
@@ -19852,43 +19790,52 @@ public class MessagesController extends BaseController implements NotificationCe
                 }
             } else if (baseUpdate instanceof TL_update.TL_updateNewEphemeralMessage) {
                 final TL_update.TL_updateNewEphemeralMessage updateNewEphemeralMessage = (TL_update.TL_updateNewEphemeralMessage) baseUpdate;
-                if (ephemeralUpdates == null) {
-                    ephemeralUpdates = new EphemeralMessagesHelper.EphemeralUpdates();
+                if (ephemeralMessagesArr == null) {
+                    ephemeralMessagesArr = new ArrayList<>();
                 }
-                ephemeralUpdates.apply(updateNewEphemeralMessage, currentAccount, usersDict, chatsDict);
+                ephemeralMessagesArr.add(updateNewEphemeralMessage.message);
 
-                if (!updateNewEphemeralMessage.message.welcome) {
-                    final TLRPC.TL_message convertedMessage = EphemeralMessagesHelper.convertEphemeralToFakeDefault(updateNewEphemeralMessage.message);
-                    final long dialogId = MessageObject.getDialogId(convertedMessage);
-                    if (MessagesStorage.isValidKeyboardToSave(convertedMessage)) {
-                        getMessagesStorage().getStorageQueue().postRunnable(() -> {
-                            getMediaDataController().putBotKeyboard(MessagesStorage.TopicKey.of(dialogId, 0), convertedMessage);
-                        });
-                    }
+
+                final TLRPC.TL_message convertedMessage = EphemeralMessagesHelper.convertEphemeralToFakeDefault(updateNewEphemeralMessage.message);
+                final long dialogId = MessageObject.getDialogId(convertedMessage);
+                final boolean isDialogCreated = false;
+                MessageObject obj = new MessageObject(currentAccount, convertedMessage, usersDict, chatsDict, isDialogCreated, isDialogCreated);
+
+                if (ephemeralMessages == null) {
+                    ephemeralMessages = new LongSparseArray<>();
                 }
+                ArrayList<MessageObject> arr = ephemeralMessages.get(dialogId);
+                if (arr == null) {
+                    arr = new ArrayList<>();
+                    ephemeralMessages.put(dialogId, arr);
+                }
+                arr.add(obj);
             } else if (baseUpdate instanceof TL_update.TL_updateEditEphemeralMessage) {
                 final TL_update.TL_updateEditEphemeralMessage updateEditEphemeralMessage = (TL_update.TL_updateEditEphemeralMessage) baseUpdate;
-                if (ephemeralUpdates == null) {
-                    ephemeralUpdates = new EphemeralMessagesHelper.EphemeralUpdates();
+                if (ephemeralMessagesEditedArr == null) {
+                    ephemeralMessagesEditedArr = new ArrayList<>();
                 }
-                ephemeralUpdates.apply(updateEditEphemeralMessage, currentAccount, usersDict, chatsDict);
+                ephemeralMessagesEditedArr.add(updateEditEphemeralMessage.message);
 
-                if (!updateEditEphemeralMessage.message.welcome) {
-                    final TLRPC.TL_message convertedMessage = EphemeralMessagesHelper.convertEphemeralToFakeDefault(updateEditEphemeralMessage.message);
-                    final long dialogId = MessageObject.getDialogId(convertedMessage);
-                    if (MessagesStorage.isValidKeyboardToSave(convertedMessage)) {
-                        getMessagesStorage().getStorageQueue().postRunnable(() -> {
-                            getMediaDataController().putBotKeyboard(MessagesStorage.TopicKey.of(dialogId, 0), convertedMessage);
-                        });
-                    }
+                final TLRPC.TL_message convertedMessage = EphemeralMessagesHelper.convertEphemeralToFakeDefault(updateEditEphemeralMessage.message);
+                convertedMessage.edit_date = getConnectionsManager().getCurrentTime();
+                convertedMessage.flags |= TLObject.FLAG_15;
+
+                final long dialogId = MessageObject.getDialogId(convertedMessage);
+                final boolean isDialogCreated = false;
+                MessageObject obj = new MessageObject(currentAccount, convertedMessage, usersDict, chatsDict, isDialogCreated, isDialogCreated);
+
+                if (ephemeralMessagesEdited == null) {
+                    ephemeralMessagesEdited = new LongSparseArray<>();
                 }
+                ArrayList<MessageObject> arr = ephemeralMessagesEdited.get(dialogId);
+                if (arr == null) {
+                    arr = new ArrayList<>();
+                    ephemeralMessagesEdited.put(dialogId, arr);
+                }
+                arr.add(obj);
             } else if (baseUpdate instanceof TL_update.TL_updateDeleteEphemeralMessages) {
                 final TL_update.TL_updateDeleteEphemeralMessages updateDeleteEphemeralMessage = (TL_update.TL_updateDeleteEphemeralMessages) baseUpdate;
-                if (ephemeralUpdates == null) {
-                    ephemeralUpdates = new EphemeralMessagesHelper.EphemeralUpdates();
-                }
-                ephemeralUpdates.apply(updateDeleteEphemeralMessage);
-
                 final long dialogId = DialogObject.getPeerDialogId(updateDeleteEphemeralMessage.peer);
                 if (ephemeralMessagesDeletedArr == null) {
                     ephemeralMessagesDeletedArr = new LongSparseArray<>();
@@ -20061,62 +20008,11 @@ public class MessagesController extends BaseController implements NotificationCe
             getMessagesStorage().putMessages(messagesArr, true, true, false, getDownloadController().getAutodownloadMask(), 0, 0);
         }
 
-        if (ephemeralUpdates != null) {
-            final EphemeralMessagesHelper.EphemeralUpdates.StructBuilder ephemeralNew = ephemeralUpdates.ephemeralMessagesToAdd;
-            final EphemeralMessagesHelper.EphemeralUpdates.StructBuilder ephemeralEdit = ephemeralUpdates.ephemeralMessagesToEdit;
-            final EphemeralMessagesHelper.EphemeralUpdates.StructBuilder anchored = ephemeralUpdates.welcomeMessagesAnchor;
-            if (!ephemeralNew.isEmpty()) {
-                AndroidUtilities.runOnUIThread(() -> {
-                    getMessagesStorage().processEphemeralMessages(ephemeralNew.messages, () -> {
-                        ephemeralNew.build(currentAccount, usersDict, chatsDict, 0);
-                        AndroidUtilities.runOnUIThread(() -> {
-                            if (!ephemeralNew.objectsByDialog.isEmpty()) {
-                                for (int a = 0, N = ephemeralNew.objectsByDialog.size(); a < N; a++) {
-                                    getNotificationCenter().postNotificationName(NotificationCenter.didReceiveNewMessages,
-                                        ephemeralNew.objectsByDialog.keyAt(a),
-                                        ephemeralNew.objectsByDialog.valueAt(a), false, 0);
-                                }
-                            }
-                        });
-                    });
-                }, 400);
-            }
-            if (!ephemeralEdit.isEmpty()) {
-                final int editTime = ConnectionsManager.getInstance(currentAccount).getCurrentTime();
-                getMessagesStorage().processEphemeralEditedMessages(ephemeralEdit.messages, () -> {
-                    ephemeralEdit.build(currentAccount, usersDict, chatsDict, editTime);
-                    AndroidUtilities.runOnUIThread(() -> {
-                        for (int a = 0, N = ephemeralEdit.objectsByDialog.size(); a < N; a++) {
-                            getNotificationCenter().postNotificationName(NotificationCenter.replaceMessagesObjects,
-                                ephemeralEdit.objectsByDialog.keyAt(a),
-                                ephemeralEdit.objectsByDialog.valueAt(a), false);
-                        }
-                    });
-                });
-            }
-            if (!anchored.isEmpty()) {
-                getMessagesStorage().processAnchoredEphemeralMessages(anchored.messages, () -> {
-                    anchored.build(currentAccount, usersDict, chatsDict, 0);
-                    AndroidUtilities.runOnUIThread(() -> {
-                        for (int a = 0, N = anchored.objectsByDialog.size(); a < N; a++) {
-                            getNotificationCenter().postNotificationName(NotificationCenter.replaceMessagesObjects,
-                                    anchored.objectsByDialog.keyAt(a),
-                                    anchored.objectsByDialog.valueAt(a), false);
-                        }
-                    });
-                });
-            }
-
-            for (int a = 0, N = ephemeralUpdates.welcomeMessagesToAdd.convertedByDialog.size(); a < N; a++) {
-                getMessagesStorage().putMessages(
-                    ephemeralUpdates.welcomeMessagesToAdd.convertedByDialog.valueAt(a),
-                    ephemeralUpdates.welcomeMessagesToAdd.convertedByDialog.keyAt(a), -2, 0, false, ChatActivity.MODE_WELCOME_MESSAGES, 0);
-            }
-            for (int a = 0, N = ephemeralUpdates.welcomeMessagesToEdit.convertedByDialog.size(); a < N; a++) {
-                getMessagesStorage().putMessages(
-                    ephemeralUpdates.welcomeMessagesToEdit.convertedByDialog.valueAt(a),
-                    ephemeralUpdates.welcomeMessagesToEdit.convertedByDialog.keyAt(a), -2, 0, false, ChatActivity.MODE_WELCOME_MESSAGES, 0);
-            }
+        if (ephemeralMessagesArr != null) {
+            getMessagesStorage().putEphemeralMessages(ephemeralMessagesArr, true);
+        }
+        if (ephemeralMessagesEditedArr != null) {
+            getMessagesStorage().putEphemeralMessages(ephemeralMessagesEditedArr, true);
         }
         if (ephemeralMessagesDeletedArr != null) {
             getMessagesStorage().deleteEphemeralMessages(ephemeralMessagesDeletedArr, true);
@@ -20154,7 +20050,8 @@ public class MessagesController extends BaseController implements NotificationCe
         LongSparseArray<SparseArray<TLRPC.MessageReplies>> channelRepliesFinal = channelReplies;
         LongSparseArray<TLRPC.WebPage> webPagesFinal = webPages;
         LongSparseArray<ArrayList<MessageObject>> messagesFinal = messages;
-        EphemeralMessagesHelper.EphemeralUpdates ephemeralUpdatesFinal = ephemeralUpdates;
+        LongSparseArray<ArrayList<MessageObject>> ephemeralMessagesFinal = ephemeralMessages;
+        LongSparseArray<ArrayList<MessageObject>> ephemeralMessagesEditedFinal = ephemeralMessagesEdited;
         LongSparseArray<ArrayList<Integer>> ephemeralMessagesDeletedFinal = ephemeralMessagesDeletedArr;
         LongSparseArray<ArrayList<MessageObject>> scheduledMessagesFinal = scheduledMessages;
         ArrayList<TLRPC.ChatParticipants> chatInfoToUpdateFinal = chatInfoToUpdate;
@@ -21255,16 +21152,22 @@ public class MessagesController extends BaseController implements NotificationCe
                 }
             }
 
-            if (ephemeralUpdatesFinal != null) {
-                for (int a = 0, N = ephemeralUpdatesFinal.welcomeMessagesToAdd.objectsByDialog.size(); a < N; a++) {
-                    getNotificationCenter().postNotificationName(NotificationCenter.didReceiveNewMessages,
-                        ephemeralUpdatesFinal.welcomeMessagesToAdd.objectsByDialog.keyAt(a),
-                        ephemeralUpdatesFinal.welcomeMessagesToAdd.objectsByDialog.valueAt(a), false, ChatActivity.MODE_WELCOME_MESSAGES);
+            AndroidUtilities.runOnUIThread(() -> {
+                if (ephemeralMessagesFinal != null) {
+                    for (int a = 0, size = ephemeralMessagesFinal.size(); a < size; a++) {
+                        final long dialogId = ephemeralMessagesFinal.keyAt(a);
+                        final ArrayList<MessageObject> arrayList = ephemeralMessagesFinal.valueAt(a);
+                        // getMediaDataController().loadReplyMessagesForMessages(arrayList, dialogId, 0, 0, null, 0, null);
+                        getNotificationCenter().postNotificationName(NotificationCenter.didReceiveNewMessages, dialogId, arrayList, false, 0);
+                    }
                 }
-                for (int a = 0, N = ephemeralUpdatesFinal.welcomeMessagesToEdit.objectsByDialog.size(); a < N; a++) {
-                    getNotificationCenter().postNotificationName(NotificationCenter.replaceMessagesObjects,
-                        ephemeralUpdatesFinal.welcomeMessagesToEdit.objectsByDialog.keyAt(a),
-                        ephemeralUpdatesFinal.welcomeMessagesToEdit.objectsByDialog.valueAt(a), false);
+            }, 400);
+
+            if (ephemeralMessagesEditedFinal != null) {
+                for (int b = 0, size = ephemeralMessagesEditedFinal.size(); b < size; b++) {
+                    long dialogId = ephemeralMessagesEditedFinal.keyAt(b);
+                    ArrayList<MessageObject> arrayList = ephemeralMessagesEditedFinal.valueAt(b);
+                    getNotificationCenter().postNotificationName(NotificationCenter.replaceMessagesObjects, dialogId, arrayList, false);
                 }
             }
             if (ephemeralMessagesDeletedFinal != null) {
@@ -22180,14 +22083,13 @@ public class MessagesController extends BaseController implements NotificationCe
         }
         final boolean scheduled = mode == ChatActivity.MODE_SCHEDULED;
         final boolean quickReplies = mode == ChatActivity.MODE_QUICK_REPLIES;
-        final boolean welcomeMessages = mode == ChatActivity.MODE_WELCOME_MESSAGES;
 
         boolean isEncryptedChat = DialogObject.isEncryptedDialog(dialogId);
         MessageObject lastMessage = null;
         long channelId = 0;
         boolean updateRating = false;
         boolean hasNotOutMessage = false;
-        if (!scheduled && !quickReplies && !welcomeMessages) {
+        if (!scheduled && !quickReplies) {
             for (int a = 0; a < messages.size(); a++) {
                 MessageObject message = messages.get(a);
                 if (MessageHelper.getInstance(currentAccount).isBlockedOrFiltered(message)) {
@@ -23049,8 +22951,8 @@ public class MessagesController extends BaseController implements NotificationCe
         AlertDialog.Builder builder = new AlertDialog.Builder(fragment.getParentActivity(), fragment.getResourceProvider());
         builder.setTitle(LocaleController.getString(R.string.DialogNotAvailable));
         Map<String, Integer> colorsReplacement = new HashMap<>();
-        colorsReplacement.put("info1", fragment.getThemedColor(Theme.key_dialogTopBackground));
-        colorsReplacement.put("info2", fragment.getThemedColor(Theme.key_dialogTopBackground));
+        colorsReplacement.put("info1.**", fragment.getThemedColor(Theme.key_dialogTopBackground));
+        colorsReplacement.put("info2.**", fragment.getThemedColor(Theme.key_dialogTopBackground));
         builder.setTopAnimation(R.raw.not_available, AlertsCreator.NEW_DENY_DIALOG_TOP_ICON_SIZE, false, fragment.getThemedColor(Theme.key_dialogTopBackground), colorsReplacement);
         builder.setTopAnimationIsNew(true);
         builder.setPositiveButton(LocaleController.getString(R.string.Close), null);
@@ -25885,79 +25787,4 @@ public class MessagesController extends BaseController implements NotificationCe
         }
         setWebBrowserSettings(webBrowserSettings);
     }
-
-    // UP start
-    private void registerSimplePush(String token) {
-        if (TextUtils.isEmpty(token) || getUserConfig().getClientUserId() == 0) {
-            return;
-        }
-        if (registeringSimplePush) {
-            return;
-        }
-        registeringSimplePush = true;
-        int registrationId = ++simplePushRegistrationId;
-        if (SharedConfig.pushAuthKey == null) {
-            SharedConfig.pushAuthKey = new byte[256];
-            Utilities.random.nextBytes(SharedConfig.pushAuthKey);
-            SharedConfig.saveConfig();
-        }
-        TL_account.registerDevice req = new TL_account.registerDevice();
-        req.token_type = PushListenerController.PUSH_TYPE_SIMPLE;
-        req.token = token;
-        req.no_muted = false;
-        req.secret = SharedConfig.pushAuthKey;
-        for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {
-            UserConfig userConfig = UserConfig.getInstance(a);
-            if (a != currentAccount && userConfig.isClientActivated()) {
-                req.other_uids.add(userConfig.getClientUserId());
-            }
-        }
-        getConnectionsManager().sendRequest(req, (response, error) -> {
-            AndroidUtilities.runOnUIThread(() -> {
-                if (registrationId != simplePushRegistrationId) {
-                    return;
-                }
-                String currentToken = NaConfig.getPreferences().getString(NaConfig.INSTANCE.getPushServiceTypeUnifiedSimple().getKey(), "");
-                boolean currentRegistration = token.equals(currentToken);
-                if (response instanceof TLRPC.TL_boolTrue && currentRegistration) {
-                    FileLog.d("account " + currentAccount + " registered simple push");
-                    registeredSimplePushToken = token;
-                } else if (!(response instanceof TLRPC.TL_boolTrue)) {
-                    FileLog.e("account " + currentAccount + " simple push registration failed: " + error);
-                }
-                registeringSimplePush = false;
-                if (!currentRegistration && !TextUtils.isEmpty(currentToken)) {
-                    registerSimplePush(currentToken);
-                }
-            });
-        });
-    }
-
-    public void clearSimplePushRegistration() {
-        registeringSimplePush = false;
-        registeredSimplePushToken = null;
-        simplePushRegistrationId++;
-    }
-
-    public void unregisterPush(@PushListenerController.PushType int pushType, String token) {
-        if (pushType == PushListenerController.PUSH_TYPE_WEB && TextUtils.isEmpty(SharedConfig.pushString)) {
-            registeringForPush = false;
-            lastPushRegisterSendTime = 0;
-            pushRegistrationId++;
-        }
-        if (TextUtils.isEmpty(token) || getUserConfig().getClientUserId() == 0) {
-            return;
-        }
-        TL_account.unregisterDevice req = new TL_account.unregisterDevice();
-        req.token_type = pushType;
-        req.token = token;
-        for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {
-            UserConfig userConfig = UserConfig.getInstance(a);
-            if (a != currentAccount && userConfig.isClientActivated()) {
-                req.other_uids.add(userConfig.getClientUserId());
-            }
-        }
-        getConnectionsManager().sendRequest(req, null);
-    }
-    // UP end
 }

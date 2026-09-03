@@ -144,6 +144,8 @@ import org.telegram.messenger.R;
 import org.telegram.messenger.SRPHelper;
 import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.UserConfig;
+import org.telegram.messenger.SessionStringParser;
+import org.telegram.messenger.TdataImporter;
 import org.telegram.messenger.Utilities;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.RequestDelegate;
@@ -203,6 +205,8 @@ import org.telegram.ui.Stories.recorder.ButtonWithCounterView;
 import org.telegram.ui.bots.BotWebViewSheet;
 
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -272,7 +276,10 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
             VIEW_CODE_WORD = 16,
             VIEW_CODE_PHRASE = 17,
             VIEW_PAY = 18,
-            VIEW_QR_LOGIN = 19;
+            VIEW_QR_LOGIN = 19,
+            VIEW_LOGIN_BOT_TOKEN = 20,
+            VIEW_LOGIN_SESSION_STRING = 21,
+            VIEW_LOGIN_TDATA = 22;
 
     public final static int COUNTRY_STATE_NOT_SET_OR_VALID = 0,
             COUNTRY_STATE_EMPTY = 1,
@@ -321,7 +328,10 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
             VIEW_CODE_WORD,
             VIEW_CODE_PHRASE,
             VIEW_PAY,
-            VIEW_QR_LOGIN
+            VIEW_QR_LOGIN,
+            VIEW_LOGIN_BOT_TOKEN,
+            VIEW_LOGIN_SESSION_STRING,
+            VIEW_LOGIN_TDATA
     })
     private @interface ViewNumber {}
 
@@ -334,7 +344,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
 
     @ViewNumber
     private int currentViewNum;
-    private final SlideView[] views = new SlideView[20];
+    private final SlideView[] views = new SlideView[23];
     private CustomPhoneKeyboardView keyboardView;
     private ValueAnimator keyboardAnimator;
     private boolean paid;
@@ -702,6 +712,9 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
         views[VIEW_CODE_PHRASE] = new LoginActivityPhraseView(context, AUTH_TYPE_PHRASE);
         views[VIEW_QR_LOGIN] = new LoginActivityQrView(context);
         views[VIEW_PAY] = new LoginPayView(context);
+        views[VIEW_LOGIN_BOT_TOKEN] = new LoginActivityBotTokenView(context);
+        views[VIEW_LOGIN_SESSION_STRING] = new LoginActivitySessionStringView(context);
+        views[VIEW_LOGIN_TDATA] = new LoginActivityTdataView(context);
 
         for (int a = 0; a < views.length; a++) {
             views[a].setVisibility(a == 0 ? View.VISIBLE : View.GONE);
@@ -739,7 +752,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                     savedInstanceState = null;
                     clearCurrentState();
                 }
-            } else if (currentViewNum == VIEW_QR_LOGIN || currentViewNum > VIEW_QR_LOGIN) {
+            } else if (currentViewNum >= VIEW_QR_LOGIN) {
                 currentViewNum = VIEW_PHONE_INPUT;
                 savedInstanceState = null;
                 clearCurrentState();
@@ -797,30 +810,29 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
         moreButtonView.setIcon(R.drawable.ic_ab_other);
         moreButtonView.addSubItem(0, R.drawable.msg_policy_solar, getString(R.string.Proxy));
         moreButtonView.addSubItem(1, R.drawable.msg_qrcode_solar, getString(R.string.ImportLogin));
-        if (BuildVars.SUPPORTS_PASSKEYS) moreButtonView.addSubItem(4, R.drawable.menu_passkey_add, getString(R.string.PasskeyLogin));
-        moreButtonView.addSubItem(2, R.drawable.msg_permissions_solar, getString(R.string.CustomApi)).setContentDescription(getString(R.string.CustomApi));
+        moreButtonView.addSubItem(5, R.drawable.filter_bots_solar, getString(R.string.BotTokenLogin));
+        moreButtonView.addSubItem(6, R.drawable.msg_devices_solar, getString(R.string.SessionLogin));
+        moreButtonView.addSubItem(7, R.drawable.msg_archive_solar, getString(R.string.TdataLogin));
         moreButtonView.addSubItem(3, R.drawable.msg_retry_solar, getString(R.string.TestBackend));
+        moreButtonView.addSubItem(8, R.drawable.msg_policy_solar, getString(R.string.BypassBlocking));
         moreButtonView.setDelegate(id -> {
             if (id == 0) {
                 presentFragment(new ProxyListActivity());
             } else if (id == 1) {
                 setPage(VIEW_QR_LOGIN, true, null, false);
-            } else if (id == 2) {
-                try {
-                    NekoXConfig.showCustomApiBottomSheet(this);
-                } catch (Exception e) {
-                    FileLog.e(e);
-                }
             } else if (id == 3) {
                 PhoneView phoneView = (PhoneView)views[VIEW_PHONE_INPUT];
                 if (phoneView.testBackendCheckBox != null) {
                      phoneView.testBackendCheckBox.setVisibility(phoneView.testBackendCheckBox.getVisibility() == View.GONE ? View.VISIBLE : View.GONE);
                 }
-            } else if (id == 4) {
-                PhoneView phoneView = (PhoneView)views[VIEW_PHONE_INPUT];
-                if (phoneView != null) {
-                    phoneView.requestPasskey(true, true);
-                }
+            } else if (id == 5) {
+                setPage(VIEW_LOGIN_BOT_TOKEN, true, null, false);
+            } else if (id == 6) {
+                setPage(VIEW_LOGIN_SESSION_STRING, true, null, false);
+            } else if (id == 7) {
+                setPage(VIEW_LOGIN_TDATA, true, null, false);
+            } else if (id == 8) {
+                presentFragment(new tw.nekomimi.nekogram.settings.BypassBlockingActivity());
             }
         });
         moreButtonView.setSubMenuOpenSide(1);
@@ -1204,10 +1216,105 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
 
     @Override
     public void onActivityResultFragment(int requestCode, int resultCode, Intent data) {
+        if (requestCode == REQUEST_CODE_PICK_TDATA_ZIP) {
+            LoginActivityTdataView tdataView = (LoginActivityTdataView) views[VIEW_LOGIN_TDATA];
+            if (tdataView != null) {
+                tdataView.onZipPicked(resultCode == Activity.RESULT_OK && data != null ? data.getData() : null);
+            }
+            return;
+        }
+        if (requestCode == REQUEST_CODE_PICK_SESSION_FILE) {
+            LoginActivitySessionStringView sessionView = (LoginActivitySessionStringView) views[VIEW_LOGIN_SESSION_STRING];
+            if (sessionView != null) {
+                sessionView.onSessionFilePicked(resultCode == Activity.RESULT_OK && data != null ? data.getData() : null);
+            }
+            return;
+        }
         LoginActivityRegisterView registerView = (LoginActivityRegisterView) views[VIEW_REGISTER];
         if (registerView != null) {
             registerView.imageUpdater.onActivityResult(requestCode, resultCode, data);
         }
+    }
+
+    private final static int REQUEST_CODE_PICK_TDATA_ZIP = 4771;
+    private final static int REQUEST_CODE_PICK_SESSION_FILE = 4772;
+    private final static int AUTH_KEY_SELF_FETCH_ATTEMPTS = 8;
+    private final static long AUTH_KEY_SELF_FETCH_DELAY = 700;
+
+    /**
+     * Installs a permanent MTProto auth key on the given datacenter and then logs in with whatever
+     * user that key belongs to. The native import is asynchronous and gives no completion callback,
+     * so the self fetch is retried a few times before giving up.
+     *
+     * Must only be used on an empty account slot: importing wipes every auth key of this account.
+     */
+    private void loginWithAuthKey(int dcId, String ip, int port, byte[] authKey, String errorTitle, Runnable onFailure) {
+        if (authKey == null || authKey.length != 256 || dcId <= 0) {
+            needHideProgress(false);
+            if (onFailure != null) {
+                onFailure.run();
+            }
+            needShowAlert(errorTitle, getString(R.string.LoginAuthKeyInvalid));
+            return;
+        }
+        try {
+            getConnectionsManager().importAuthorizationKey(dcId, ip, port, authKey);
+        } catch (Throwable e) {
+            FileLog.e("LoginActivity: cannot import authorization key", e);
+            needHideProgress(false);
+            if (onFailure != null) {
+                onFailure.run();
+            }
+            needShowAlert(errorTitle, getString(R.string.LoginAuthKeyImportFailed));
+            return;
+        }
+        AndroidUtilities.runOnUIThread(() -> fetchSelfAfterAuthKeyImport(0, errorTitle, onFailure), AUTH_KEY_SELF_FETCH_DELAY);
+    }
+
+    private void fetchSelfAfterAuthKeyImport(int attempt, String errorTitle, Runnable onFailure) {
+        TLRPC.TL_users_getUsers req = new TLRPC.TL_users_getUsers();
+        req.id.add(new TLRPC.TL_inputUserSelf());
+        getConnectionsManager().sendRequest(req, (response, error) -> AndroidUtilities.runOnUIThread(() -> {
+            TLRPC.User self = null;
+            if (response instanceof org.telegram.tgnet.Vector) {
+                ArrayList<Object> objects = ((org.telegram.tgnet.Vector) response).objects;
+                for (int a = 0; a < objects.size(); a++) {
+                    if (objects.get(a) instanceof TLRPC.User) {
+                        self = (TLRPC.User) objects.get(a);
+                        break;
+                    }
+                }
+            }
+            if (self != null && self.id != 0) {
+                needHideProgress(false, false);
+                AndroidUtilities.hideKeyboard(fragmentView);
+                TLRPC.TL_auth_authorization res = new TLRPC.TL_auth_authorization();
+                res.user = self;
+                onAuthSuccess(res);
+                return;
+            }
+
+            String errorText = error != null && error.text != null ? error.text : "";
+            boolean fatal = errorText.contains("AUTH_KEY_UNREGISTERED") || errorText.contains("AUTH_KEY_INVALID")
+                    || errorText.contains("AUTH_KEY_DUPLICATED") || errorText.contains("USER_DEACTIVATED")
+                    || errorText.contains("SESSION_REVOKED") || errorText.contains("SESSION_EXPIRED");
+            if (!fatal && attempt + 1 < AUTH_KEY_SELF_FETCH_ATTEMPTS) {
+                AndroidUtilities.runOnUIThread(() -> fetchSelfAfterAuthKeyImport(attempt + 1, errorTitle, onFailure), AUTH_KEY_SELF_FETCH_DELAY);
+                return;
+            }
+            needHideProgress(false);
+            if (onFailure != null) {
+                onFailure.run();
+            }
+            if (errorText.contains("AUTH_KEY_UNREGISTERED") || errorText.contains("AUTH_KEY_INVALID")
+                    || errorText.contains("SESSION_REVOKED") || errorText.contains("SESSION_EXPIRED")) {
+                needShowAlert(errorTitle, getString(R.string.LoginAuthKeyUnregistered));
+            } else if (TextUtils.isEmpty(errorText)) {
+                needShowAlert(errorTitle, getString(R.string.LoginAuthKeyTimeout));
+            } else {
+                needShowAlert(errorTitle, errorText);
+            }
+        }), ConnectionsManager.RequestFlagWithoutLogin | ConnectionsManager.RequestFlagEnableUnauthorized | ConnectionsManager.RequestFlagFailOnServerErrors);
     }
 
     private void needShowAlert(String title, String text) {
@@ -1557,7 +1664,8 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
 
     public void setPage(@ViewNumber int page, boolean animated, Bundle params, boolean back) {
         boolean needFloatingButton = page == VIEW_PHONE_INPUT || page == VIEW_REGISTER || page == VIEW_PASSWORD ||
-                page == VIEW_NEW_PASSWORD_STAGE_1 || page == VIEW_NEW_PASSWORD_STAGE_2 || page == VIEW_ADD_EMAIL || page == VIEW_CODE_PHRASE || page == VIEW_CODE_WORD;
+                page == VIEW_NEW_PASSWORD_STAGE_1 || page == VIEW_NEW_PASSWORD_STAGE_2 || page == VIEW_ADD_EMAIL || page == VIEW_CODE_PHRASE || page == VIEW_CODE_WORD ||
+                page == VIEW_LOGIN_BOT_TOKEN;
         if (page == currentViewNum) {
             animated = false;
         }
@@ -3150,7 +3258,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                         if (PhoneNumberUtils.compare(phone, userPhone) && ConnectionsManager.getInstance(a).isTestBackend() == testBackend) {
                             final int num = a;
                             AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
-                            builder.setTitle(getString(R.string.NagramX));
+                            builder.setTitle(getString(R.string.SovietGram));
                             builder.setMessage(getString("AccountAlreadyLoggedIn", R.string.AccountAlreadyLoggedIn));
                             builder.setPositiveButton(getString("AccountSwitch", R.string.AccountSwitch), (dialog, which) -> {
                                 if (UserConfig.selectedAccount != num) {
@@ -4205,7 +4313,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                                         mailer.putExtra(Intent.EXTRA_TEXT, body.toString());
                                         getContext().startActivity(Intent.createChooser(mailer, "Send email..."));
                                     } catch (Exception e) {
-                                        needShowAlert(getString(R.string.NagramX), getString("NoMailInstalled", R.string.NoMailInstalled));
+                                        needShowAlert(getString(R.string.SovietGram), getString("NoMailInstalled", R.string.NoMailInstalled));
                                     }
                                 })
                                 .setPositiveButton(getString(R.string.Close), null)
@@ -4253,9 +4361,9 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
 
         private void applyLottieColors(RLottieDrawable drawable) {
             if (drawable != null) {
-                drawable.setLayerColor("Bubble", Theme.getColor(Theme.key_chats_actionBackground));
-                drawable.setLayerColor("Phone", Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
-                drawable.setLayerColor("Note", Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
+                drawable.setLayerColor("Bubble.**", Theme.getColor(Theme.key_chats_actionBackground));
+                drawable.setLayerColor("Phone.**", Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
+                drawable.setLayerColor("Note.**", Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
             }
         }
 
@@ -8461,6 +8569,480 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
         }
     }
 
+    private TextView createLoginPageTitle(Context context, String text) {
+        TextView titleView = new TextView(context);
+        titleView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 18);
+        titleView.setTypeface(AndroidUtilities.bold());
+        titleView.setText(text);
+        titleView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
+        titleView.setGravity(Gravity.CENTER);
+        titleView.setLineSpacing(AndroidUtilities.dp(2), 1.0f);
+        return titleView;
+    }
+
+    private TextView createLoginPageDescription(Context context, String text) {
+        TextView descriptionView = new TextView(context);
+        descriptionView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
+        descriptionView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText6));
+        descriptionView.setGravity(Gravity.CENTER_HORIZONTAL);
+        descriptionView.setLineSpacing(AndroidUtilities.dp(2), 1.0f);
+        descriptionView.setText(text);
+        return descriptionView;
+    }
+
+    private EditTextBoldCursor createLoginPageField(Context context, OutlineTextContainerView outlineView, boolean multiline) {
+        EditTextBoldCursor field = new EditTextBoldCursor(context);
+        field.setCursorSize(AndroidUtilities.dp(20));
+        field.setCursorWidth(1.5f);
+        field.setBackground(null);
+        field.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
+        field.setCursorColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
+        field.setImeOptions(EditorInfo.IME_ACTION_DONE | EditorInfo.IME_FLAG_NO_EXTRACT_UI);
+        field.setTextSize(TypedValue.COMPLEX_UNIT_DIP, multiline ? 15 : 18);
+        field.setMaxLines(multiline ? 4 : 1);
+        int fieldPadding = AndroidUtilities.dp(16);
+        field.setPadding(fieldPadding, fieldPadding, fieldPadding, fieldPadding);
+        field.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS | InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD | (multiline ? InputType.TYPE_TEXT_FLAG_MULTI_LINE : 0));
+        field.setTypeface(Typeface.DEFAULT);
+        field.setGravity(LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT);
+        field.setOnFocusChangeListener((v, hasFocus) -> outlineView.animateSelection(hasFocus ? 1f : 0f));
+        outlineView.attachEditText(field);
+        outlineView.addView(field, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.TOP));
+        return field;
+    }
+
+    /**
+     * Signs in as a bot: the token is exchanged for a real authorization by the server, so this
+     * page does not touch auth keys at all.
+     */
+    public class LoginActivityBotTokenView extends SlideView {
+
+        private final EditTextBoldCursor tokenField;
+        private final OutlineTextContainerView outlineTokenField;
+        private boolean nextPressed;
+
+        public LoginActivityBotTokenView(Context context) {
+            super(context);
+
+            setOrientation(VERTICAL);
+
+            addView(createLoginPageTitle(context, getString(R.string.BotTokenLogin)), LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 32, 16, 32, 0));
+            addView(createLoginPageDescription(context, getString(R.string.BotTokenLoginInfo)), LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 12, 8, 12, 0));
+
+            outlineTokenField = new OutlineTextContainerView(context);
+            outlineTokenField.setText(getString(R.string.BotTokenHint));
+            tokenField = createLoginPageField(context, outlineTokenField, false);
+            tokenField.setOnEditorActionListener((textView, i, keyEvent) -> {
+                if (i == EditorInfo.IME_ACTION_DONE || i == EditorInfo.IME_ACTION_NEXT) {
+                    onNextPressed(null);
+                    return true;
+                }
+                return false;
+            });
+            addView(outlineTokenField, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 16, 32, 16, 0));
+        }
+
+        @Override
+        public String getHeaderName() {
+            return getString(R.string.BotTokenLogin);
+        }
+
+        @Override
+        public boolean needBackButton() {
+            return true;
+        }
+
+        @Override
+        public void onShow() {
+            super.onShow();
+            if (tokenField != null) {
+                AndroidUtilities.runOnUIThread(() -> {
+                    tokenField.requestFocus();
+                    AndroidUtilities.showKeyboard(tokenField);
+                }, 100);
+            }
+        }
+
+        @Override
+        public void onNextPressed(String code) {
+            if (nextPressed) {
+                return;
+            }
+            String token = tokenField.getText().toString().trim();
+            if (token.length() == 0) {
+                AndroidUtilities.shakeView(outlineTokenField);
+                return;
+            }
+            nextPressed = true;
+            needShowProgress(0);
+
+            TLRPC.TL_auth_importBotAuthorization req = new TLRPC.TL_auth_importBotAuthorization();
+            req.flags = 0;
+            req.api_id = BuildVars.APP_ID;
+            req.api_hash = BuildVars.APP_HASH;
+            req.bot_auth_token = token;
+            getConnectionsManager().sendRequest(req, (response, error) -> AndroidUtilities.runOnUIThread(() -> {
+                nextPressed = false;
+                if (response instanceof TLRPC.TL_auth_authorization) {
+                    showDoneButton(false, true);
+                    postDelayed(() -> {
+                        needHideProgress(false, false);
+                        AndroidUtilities.hideKeyboard(tokenField);
+                        onAuthSuccess((TLRPC.TL_auth_authorization) response);
+                    }, 150);
+                } else {
+                    needHideProgress(false);
+                    String errorText = error != null && error.text != null ? error.text : "";
+                    if (errorText.startsWith("FLOOD_WAIT")) {
+                        int time = Utilities.parseInt(errorText);
+                        String timeString;
+                        if (time < 60) {
+                            timeString = LocaleController.formatPluralString("Seconds", time);
+                        } else {
+                            timeString = LocaleController.formatPluralString("Minutes", time / 60);
+                        }
+                        needShowAlert(getString(R.string.BotTokenLogin), LocaleController.formatString("FloodWaitTime", R.string.FloodWaitTime, timeString));
+                    } else {
+                        needShowAlert(getString(R.string.BotTokenLogin), errorText);
+                    }
+                }
+            }), ConnectionsManager.RequestFlagWithoutLogin | ConnectionsManager.RequestFlagEnableUnauthorized | ConnectionsManager.RequestFlagFailOnServerErrors);
+        }
+
+        @Override
+        public void onCancelPressed() {
+            nextPressed = false;
+        }
+
+        @Override
+        public boolean onBackPressed(boolean force) {
+            needHideProgress(true);
+            nextPressed = false;
+            return true;
+        }
+    }
+
+    /**
+     * Signs in with a session string exported by Telethon/Pyrogram (or a bare 256 byte auth key
+     * plus a datacenter id) by installing that auth key natively and then fetching self.
+     */
+    /**
+     * Signs in from a Telethon or Pyrogram {@code .session} file. The picked file is an SQLite
+     * database; its single {@code sessions} row carries the datacenter id and a 256-byte MTProto
+     * authorization key, which is imported the same way as the tdata path.
+     */
+    public class LoginActivitySessionStringView extends SlideView {
+
+        private final TextView chooseButton;
+        private boolean processing;
+
+        public LoginActivitySessionStringView(Context context) {
+            super(context);
+
+            setOrientation(VERTICAL);
+
+            addView(createLoginPageTitle(context, getString(R.string.SessionLogin)), LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 32, 16, 32, 0));
+            addView(createLoginPageDescription(context, getString(R.string.SessionLoginInfo)), LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 12, 8, 12, 0));
+
+            chooseButton = new TextView(context);
+            chooseButton.setGravity(Gravity.CENTER);
+            chooseButton.setText(getString(R.string.SessionChooseFile));
+            chooseButton.setTypeface(AndroidUtilities.bold());
+            chooseButton.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 15);
+            chooseButton.setLineSpacing(AndroidUtilities.dp(2), 1.0f);
+            chooseButton.setPadding(AndroidUtilities.dp(34), 0, AndroidUtilities.dp(34), 0);
+            chooseButton.setTextColor(Color.WHITE);
+            chooseButton.setBackground(Theme.createSimpleSelectorRoundRectDrawable(AndroidUtilities.dp(6), Theme.getColor(Theme.key_changephoneinfo_image2), Theme.getColor(Theme.key_chats_actionPressedBackground)));
+            chooseButton.setOnClickListener(v -> openPicker());
+            addView(chooseButton, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 50, Gravity.CENTER_HORIZONTAL, 16, 32, 16, 0));
+
+            addView(createLoginPageDescription(context, getString(R.string.SessionLoginWarning)), LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 12, 16, 12, 0));
+        }
+
+        @Override
+        public String getHeaderName() {
+            return getString(R.string.SessionLogin);
+        }
+
+        @Override
+        public boolean needBackButton() {
+            return true;
+        }
+
+        @Override
+        public void updateColors() {
+            chooseButton.setBackground(Theme.createSimpleSelectorRoundRectDrawable(AndroidUtilities.dp(6), Theme.getColor(Theme.key_changephoneinfo_image2), Theme.getColor(Theme.key_chats_actionPressedBackground)));
+        }
+
+        private void openPicker() {
+            if (processing) {
+                return;
+            }
+            try {
+                Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+                intent.setType("*/*");
+                intent.addCategory(Intent.CATEGORY_OPENABLE);
+                startActivityForResult(intent, REQUEST_CODE_PICK_SESSION_FILE);
+            } catch (Exception e) {
+                FileLog.e(e);
+                needShowAlert(getString(R.string.SessionLogin), getString(R.string.TdataPickerUnavailable));
+            }
+        }
+
+        public void onSessionFilePicked(Uri uri) {
+            if (uri == null || processing || getParentActivity() == null) {
+                return;
+            }
+            processing = true;
+            needShowProgress(0);
+
+            Utilities.globalQueue.postRunnable(() -> {
+                File cacheFile = new File(AndroidUtilities.getCacheDir(), "session_import_" + System.currentTimeMillis() + ".session");
+                int dcId = 0;
+                String ip = null;
+                int port = 0;
+                byte[] authKey = null;
+                boolean parseFailed = false;
+                InputStream stream = null;
+                try {
+                    stream = ApplicationLoader.applicationContext.getContentResolver().openInputStream(uri);
+                    if (stream == null) {
+                        parseFailed = true;
+                    } else {
+                        java.io.FileOutputStream out = new java.io.FileOutputStream(cacheFile);
+                        try {
+                            byte[] buffer = new byte[16384];
+                            int read;
+                            while ((read = stream.read(buffer)) != -1) {
+                                out.write(buffer, 0, read);
+                            }
+                            out.flush();
+                        } finally {
+                            out.close();
+                        }
+
+                        org.telegram.SQLite.SQLiteDatabase db = null;
+                        org.telegram.SQLite.SQLiteCursor cursor = null;
+                        try {
+                            db = new org.telegram.SQLite.SQLiteDatabase(cacheFile.getPath());
+                            try {
+                                // Pyrogram: dc_id, auth_key, user_id, test_mode
+                                cursor = db.queryFinalized("SELECT dc_id, auth_key, user_id, test_mode FROM sessions LIMIT 1");
+                                if (cursor.next()) {
+                                    dcId = cursor.intValue(0);
+                                    authKey = cursor.byteArrayValue(1);
+                                    ip = null;
+                                    port = 0;
+                                }
+                                cursor.dispose();
+                                cursor = null;
+                            } catch (org.telegram.SQLite.SQLiteException pyrogramEx) {
+                                if (cursor != null) {
+                                    cursor.dispose();
+                                    cursor = null;
+                                }
+                                // Telethon: dc_id, server_address, port, auth_key
+                                cursor = db.queryFinalized("SELECT dc_id, server_address, port, auth_key FROM sessions LIMIT 1");
+                                if (cursor.next()) {
+                                    dcId = cursor.intValue(0);
+                                    ip = cursor.stringValue(1);
+                                    port = cursor.intValue(2);
+                                    authKey = cursor.byteArrayValue(3);
+                                }
+                                cursor.dispose();
+                                cursor = null;
+                            }
+                        } finally {
+                            if (cursor != null) {
+                                cursor.dispose();
+                            }
+                            if (db != null) {
+                                db.close();
+                            }
+                        }
+
+                        if (authKey == null) {
+                            parseFailed = true;
+                        }
+                    }
+                } catch (Throwable e) {
+                    parseFailed = true;
+                    FileLog.e("LoginActivity: session file import failed");
+                } finally {
+                    if (stream != null) {
+                        try {
+                            stream.close();
+                        } catch (Exception ignore) {
+                        }
+                    }
+                    try {
+                        cacheFile.delete();
+                    } catch (Exception ignore) {
+                    }
+                }
+
+                final int finalDcId = dcId;
+                final String finalIp = ip;
+                final int finalPort = port;
+                final byte[] finalAuthKey = authKey;
+                final boolean finalParseFailed = parseFailed;
+                AndroidUtilities.runOnUIThread(() -> {
+                    if (!finalParseFailed && finalAuthKey != null && finalAuthKey.length == 256 && finalDcId >= 1 && finalDcId <= 10) {
+                        loginWithAuthKey(finalDcId, finalIp, finalPort, finalAuthKey, getString(R.string.SessionLogin), () -> processing = false);
+                    } else {
+                        processing = false;
+                        needHideProgress(false);
+                        needShowAlert(getString(R.string.SessionLogin), getString(finalParseFailed ? R.string.SessionFileInvalid : R.string.SessionInvalid));
+                    }
+                });
+            });
+        }
+
+        @Override
+        public boolean onBackPressed(boolean force) {
+            needHideProgress(true);
+            processing = false;
+            return true;
+        }
+    }
+
+    /**
+     * Signs in from a zipped Telegram Desktop tdata folder. Only tdata without a local passcode is
+     * supported; anything else fails with a readable message.
+     */
+    public class LoginActivityTdataView extends SlideView {
+
+        private final TextView chooseButton;
+        private boolean processing;
+
+        public LoginActivityTdataView(Context context) {
+            super(context);
+
+            setOrientation(VERTICAL);
+
+            addView(createLoginPageTitle(context, getString(R.string.TdataLogin)), LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 32, 16, 32, 0));
+            addView(createLoginPageDescription(context, getString(R.string.TdataLoginInfo)), LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 12, 8, 12, 0));
+
+            chooseButton = new TextView(context);
+            chooseButton.setGravity(Gravity.CENTER);
+            chooseButton.setText(getString(R.string.TdataChooseZip));
+            chooseButton.setTypeface(AndroidUtilities.bold());
+            chooseButton.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 15);
+            chooseButton.setLineSpacing(AndroidUtilities.dp(2), 1.0f);
+            chooseButton.setPadding(AndroidUtilities.dp(34), 0, AndroidUtilities.dp(34), 0);
+            chooseButton.setTextColor(Color.WHITE);
+            chooseButton.setBackground(Theme.createSimpleSelectorRoundRectDrawable(AndroidUtilities.dp(6), Theme.getColor(Theme.key_changephoneinfo_image2), Theme.getColor(Theme.key_chats_actionPressedBackground)));
+            chooseButton.setOnClickListener(v -> openPicker());
+            addView(chooseButton, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 50, Gravity.CENTER_HORIZONTAL, 16, 32, 16, 0));
+
+            addView(createLoginPageDescription(context, getString(R.string.TdataLoginWarning)), LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 12, 16, 12, 0));
+        }
+
+        @Override
+        public String getHeaderName() {
+            return getString(R.string.TdataLogin);
+        }
+
+        @Override
+        public boolean needBackButton() {
+            return true;
+        }
+
+        @Override
+        public void updateColors() {
+            chooseButton.setBackground(Theme.createSimpleSelectorRoundRectDrawable(AndroidUtilities.dp(6), Theme.getColor(Theme.key_changephoneinfo_image2), Theme.getColor(Theme.key_chats_actionPressedBackground)));
+        }
+
+        private void openPicker() {
+            if (processing) {
+                return;
+            }
+            try {
+                Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+                intent.setType("*/*");
+                intent.addCategory(Intent.CATEGORY_OPENABLE);
+                startActivityForResult(intent, REQUEST_CODE_PICK_TDATA_ZIP);
+            } catch (Exception e) {
+                FileLog.e(e);
+                needShowAlert(getString(R.string.TdataLogin), getString(R.string.TdataPickerUnavailable));
+            }
+        }
+
+        public void onZipPicked(Uri uri) {
+            if (uri == null || processing || getParentActivity() == null) {
+                return;
+            }
+            processing = true;
+            needShowProgress(0);
+
+            Utilities.globalQueue.postRunnable(() -> {
+                File directory = new File(AndroidUtilities.getCacheDir(), "tdata_import_" + System.currentTimeMillis());
+                TdataImporter.TdataAccount account = null;
+                int errorCode = TdataImporter.ERROR_UNKNOWN;
+                InputStream stream = null;
+                try {
+                    stream = ApplicationLoader.applicationContext.getContentResolver().openInputStream(uri);
+                    if (stream == null) {
+                        errorCode = TdataImporter.ERROR_ZIP;
+                    } else {
+                        TdataImporter.unzip(stream, directory);
+                        account = TdataImporter.readAccount(directory);
+                    }
+                } catch (TdataImporter.TdataException e) {
+                    errorCode = e.code;
+                    FileLog.e("LoginActivity: tdata import failed with code " + e.code);
+                } catch (Throwable e) {
+                    errorCode = TdataImporter.ERROR_UNKNOWN;
+                    FileLog.e("LoginActivity: tdata import failed");
+                } finally {
+                    if (stream != null) {
+                        try {
+                            stream.close();
+                        } catch (Exception ignore) {
+                        }
+                    }
+                    TdataImporter.deleteRecursively(directory);
+                }
+
+                final TdataImporter.TdataAccount result = account;
+                final int finalErrorCode = errorCode;
+                AndroidUtilities.runOnUIThread(() -> {
+                    if (result != null && result.authKey != null) {
+                        loginWithAuthKey(result.dcId, null, 0, result.authKey, getString(R.string.TdataLogin), () -> processing = false);
+                    } else {
+                        processing = false;
+                        needHideProgress(false);
+                        needShowAlert(getString(R.string.TdataLogin), getString(getTdataErrorString(finalErrorCode)));
+                    }
+                });
+            });
+        }
+
+        @Override
+        public boolean onBackPressed(boolean force) {
+            needHideProgress(true);
+            processing = false;
+            return true;
+        }
+    }
+
+    private static int getTdataErrorString(int errorCode) {
+        switch (errorCode) {
+            case TdataImporter.ERROR_ZIP:
+                return R.string.TdataZipInvalid;
+            case TdataImporter.ERROR_NO_TDATA:
+                return R.string.TdataNotFound;
+            case TdataImporter.ERROR_PASSCODE:
+                return R.string.TdataPasscodeProtected;
+            case TdataImporter.ERROR_NO_AUTHORIZATION:
+                return R.string.TdataNoAuthorization;
+            case TdataImporter.ERROR_UNSUPPORTED:
+                return R.string.TdataUnsupported;
+            default:
+                return R.string.TdataReadFailed;
+        }
+    }
+
     public class LoginActivityQrView extends SlideView implements NotificationCenter.NotificationCenterDelegate {
 
         private final TextView titleView;
@@ -8626,13 +9208,13 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                         bundle.putString("password", Utilities.bytesToHex(data.toByteArray()));
                         setPage(VIEW_PASSWORD, true, bundle, false);
                     } else {
-                        needShowAlert(LocaleController.getString(R.string.NagramX), error.text);
+                        needShowAlert(LocaleController.getString(R.string.SovietGram), error.text);
                     }
                 }), ConnectionsManager.RequestFlagFailOnServerErrors | ConnectionsManager.RequestFlagWithoutLogin);
             } else if (errorText.startsWith("FLOOD_WAIT")) {
-                needShowAlert(LocaleController.getString(R.string.NagramX), getString(R.string.FloodWait) + "\n" + errorText);
+                needShowAlert(LocaleController.getString(R.string.SovietGram), getString(R.string.FloodWait) + "\n" + errorText);
             } else {
-                needShowAlert(LocaleController.getString(R.string.NagramX), errorText);
+                needShowAlert(LocaleController.getString(R.string.SovietGram), errorText);
             }
         }
 

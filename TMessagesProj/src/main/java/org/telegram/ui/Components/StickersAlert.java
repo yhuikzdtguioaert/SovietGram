@@ -59,12 +59,15 @@ import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.MediaController;
+import org.telegram.messenger.MediaDataController;
 import org.telegram.messenger.Emoji;
 import org.telegram.messenger.FileLoader;
 import org.telegram.messenger.FileLog;
 import org.telegram.messenger.FileRefController;
 import org.telegram.messenger.ImageLocation;
 import org.telegram.messenger.LocaleController;
+import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.MediaController;
 import org.telegram.messenger.MediaDataController;
 import org.telegram.messenger.MessageObject;
@@ -111,8 +114,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import tw.nekomimi.nekogram.NekoConfig;
-import xyz.nextalone.nagram.NaConfig;
-import xyz.nextalone.nagram.helper.StickerSetHelper;
+import sovietgram.com.NaConfig;
+import sovietgram.com.helper.StickerSetHelper;
 
 public class StickersAlert extends BottomSheet implements NotificationCenter.NotificationCenterDelegate {
 
@@ -1131,7 +1134,7 @@ public class StickersAlert extends BottomSheet implements NotificationCenter.Not
         containerView.addView(optionsButton, LayoutHelper.createFrame(40, 40, Gravity.TOP | Gravity.RIGHT, 0, 5, 5, 0));
         optionsButton.addSubItem(1, R.drawable.msg_share, getString(R.string.StickersShare));
         optionsButton.addSubItem(2, R.drawable.msg_link, getString(R.string.CopyLink));
-        optionsButton.addSubItem(menu_user_profile, R.drawable.msg_openprofile, getString(R.string.ChannelCreator));
+        optionsButton.addSubItem(menu_user_profile, R.drawable.msg_openprofile, getString(R.string.ChannelAdmin));
         optionsButton.addSubItem(menu_archive, R.drawable.msg_archive, getString(R.string.Archive));
         optionsButton.addSubItem(menu_refresh, R.drawable.msg_retry, getString(R.string.Refresh));
         optionsButton.addSubItem(menu_copy_sticker_set, R.drawable.msg_copy, getString(R.string.StickersCopyStickerSet));

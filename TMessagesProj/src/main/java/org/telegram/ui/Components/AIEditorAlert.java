@@ -95,7 +95,7 @@ import org.telegram.ui.Stories.recorder.HintView2;
 
 import java.util.ArrayList;
 
-import xyz.nextalone.nagram.NaConfig;
+import sovietgram.com.NaConfig;
 
 public class AIEditorAlert extends BottomSheetWithRecyclerListView implements NotificationCenter.NotificationCenterDelegate {
 
@@ -751,7 +751,6 @@ public class AIEditorAlert extends BottomSheetWithRecyclerListView implements No
         } else if (
             block instanceof TL_iv.pageBlockMap ||
             block instanceof TL_iv.pageBlockAudio ||
-            block instanceof TL_iv.pageBlockDocument ||
             block instanceof TL_iv.pageBlockVideo ||
             block instanceof TL_iv.pageBlockPhoto ||
             block instanceof TL_iv.pageBlockSlideshow ||
@@ -823,7 +822,6 @@ public class AIEditorAlert extends BottomSheetWithRecyclerListView implements No
         } else if (
             block instanceof TL_iv.pageBlockMap ||
             block instanceof TL_iv.pageBlockAudio ||
-            block instanceof TL_iv.pageBlockDocument ||
             block instanceof TL_iv.pageBlockVideo ||
             block instanceof TL_iv.pageBlockPhoto ||
             block instanceof TL_iv.pageBlockSlideshow ||

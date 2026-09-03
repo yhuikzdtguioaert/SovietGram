@@ -81,7 +81,7 @@ public class RichMapCell extends RichBlockCell
 
         placeholderIcon = getContext().getResources().getDrawable(R.drawable.msg_map).mutate();
 
-        setBlockPadding(dp(16), dp(6), dp(16), dp(4));
+        setBlockPadding(0, dp(6), 0, dp(4));
 
         clickView = new View(context);
         clickView.setOnClickListener(v -> {
@@ -110,7 +110,7 @@ public class RichMapCell extends RichBlockCell
 
     @Override
     protected int nestedContentMargin() {
-        return 0;
+        return dp(16); // edge-to-edge map at top level; inside a quote/list it needs the page margin
     }
 
     public void bind(BlockRow row, Delegate delegate) {

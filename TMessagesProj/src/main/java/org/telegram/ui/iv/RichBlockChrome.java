@@ -9,7 +9,6 @@ import android.view.View;
 
 import org.telegram.messenger.LocaleController;
 import org.telegram.ui.ActionBar.Theme;
-import org.telegram.ui.Components.ReplyMessageLine;
 
 /**
  * Shared gutter chrome for any rich block cell: the left/right inset for nesting depth, plus the list
@@ -24,11 +23,6 @@ import org.telegram.ui.Components.ReplyMessageLine;
  * {@code RichEditorListView.dispatchDraw}.</p>
  */
 public class RichBlockChrome {
-
-    public static void applyEditorQuoteColor(ReplyMessageLine line, Theme.ResourcesProvider resourcesProvider) {
-        final boolean dark = resourcesProvider != null ? resourcesProvider.isDark() : Theme.isCurrentThemeDark();
-        line.setSimpleColor(Theme.getColor(Theme.key_featuredStickers_addButton, resourcesProvider), dark);
-    }
 
     public static final int INDENT_DP_PER_LEVEL = 24;
     public static final int MARKER_WIDTH_DP = 28;

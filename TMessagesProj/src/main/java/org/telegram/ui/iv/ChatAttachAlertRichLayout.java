@@ -6,6 +6,7 @@ import static org.telegram.messenger.LocaleController.getString;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.graphics.Canvas;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffColorFilter;
 import android.os.Build;
@@ -34,7 +35,6 @@ import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
-import org.telegram.messenger.SendMessageChatArguments;
 import org.telegram.ui.Components.BulletinFactory;
 import org.telegram.messenger.SendMessagesHelper;
 import org.telegram.messenger.SharedConfig;
@@ -55,7 +55,6 @@ import org.telegram.ui.Components.AIEditorAlert;
 import org.telegram.ui.Components.AlertsCreator;
 import org.telegram.ui.Components.ChatActivityEnterView;
 import org.telegram.ui.Components.ChatAttachAlert;
-import org.telegram.ui.Components.ChatAttachAlertDocumentLayout;
 import org.telegram.ui.Components.AnimatedEmojiDrawable;
 import org.telegram.ui.Components.AnimatedEmojiSpan;
 import org.telegram.ui.Components.CubicBezierInterpolator;
@@ -69,7 +68,7 @@ import org.telegram.ui.Stories.recorder.ButtonWithCounterView;
 
 import java.util.ArrayList;
 
-import org.telegram.ui.iv.Latex;
+import ru.noties.jlatexmath.JLatexMathDrawable;
 
 public class ChatAttachAlertRichLayout extends ChatAttachAlert.AttachAlertLayout implements NotificationCenter.NotificationCenterDelegate {
 
@@ -92,7 +91,6 @@ public class ChatAttachAlertRichLayout extends ChatAttachAlert.AttachAlertLayout
     private static final int DEFAULT_ATTACH_LAYOUTS =
         (1 << ChatAttachAlert.LAYOUT_TYPE_PHOTO) |
         (1 << ChatAttachAlert.LAYOUT_TYPE_MUSIC) |
-        (1 << ChatAttachAlert.LAYOUT_TYPE_DOCUMENTS) |
         (1 << ChatAttachAlert.LAYOUT_TYPE_LOCATION);
 
     public ChatAttachAlertRichLayout(
@@ -128,19 +126,10 @@ public class ChatAttachAlertRichLayout extends ChatAttachAlert.AttachAlertLayout
                 updateAttachRaise();
             }
             @Override public void makeEditTextFocusable(RichEditText et, boolean showKeyboard) { parentAlert.makeFocusable(et, showKeyboard); }
-            @Override public void onInlineButtonEditRequested(RichEditorListView.InlineButtonEdit edit, View anchor) {
-                final ItemOptions options = ItemOptions.makeOptions(ChatAttachAlertRichLayout.this, resourcesProvider, anchor, false, false, true).dontFocus();
-                menu = RichInlineButtonEditor.show(options, parentAlert.getBaseFragment(), getContext(), resourcesProvider, edit, true);
-            }
-            @Override public void onBlockButtonEditRequested(RichEditorListView.BlockButtonEdit edit, View anchor) {
-                final ItemOptions options = ItemOptions.makeOptions(ChatAttachAlertRichLayout.this, resourcesProvider, anchor, false, false, true).dontFocus();
-                menu = RichInlineButtonEditor.showBlock(options, parentAlert.getBaseFragment(), getContext(), resourcesProvider, edit, true);
-            }
             @Override public void onReorderStart() { if (toolbar != null) toolbar.onReorderStart(); }
             @Override public boolean onReorderMove(float screenX, float screenY) { return toolbar != null && toolbar.onReorderMove(screenX, screenY); }
             @Override public void onReorderEnd() { if (toolbar != null) toolbar.onReorderEnd(); }
         });
-        listView.setAdaptiveLinkDialogs(false);
         listView.setAllowTapAboveContent(false);
         addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.FILL));
         addView(listView.getOverlayView(), LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.FILL));
@@ -183,7 +172,6 @@ public class ChatAttachAlertRichLayout extends ChatAttachAlert.AttachAlertLayout
         @Override public void onBlockButton(int flag, View anchor) { onBlockButtonClicked(flag, anchor); }
         @Override public void onFormatting(int styleFlag) { listView.onFormattingClicked(styleFlag); }
         @Override public void onLink() { listView.onLinkClicked(); }
-        @Override public void onButton(View anchor) { listView.onInlineButtonClicked(anchor); }
         @Override public void onDate() { listView.onDateClicked(); }
         @Override public void onMath() { listView.onMathClicked(); }
         @Override public void onQuote() { listView.toggleQuoteOnSelection(); updateFormattingButtons(); }
@@ -411,7 +399,6 @@ public class ChatAttachAlertRichLayout extends ChatAttachAlert.AttachAlertLayout
             valid && listView.isLinkApplied(sCell, sOff, eCell, eOff),
             valid && listView.isDateApplied(sCell, sOff, eCell, eOff),
             valid && sCell == eCell,
-            listView.canCreateInlineButtonOnSelection(),
             !listView.isSelectionAllHeadings());
     }
 
@@ -434,7 +421,6 @@ public class ChatAttachAlertRichLayout extends ChatAttachAlert.AttachAlertLayout
             et != null && from < to && RichTextStyle.hasLink(et.getText(), from, to),
             et != null && from < to && RichTextStyle.hasDate(et.getText(), from, to),
             single,
-            listView.canCreateInlineButtonOnSelection(),
             true);
     }
 
@@ -456,7 +442,6 @@ public class ChatAttachAlertRichLayout extends ChatAttachAlert.AttachAlertLayout
             et != null && from < to && RichTextStyle.hasLink(et.getText(), from, to),
             et != null && from < to && RichTextStyle.hasDate(et.getText(), from, to),
             true,
-            listView.canCreateInlineButtonOnSelection(),
             true);
     }
 
@@ -841,24 +826,24 @@ public class ChatAttachAlertRichLayout extends ChatAttachAlert.AttachAlertLayout
         }
         ArrayList<TLRPC.Photo> sendPhotos = listView.collectPhotos();
         ArrayList<TLRPC.Document> sendDocs = listView.collectDocuments();
-        final ArrayList<TLRPC.InputUser> sendUsers = RichMessageButtonUsers.collect(currentAccount, sendBlocks);
         long monoForumPeerId = 0;
         MessageObject replyToMsg = null;
         MessageObject replyToTopMsg = null;
-        SendMessageChatArguments sendMessageChatArguments = null;
+        String quickReplyShortcut = null;
+        int quickReplyShortcutId = 0;
         if (parentAlert.baseFragment instanceof ChatActivity) {
             ChatActivity ca = (ChatActivity) parentAlert.baseFragment;
             replyToMsg = ca.getReplyMessage();
             replyToTopMsg = ca.getThreadMessage();
             monoForumPeerId = ca.getSendMonoForumPeerId();
-            sendMessageChatArguments = ca.getMessageChatSendParams();
+            quickReplyShortcutId = ca.getQuickReplyId();
         }
         SendMessagesHelper.prepareSendingArticle(
             AccountInstance.getInstance(parentAlert.currentAccount),
             sendBlocks,
             sendPhotos,
             sendDocs,
-            sendUsers,
+            null,
             false,
             parentAlert.getDialogId(),
             replyToMsg,
@@ -866,7 +851,8 @@ public class ChatAttachAlertRichLayout extends ChatAttachAlert.AttachAlertLayout
             notify,
             scheduleDate,
             scheduleRepeatPeriod,
-            sendMessageChatArguments,
+            quickReplyShortcut,
+            quickReplyShortcutId,
             effectId,
             monoForumPeerId,
             0
@@ -1081,25 +1067,6 @@ public class ChatAttachAlertRichLayout extends ChatAttachAlert.AttachAlertLayout
             if (audios != null && !audios.isEmpty()) listView.attachAudio(audios.get(0));
             alert.dismiss(true);
         });
-        alert.setDocumentsDelegate(new ChatAttachAlertDocumentLayout.DocumentSelectActivityDelegate() {
-            @Override
-            public void didSelectFiles(ArrayList<String> files, String caption, ArrayList<TLRPC.MessageEntity> captionEntities, ArrayList<MessageObject> fmessages, boolean notify, int scheduleDate, int scheduleRepeatPeriod, long effectId, boolean invertMedia, long payStars) {
-                if (files != null && !files.isEmpty()) listView.attachDocument(files.get(0));
-                else if (fmessages != null && !fmessages.isEmpty()) listView.attachDocument(fmessages.get(0));
-                alert.dismiss(true);
-            }
-
-            @Override
-            public void startDocumentSelectActivity() {
-                try {
-                    final Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-                    intent.setType("*/*");
-                    parentAlert.baseFragment.startActivityForResult(intent, 21);
-                } catch (Exception e) {
-                    FileLog.e(e);
-                }
-            }
-        });
         alert.init();
         if (initialLayoutType != 0) alert.openAttachLayoutForType(initialLayoutType);
         alert.setFocusable(true);
@@ -1109,11 +1076,6 @@ public class ChatAttachAlertRichLayout extends ChatAttachAlert.AttachAlertLayout
     public void onExternalMediaPicked(Intent data) {
         if (data == null || data.getData() == null) return;
         listView.attachExternalMedia(data.getData());
-    }
-
-    public void onExternalDocumentPicked(Intent data) {
-        if (data == null || data.getData() == null) return;
-        listView.attachDocument(data.getData());
     }
 
     private void updateSendButtonLoading() {
@@ -1385,13 +1347,42 @@ public class ChatAttachAlertRichLayout extends ChatAttachAlert.AttachAlertLayout
             Utilities.themeQueue.postRunnable(() -> {
                 boolean err = false;
                 Bitmap bitmap = null;
-                Latex r = Latex.render(source[0], dp(26), false);
-                if (r == null) {
+                try {
+                    final JLatexMathDrawable drawable =
+                            JLatexMathDrawable.builder(source[0])
+                                    .textSize(dp(26))
+                                    .build();
+                    final int w = drawable.getIntrinsicWidth();
+                    final int h = drawable.getIntrinsicHeight();
+                    if (w > 0 && h > 0) {
+                        final Bitmap bm = Bitmap.createBitmap(w, h, Bitmap.Config.ALPHA_8);
+                        drawable.setBounds(0, 0, w, h);
+                        drawable.draw(new Canvas(bm));
+                        bitmap = bm;
+                    } else {
+                        err = true;
+                    }
+                } catch (Exception e) {
+                    FileLog.e(e);
                     err = true;
-                    r = Latex.render(getString(R.string.ArticleLatexError), dp(26), false);
                 }
-                if (r != null) {
-                    bitmap = r.bitmap;
+                if (err) {
+                    try {
+                        final JLatexMathDrawable drawable =
+                                JLatexMathDrawable.builder(getString(R.string.ArticleLatexError))
+                                        .textSize(dp(26))
+                                        .build();
+                        final int w = drawable.getIntrinsicWidth();
+                        final int h = drawable.getIntrinsicHeight();
+                        if (w > 0 && h > 0) {
+                            final Bitmap bm = Bitmap.createBitmap(w, h, Bitmap.Config.ALPHA_8);
+                            drawable.setBounds(0, 0, w, h);
+                            drawable.draw(new Canvas(bm));
+                            bitmap = bm;
+                        }
+                    } catch (Exception e) {
+                        FileLog.e(e);
+                    }
                 }
                 final boolean finalError = err;
                 final Bitmap finalBitmap = bitmap;

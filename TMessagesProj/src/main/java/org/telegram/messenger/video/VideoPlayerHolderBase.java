@@ -263,6 +263,16 @@ public class VideoPlayerHolderBase {
                     }
                 }, surface != null ? 0 : surfaceView == null ? 16 : 32);
             }
+
+            @Override
+            public void onSurfaceTextureUpdated(SurfaceTexture surfaceTexture) {
+
+            }
+
+            @Override
+            public boolean onSurfaceDestroyed(SurfaceTexture surfaceTexture) {
+                return false;
+            }
         });
         videoPlayer.setIsStory();
     }

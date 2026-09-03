@@ -57,11 +57,9 @@ import org.telegram.messenger.FileLog;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
 import org.telegram.messenger.WebFile;
-import org.telegram.messenger.utils.tlutils.TLKeyboardHelper;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.messenger.MessageObject;
-import org.telegram.tgnet.tl.TL_keyboard;
 import org.telegram.ui.ActionBar.ActionBar;
 import org.telegram.ui.ActionBar.ActionBarMenu;
 import org.telegram.ui.ActionBar.ActionBarMenuItem;
@@ -86,6 +84,12 @@ import java.util.ArrayList;
 import tw.nekomimi.nekogram.NekoConfig;
 
 public class PopupNotificationActivity extends Activity implements NotificationCenter.NotificationCenterDelegate {
+
+    /** Same reason as {@link BasePermissionsActivity#getResources()}: icon packs apply per context. */
+    @Override
+    public android.content.res.Resources getResources() {
+        return tw.nekomimi.nekogram.ui.icons.IconsResources.wrap(super.getResources());
+    }
 
     private ActionBar actionBar;
     private ChatActivityEnterView chatActivityEnterView;
@@ -563,7 +567,7 @@ public class PopupNotificationActivity extends Activity implements NotificationC
                 return;
             }
             AlertDialog.Builder builder = new AlertDialog.Builder(this);
-            builder.setTitle(LocaleController.getString(R.string.NagramX));
+            builder.setTitle(LocaleController.getString(R.string.SovietGram));
             builder.setMessage(LocaleController.getString(R.string.PermissionNoAudioWithHint));
             builder.setNegativeButton(LocaleController.getString(R.string.PermissionOpenSettings), (dialog, which) -> {
                 try {
@@ -791,14 +795,13 @@ public class PopupNotificationActivity extends Activity implements NotificationC
 
         TLRPC.ReplyMarkup markup = messageObject.messageOwner.reply_markup;
 
-        if (messageObject.getDialogId() == 777000 && markup instanceof TLRPC.TL_replyInlineMarkup) {
-            final TLRPC.TL_replyInlineMarkup replyInlineMarkup = (TLRPC.TL_replyInlineMarkup) markup;
-            ArrayList<TL_keyboard.KeyboardInlineButtonRow> rows = replyInlineMarkup.rows;
+        if (messageObject.getDialogId() == 777000 && markup != null) {
+            ArrayList<TLRPC.TL_keyboardButtonRow> rows = markup.rows;
             for (int a = 0, size = rows.size(); a < size; a++) {
-                TL_keyboard.KeyboardInlineButtonRow row = rows.get(a);
+                TLRPC.TL_keyboardButtonRow row = rows.get(a);
                 for (int b = 0, size2 = row.buttons.size(); b < size2; b++) {
-                    TL_keyboard.KeyboardInlineButton button = row.buttons.get(b);
-                    if (TLKeyboardHelper.isType(button, TL_keyboard.TL_inlineButtonTypeCallback.class)) {
+                    TLRPC.KeyboardButton button = row.buttons.get(b);
+                    if (button instanceof TLRPC.TL_keyboardButtonCallback) {
                         buttonsCount++;
                     }
                 }
@@ -806,14 +809,13 @@ public class PopupNotificationActivity extends Activity implements NotificationC
         }
 
         final int account = messageObject.currentAccount;
-        if (buttonsCount > 0 && markup instanceof TLRPC.TL_replyInlineMarkup) {
-            final TLRPC.TL_replyInlineMarkup replyInlineMarkup = (TLRPC.TL_replyInlineMarkup) markup;
-            ArrayList<TL_keyboard.KeyboardInlineButtonRow> rows = replyInlineMarkup.rows;
+        if (buttonsCount > 0) {
+            ArrayList<TLRPC.TL_keyboardButtonRow> rows = markup.rows;
             for (int a = 0, size = rows.size(); a < size; a++) {
-                TL_keyboard.KeyboardInlineButtonRow row = rows.get(a);
+                TLRPC.TL_keyboardButtonRow row = rows.get(a);
                 for (int b = 0, size2 = row.buttons.size(); b < size2; b++) {
-                    TL_keyboard.KeyboardInlineButton button = row.buttons.get(b);
-                    if (TLKeyboardHelper.isType(button, TL_keyboard.TL_inlineButtonTypeCallback.class)) {
+                    TLRPC.KeyboardButton button = row.buttons.get(b);
+                    if (button instanceof TLRPC.TL_keyboardButtonCallback) {
                         if (view == null) {
                             view = new LinearLayout(this);
                             view.setOrientation(LinearLayout.HORIZONTAL);
@@ -833,9 +835,9 @@ public class PopupNotificationActivity extends Activity implements NotificationC
                         textView.setBackgroundDrawable(Theme.getSelectorDrawable(true));
                         view.addView(textView, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, 100.0f / buttonsCount));
                         textView.setOnClickListener(v -> {
-                            TL_keyboard.KeyboardButtonProto button1 = (TL_keyboard.KeyboardButtonProto) v.getTag();
+                            TLRPC.KeyboardButton button1 = (TLRPC.KeyboardButton) v.getTag();
                             if (button1 != null) {
-                                SendMessagesHelper.getInstance(account).sendNotificationCallback(messageObject.getDialogId(), messageObject.getId(), button1.getData());
+                                SendMessagesHelper.getInstance(account).sendNotificationCallback(messageObject.getDialogId(), messageObject.getId(), button1.data);
                             }
                         });
                     }

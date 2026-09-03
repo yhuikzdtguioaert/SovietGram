@@ -69,7 +69,6 @@ public class RichMessageConvert {
                 final TL_iv.pageBlockBlockquote bq = new TL_iv.pageBlockBlockquote();
                 bq.text = RichTextStyle.fromSpannable(content);
                 bq.caption = new TL_iv.textEmpty();
-                bq.collapsed = quote != null && quote.isCollapsing;
                 blocks.add(bq);
             }
             i = j;
@@ -157,7 +156,7 @@ public class RichMessageConvert {
         if (block instanceof TL_iv.pageBlockDetails) {
             final TL_iv.pageBlockDetails d = (TL_iv.pageBlockDetails) block;
             final ArrayList<CharSequence> parts = new ArrayList<>();
-            final CharSequence title = RichTextStyle.toSpannable(d.title);
+            final CharSequence title = bold(RichTextStyle.toSpannable(d.title));
             if (!TextUtils.isEmpty(title)) parts.add(title);
             collectBlocks(parts, d.blocks);
             return parts.isEmpty() ? null : join(parts);
@@ -231,7 +230,7 @@ public class RichMessageConvert {
 
     private static CharSequence renderTable(TL_iv.pageBlockTable table) {
         final ArrayList<CharSequence> lines = new ArrayList<>();
-        final CharSequence title = RichTextStyle.toSpannable(table.title);
+        final CharSequence title = bold(RichTextStyle.toSpannable(table.title));
         if (!TextUtils.isEmpty(title)) lines.add(title);
         if (table.rows != null) {
             for (TL_iv.pageTableRow row : table.rows) {
@@ -368,10 +367,6 @@ public class RichMessageConvert {
     }
 
     public static CharSequence rowsToCharSequence(List<BlockRow> rows) {
-        return rowsToCharSequence(rows, false);
-    }
-
-    private static CharSequence rowsToCharSequence(List<BlockRow> rows, boolean simple) {
         final ArrayList<CharSequence> units = new ArrayList<>();
         int i = 0;
         while (rows != null && i < rows.size()) {
@@ -382,24 +377,19 @@ public class RichMessageConvert {
                 int j = i;
                 while (j < rows.size() && !rows.get(j).quoteIds.isEmpty() && rows.get(j).quoteIds.get(0) == qid) {
                     if (j > i) q.append('\n');
-                    q.append(renderLeaf(rows.get(j), simple));
+                    q.append(renderLeaf(rows.get(j)));
                     j++;
                 }
                 if (q.length() > 0) QuoteSpan.putQuote(q, 0, q.length(), false);
                 units.add(q);
                 i = j;
             } else if (isQuoteLeaf(r.block)) {
-                final CharSequence text = simple
-                        ? RichTextStyle.toSimpleSpannable(r.block.text, r.block)
-                        : RichTextStyle.toSpannable(r.block.text, r.block);
-                final SpannableStringBuilder q = new SpannableStringBuilder(text);
-                final boolean collapsed = r.block instanceof TL_iv.pageBlockBlockquote
-                        && ((TL_iv.pageBlockBlockquote) r.block).collapsed;
-                if (q.length() > 0) QuoteSpan.putQuote(q, 0, q.length(), collapsed);
+                final SpannableStringBuilder q = new SpannableStringBuilder(RichTextStyle.toSpannable(r.block.text, r.block));
+                if (q.length() > 0) QuoteSpan.putQuote(q, 0, q.length(), false);
                 units.add(q);
                 i++;
             } else {
-                units.add(renderLeaf(r, simple));
+                units.add(renderLeaf(r));
                 i++;
             }
         }
@@ -407,7 +397,7 @@ public class RichMessageConvert {
     }
 
     public static CharSequence rowsToSimpleMessage(List<BlockRow> rows) {
-        final SpannableStringBuilder sb = new SpannableStringBuilder(rowsToCharSequence(rows, true));
+        final SpannableStringBuilder sb = new SpannableStringBuilder(rowsToCharSequence(rows));
         final int n = sb.length();
         RichTextStyle.setStyle(sb, 0, n, RichTextStyle.MARKED, false);
         RichTextStyle.setStyle(sb, 0, n, RichTextStyle.SUBSCRIPT, false);
@@ -434,8 +424,7 @@ public class RichMessageConvert {
         if (rt instanceof TL_iv.textMarked
                 || rt instanceof TL_iv.textSubscript
                 || rt instanceof TL_iv.textSuperscript
-                || rt instanceof TL_iv.textMath
-                || rt instanceof TL_iv.textButton) {
+                || rt instanceof TL_iv.textMath) {
             return true;
         }
         return inlineLossy(rt.text);
@@ -445,10 +434,8 @@ public class RichMessageConvert {
         return b instanceof TL_iv.pageBlockBlockquote || b instanceof TL_iv.pageBlockPullquote;
     }
 
-    private static CharSequence renderLeaf(BlockRow r, boolean simple) {
-        final CharSequence cs = simple
-                ? RichTextStyle.toSimpleSpannable(r.block == null ? null : r.block.text, r.block)
-                : RichTextStyle.toSpannable(r.block == null ? null : r.block.text, r.block);
+    private static CharSequence renderLeaf(BlockRow r) {
+        final CharSequence cs = RichTextStyle.toSpannable(r.block == null ? null : r.block.text, r.block);
         if (r.block instanceof TL_iv.pageBlockPreformatted) {
             final SpannableStringBuilder sb = new SpannableStringBuilder(cs);
             final String lng = ((TL_iv.pageBlockPreformatted) r.block).language;

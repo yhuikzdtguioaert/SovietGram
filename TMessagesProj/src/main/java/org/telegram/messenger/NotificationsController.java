@@ -71,7 +71,6 @@ import org.telegram.messenger.utils.tlutils.TlUtils;
 import org.telegram.messenger.voip.VoIPGroupNotification;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLRPC;
-import org.telegram.tgnet.tl.TL_keyboard;
 import org.telegram.tgnet.tl.TL_account;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.BubbleActivity;
@@ -4730,12 +4729,12 @@ public class NotificationsController extends BaseController implements Notificat
             boolean hasCallback = false;
             if (!AndroidUtilities.needShowPasscode() && !SharedConfig.isWaitingForPasscodeEnter && lastMessageObject.getDialogId() == 777000) {
                 if (lastMessageObject.messageOwner.reply_markup != null) {
-                    ArrayList<TL_keyboard.KeyboardButtonRow> rows = lastMessageObject.messageOwner.reply_markup.rows;
+                    ArrayList<TLRPC.TL_keyboardButtonRow> rows = lastMessageObject.messageOwner.reply_markup.rows;
                     for (int a = 0, size = rows.size(); a < size; a++) {
-                        TL_keyboard.KeyboardButtonRow row = rows.get(a);
+                        TLRPC.TL_keyboardButtonRow row = rows.get(a);
                         for (int b = 0, size2 = row.buttons.size(); b < size2; b++) {
-                            TL_keyboard.KeyboardButtonProto button = row.buttons.get(b);
-                            if (button instanceof TL_keyboard.TL_keyboardButtonCallback) {
+                            TLRPC.KeyboardButton button = row.buttons.get(b);
+                            if (button instanceof TLRPC.TL_keyboardButtonCallback) {
                                 Intent callbackIntent = new Intent(ApplicationLoader.applicationContext, NotificationCallbackReceiver.class);
                                 callbackIntent.putExtra("currentAccount", currentAccount);
                                 callbackIntent.putExtra("did", dialog_id);
@@ -5230,7 +5229,7 @@ public class NotificationsController extends BaseController implements Notificat
             StringBuilder text = new StringBuilder();
             String[] senderName = new String[1];
             boolean[] preview = new boolean[1];
-            ArrayList<TL_keyboard.KeyboardButtonRow> rows = null;
+            ArrayList<TLRPC.TL_keyboardButtonRow> rows = null;
             int rowsMid = 0;
             if (dialogKey.story) {
                 ArrayList<String> names = new ArrayList<>();
@@ -5636,13 +5635,13 @@ public class NotificationsController extends BaseController implements Notificat
                 builder.setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_SUMMARY);
             }
 
-            TL_keyboard.TL_keyboardButtonCopy copybutton = null;
+            TLRPC.TL_keyboardButtonCopy copybutton = null;
             if (lastMessageObject != null && lastMessageObject.messageOwner != null && lastMessageObject.messageOwner.reply_markup != null) {
                 TLRPC.ReplyMarkup reply_markup = lastMessageObject.messageOwner.reply_markup;
                 for (int i = 0; i < reply_markup.rows.size(); ++i) {
                     for (int j = 0; j < reply_markup.rows.get(i).buttons.size(); ++j) {
-                        if (reply_markup.rows.get(i).buttons.get(j) instanceof TL_keyboard.TL_keyboardButtonCopy) {
-                            copybutton = (TL_keyboard.TL_keyboardButtonCopy) reply_markup.rows.get(i).buttons.get(j);
+                        if (reply_markup.rows.get(i).buttons.get(j) instanceof TLRPC.TL_keyboardButtonCopy) {
+                            copybutton = (TLRPC.TL_keyboardButtonCopy) reply_markup.rows.get(i).buttons.get(j);
                             break;
                         }
                     }
@@ -5681,10 +5680,10 @@ public class NotificationsController extends BaseController implements Notificat
             if (!AndroidUtilities.needShowPasscode(false) && !SharedConfig.isWaitingForPasscodeEnter) {
                 if (rows != null) {
                     for (int r = 0, rc = rows.size(); r < rc; r++) {
-                        TL_keyboard.KeyboardButtonRow row = rows.get(r);
+                        TLRPC.TL_keyboardButtonRow row = rows.get(r);
                         for (int c = 0, cc = row.buttons.size(); c < cc; c++) {
-                            TL_keyboard.KeyboardButtonProto button = row.buttons.get(c);
-                            if (button instanceof TL_keyboard.TL_keyboardButtonCallback) {
+                            TLRPC.KeyboardButton button = row.buttons.get(c);
+                            if (button instanceof TLRPC.TL_keyboardButtonCallback) {
                                 Intent callbackIntent = new Intent(ApplicationLoader.applicationContext, NotificationCallbackReceiver.class);
                                 callbackIntent.putExtra("currentAccount", currentAccount);
                                 callbackIntent.putExtra("did", dialogId);

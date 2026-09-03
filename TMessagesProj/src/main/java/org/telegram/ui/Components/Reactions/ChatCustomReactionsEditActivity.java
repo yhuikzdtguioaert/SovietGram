@@ -33,7 +33,6 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 
 import androidx.annotation.NonNull;
-import androidx.core.math.MathUtils;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.FileLog;
@@ -523,14 +522,14 @@ public class ChatCustomReactionsEditActivity extends BaseFragment implements Not
                         span.cacheType = AnimatedEmojiDrawable.getCacheTypeForEnterView();
                         span.setAdded();
                         Editable text = editText.getText();
-                        AnimatedEmojiSpan[] spans = text.getSpans(0, text.length(), AnimatedEmojiSpan.class);
+                        AnimatedEmojiSpan[] allSpans = text.getSpans(0, text.length(), AnimatedEmojiSpan.class);
                         int insertionIndex = 0;
-                        for (AnimatedEmojiSpan existingSpan : spans) {
-                            if (text.getSpanStart(existingSpan) < selectionEnd) {
+                        for (AnimatedEmojiSpan s : allSpans) {
+                            if (text.getSpanStart(s) < selectionEnd) {
                                 insertionIndex++;
                             }
                         }
-                        selectedEmojisIds.add(MathUtils.clamp(insertionIndex, 0, selectedEmojisIds.size()), documentId);
+                        selectedEmojisIds.add(insertionIndex, documentId);
                         selectedEmojisMap.put(documentId, span);
                         spannable.setSpan(span, 0, spannable.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                         editText.getText().insert(selectionEnd, spannable);
@@ -892,11 +891,6 @@ public class ChatCustomReactionsEditActivity extends BaseFragment implements Not
                 public void onAnimationEnd(Animator animation) {
                     NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.startAllHeavyOperations, 512);
                     bottomDialogLayout.setVisibility(View.INVISIBLE);
-                    if (selectedType != SELECT_TYPE_NONE || paid) {
-                        actionButtonContainer.animate().setListener(null).cancel();
-                        actionButtonContainer.setVisibility(View.VISIBLE);
-                        actionButtonContainer.animate().alpha(1.0f).start();
-                    }
                     if (isClearFocusNotWorking()) {
                         switchLayout.setFocusableInTouchMode(false);
                     }

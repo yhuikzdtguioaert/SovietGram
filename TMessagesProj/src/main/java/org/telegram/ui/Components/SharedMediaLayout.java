@@ -179,10 +179,13 @@ import kotlin.Unit;
 import tw.nekomimi.nekogram.ui.BottomBuilder;
 import tw.nekomimi.nekogram.utils.AlertUtil;
 import tw.nekomimi.nekogram.utils.ProxyUtil;
-import xyz.nextalone.nagram.NaConfig;
+import sovietgram.com.NaConfig;
 
 @SuppressWarnings("unchecked")
 public class SharedMediaLayout extends FrameLayout implements NotificationCenter.NotificationCenterDelegate, DialogCell.DialogCellDelegate {
+
+    private final static boolean SHOW_CONTEXT_VIEW_AS_BUBBLE = true;
+
     public static final int TAB_PHOTOVIDEO = 0;
     public static final int TAB_FILES = 1;
     public static final int TAB_VOICE = 2;
@@ -1887,7 +1890,7 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
             optionsSearchImageView.setAnimation(R.raw.options_to_search, 24, 24);
             optionsSearchImageView.getAnimatedDrawable().multiplySpeed(2f);
             optionsSearchImageView.getAnimatedDrawable().setPlayInDirectionOfCustomEndFrame(true);
-            optionsSearchImageView.setColorFilter(new PorterDuffColorFilter(getThemedColor(Theme.key_actionBarActionModeDefaultIcon), PorterDuff.Mode.SRC_IN));
+            optionsSearchImageView.setColorFilter(new PorterDuffColorFilter(getThemedColor(Theme.key_actionBarActionModeDefaultIcon), PorterDuff.Mode.MULTIPLY));
             optionsSearchImageView.setVisibility(GONE);
             actionBar.addView(optionsSearchImageView, LayoutHelper.createFrame(48, 56, Gravity.RIGHT | Gravity.BOTTOM));
         }
@@ -2236,7 +2239,7 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
         if (!DialogObject.isEncryptedDialog(dialog_id)) {
             if (!isStoriesView()) {
                 forwardNoQuoteItem = new ActionBarMenuItem(context, null, getThemedColor(Theme.key_actionBarActionModeDefaultSelector), getThemedColor(Theme.key_actionBarActionModeDefaultIcon), false);
-                forwardNoQuoteItem.setIcon(R.drawable.msg_share_solar);
+                forwardNoQuoteItem.setIcon(NaConfig.isLatestDesign() ? R.drawable.msg_share_solar : R.drawable.msg_forward_noquote);
                 forwardNoQuoteItem.setContentDescription(LocaleController.getString("NoQuoteForward", R.string.NoQuoteForward));
                 forwardNoQuoteItem.setDuplicateParentStateEnabled(false);
                 actionModeLayout.addView(forwardNoQuoteItem, new LinearLayout.LayoutParams(dp(54), ViewGroup.LayoutParams.MATCH_PARENT));
@@ -2252,7 +2255,7 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
                 gotoItem.setOnClickListener(v -> onActionBarItemClick(v, gotochat));
 
                 forwardItem = new ActionBarMenuItem(context, null, getThemedColor(Theme.key_actionBarActionModeDefaultSelector), getThemedColor(Theme.key_actionBarActionModeDefaultIcon), false);
-                forwardItem.setIcon(R.drawable.msg_share_quote_solar);
+                forwardItem.setIcon(NaConfig.isLatestDesign() ? R.drawable.msg_share_quote_solar : R.drawable.msg_forward);
                 forwardItem.setContentDescription(getString(R.string.Forward));
                 forwardItem.setDuplicateParentStateEnabled(false);
                 actionModeLayout.addView(forwardItem, new LinearLayout.LayoutParams(dp(54), ViewGroup.LayoutParams.MATCH_PARENT));
@@ -2294,6 +2297,8 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
                 super.notifyDataSetChanged();
                 MediaPage mediaPage = getMediaPage(0);
                 if (mediaPage != null && mediaPage.animationSupportingListView.getVisibility() == View.VISIBLE) {
+                    // Called straight through, this lands while the list is laying out and throws;
+                    // the helper defers it to after the pass.
                     AndroidUtilities.notifyDataSetChanged(mediaPage.animationSupportingListView);
                 }
             }
@@ -2849,10 +2854,6 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
             layoutManager.setSpanSizeLookup(new GridLayoutManager.SpanSizeLookup() {
                 @Override
                 public int getSpanSize(int position) {
-                    return Math.min(getSpanSizeInternal(position), mediaPage.layoutManager.getSpanCount());
-                }
-
-                private int getSpanSizeInternal(int position) {
                     final int columnsCount = mediaColumnsCount[isAnyStoryPageType(mediaPage.selectedType) ? 1 : 0];
                     if (mediaPage.listView.getAdapter() == photoVideoAdapter) {
                         if (photoVideoAdapter.getItemViewType(position) == 2) {
@@ -3712,51 +3713,54 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
         addView(floatingDateView, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.TOP | Gravity.CENTER_HORIZONTAL, 0, 48 + 4, 0, 0));
 
         if (!customTabs()) {
-            topPanelLayout = new DialogsActivityTopPanelLayout(context);
-            topPanelLayout.setPadding(dp(11), dp(21), dp(11), dp(21));
+            if (SHOW_CONTEXT_VIEW_AS_BUBBLE) {
+                topPanelLayout = new DialogsActivityTopPanelLayout(context);
+                topPanelLayout.setPadding(dp(11), dp(21), dp(11), dp(21));
 
-            BlurredBackgroundDrawable topPanelLayoutBackground = iBlur3FactoryLiquidGlass.create(topPanelLayout, BlurredBackgroundProviderImpl.topPanel(resourcesProvider));
-            topPanelLayoutBackground.setRadius(dp(24));
-            topPanelLayoutBackground.setPadding(dp(7));
-            topPanelLayout.setBlurredBackground(topPanelLayoutBackground);
+                BlurredBackgroundDrawable topPanelLayoutBackground = iBlur3FactoryLiquidGlass.create(topPanelLayout, BlurredBackgroundProviderImpl.topPanel(resourcesProvider));
+                topPanelLayoutBackground.setRadius(dp(24));
+                topPanelLayoutBackground.setPadding(dp(7));
+                topPanelLayout.setBlurredBackground(topPanelLayoutBackground);
 
-            fragmentContextViewWrapper = new FrameLayout(context);
-            topPanelLayout.addView(fragmentContextViewWrapper);
-            topPanelLayout.setViewVisible(fragmentContextViewWrapper, true, false);
-            topPanelLayout.setOnAnimatedHeightChangedListener(() -> {
-                topLayoutPadding = (int) topPanelLayout.getAnimatedHeightWithPadding(dp(14));
+                fragmentContextViewWrapper = new FrameLayout(context);
+                topPanelLayout.addView(fragmentContextViewWrapper);
+                topPanelLayout.setViewVisible(fragmentContextViewWrapper, true, false);
+                topPanelLayout.setOnAnimatedHeightChangedListener(() -> {
+                    topLayoutPadding = (int) topPanelLayout.getAnimatedHeightWithPadding(dp(14));
 
-                if (giftsContainer != null) {
-                    giftsContainer.setPaddingTop(dp(48) + (int) topPanelLayout.getAnimatedHeightWithPadding(dp(7)));
-                }
-                if (mediaPages != null) {
-                    for (MediaPage page : mediaPages) {
-                        if (page != null) {
-                            final int paddingTopOld = page.listView.getPaddingTop();
-                            page.listView.setPadding(
-                                page.listView.getPaddingLeft(),
-                                getPagePaddingTop(page.selectedType),
-                                page.listView.getPaddingRight(),
-                                page.listView.hintPaddingBottom = getPagePaddingBottom(isStoriesView())
-                            );
-                            final int paddingTopNew = page.listView.getPaddingTop();
-                            final int scroll = paddingTopOld - paddingTopNew;
-                            AndroidUtilities.doOnLayout(page.listView, () -> page.listView.scrollBy(0, scroll));
+                    if (giftsContainer != null) {
+                        giftsContainer.setPaddingTop(dp(48) + (int) topPanelLayout.getAnimatedHeightWithPadding(dp(7)));
+                    }
+                    if (mediaPages != null) {
+                        for (MediaPage page : mediaPages) {
+                            if (page != null) {
+                                final int paddingTopOld = page.listView.getPaddingTop();
+                                page.listView.setPadding(
+                                    page.listView.getPaddingLeft(),
+                                    getPagePaddingTop(page.selectedType),
+                                    page.listView.getPaddingRight(),
+                                    page.listView.hintPaddingBottom = getPagePaddingBottom(isStoriesView())
+                                );
+                                final int paddingTopNew = page.listView.getPaddingTop();
+                                final int scroll = paddingTopOld - paddingTopNew;
+                                AndroidUtilities.doOnLayout(page.listView, () -> page.listView.scrollBy(0, scroll));
+                            }
                         }
                     }
-                }
-                // SharedMediaLayout.this.setPadding(0, , 0, 0);
-            });
-            fragmentContextView = new FragmentContextView(context, parent, this, false, resourcesProvider) {
-                @Override
-                public void setVisibility(int visibility) {
-                    topPanelLayout.setViewVisible(fragmentContextViewWrapper, visibility == VISIBLE);
-                }
-            };
-            fragmentContextViewWrapper.addView(fragmentContextView);
-            topPanelLayout.setCallFragmentContextView(fragmentContextView);
-            addView(topPanelLayout, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.TOP, 0, 48 -14, 0, 0));
-
+                    // SharedMediaLayout.this.setPadding(0, , 0, 0);
+                });
+                fragmentContextView = new FragmentContextView(context, parent, this, false, resourcesProvider) {
+                    @Override
+                    public void setVisibility(int visibility) {
+                        topPanelLayout.setViewVisible(fragmentContextViewWrapper, visibility == VISIBLE);
+                    }
+                };
+                fragmentContextView.isInsideBubble = true;
+                fragmentContextViewWrapper.addView(fragmentContextView);
+                addView(topPanelLayout, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.TOP, 0, 48 -14, 0, 0));
+            } else {
+                addView(fragmentContextView = new FragmentContextView(context, parent, this, false, resourcesProvider), LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 38, Gravity.TOP | Gravity.LEFT, 0, 48, 0, 0));
+            }
             fragmentContextView.setDelegate((start, show) -> {
                 if (!start) {
                     requestLayout();
@@ -3764,15 +3768,19 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
                 setVisibleHeight(lastVisibleHeight);
             });
 
-            BlurredBackgroundDrawable filterTabsViewBackground = iBlur3FactoryLiquidGlass.create(scrollSlidingTextTabStrip, BlurredBackgroundProviderImpl.topPanel(resourcesProvider));
-            filterTabsViewBackground.setRadius(dp(18));
-            filterTabsViewBackground.setPadding(dp(6.666f));
-            scrollSlidingTextTabStrip.setPadding(0, dp(7), 0, dp(7));
-            scrollSlidingTextTabStrip.setClipToPadding(false);
-            scrollSlidingTextTabStrip.setBackground(null);
-            scrollSlidingTextTabStrip.setBlurredBackground(filterTabsViewBackground);
-            scrollSlidingTextTabStrip.setOpen(false);
-            addView(scrollSlidingTextTabStrip, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, 50, Gravity.CENTER_HORIZONTAL | Gravity.TOP, -2, 0, -2, 0));
+            if (iBlur3FactoryLiquidGlass != null) {
+                BlurredBackgroundDrawable filterTabsViewBackground = iBlur3FactoryLiquidGlass.create(scrollSlidingTextTabStrip, BlurredBackgroundProviderImpl.topPanel(resourcesProvider));
+                filterTabsViewBackground.setRadius(dp(18));
+                filterTabsViewBackground.setPadding(dp(6.666f));
+                scrollSlidingTextTabStrip.setPadding(0, dp(7), 0, dp(7));
+                scrollSlidingTextTabStrip.setClipToPadding(false);
+                scrollSlidingTextTabStrip.setBackground(null);
+                scrollSlidingTextTabStrip.setBlurredBackground(filterTabsViewBackground);
+                scrollSlidingTextTabStrip.setOpen(false);
+                addView(scrollSlidingTextTabStrip, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, 50, Gravity.CENTER_HORIZONTAL | Gravity.TOP, -2, 0, -2, 0));
+            } else {
+                addView(scrollSlidingTextTabStrip, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 48, Gravity.LEFT | Gravity.TOP));
+            }
             searchTagsList = new SearchTagsList(getContext(), profileActivity, profileActivity.getCurrentAccount(), includeSavedDialogs() ? 0 : dialog_id, resourcesProvider) {
                 @Override
                 protected boolean setFilter(ReactionsLayoutInBubble.VisibleReaction reaction) {
@@ -3815,7 +3823,6 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
                     }
                 }
             };
-            searchTagsList.setBlurredFactory(iBlur3FactoryLiquidGlass, BlurredBackgroundProviderImpl.topPanel(resourcesProvider));
             searchTagsList.setShown(0f);
             addView(searchTagsList, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 38, Gravity.LEFT | Gravity.TOP, 0, 4, 0, 0));
             addView(actionModeLayout, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 48, Gravity.LEFT | Gravity.TOP));

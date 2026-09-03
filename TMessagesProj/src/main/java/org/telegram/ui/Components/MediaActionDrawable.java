@@ -16,7 +16,6 @@ import android.text.TextPaint;
 import android.view.animation.DecelerateInterpolator;
 
 import org.telegram.messenger.AndroidUtilities;
-import org.telegram.ui.ActionBar.MessageDrawable;
 import org.telegram.ui.ActionBar.Theme;
 
 public class MediaActionDrawable extends Drawable {
@@ -82,7 +81,7 @@ public class MediaActionDrawable extends Drawable {
 
     private MediaActionDrawableDelegate delegate;
 
-    private MessageDrawable messageDrawable;
+    private Theme.MessageDrawable messageDrawable;
     private LinearGradient gradientDrawable;
     private Matrix gradientMatrix;
     private boolean hasOverlayImage;
@@ -244,7 +243,7 @@ public class MediaActionDrawable extends Drawable {
         return animatingTransition ? transitionProgress : 1.0f;
     }
 
-    public void setBackgroundDrawable(MessageDrawable drawable) {
+    public void setBackgroundDrawable(Theme.MessageDrawable drawable) {
         messageDrawable = drawable;
     }
 

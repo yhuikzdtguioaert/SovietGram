@@ -54,7 +54,6 @@ import org.telegram.ui.ActionBar.ActionBarMenuSubItem;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BackDrawable;
 import org.telegram.ui.ActionBar.BaseFragment;
-import org.telegram.ui.ActionBar.BottomSheet;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Cells.HeaderCell;
 import org.telegram.ui.ChatActivity;
@@ -116,10 +115,8 @@ public class ResaleGiftsFragment extends BaseFragment implements FactorAnimator.
         list.load();
     }
 
-
-
-    private Utilities.Callback<Boolean> closeParentSheet;
-    public ResaleGiftsFragment setCloseParentSheet(Utilities.Callback<Boolean>  closeParentSheet) {
+    private Runnable closeParentSheet;
+    public ResaleGiftsFragment setCloseParentSheet(Runnable closeParentSheet) {
         this.closeParentSheet = closeParentSheet;
         return this;
     }
@@ -857,7 +854,7 @@ public class ResaleGiftsFragment extends BaseFragment implements FactorAnimator.
 
             final StarGiftSheet sheet = new StarGiftSheet(getContext(), currentAccount, dialogId, resourceProvider);
             sheet.set(gift.slug, gift, list);
-            sheet.setOnBoughtGift((boughtGift, dialogId, fragmentsImmediately) -> {
+            sheet.setOnBoughtGift((boughtGift, dialogId) -> {
                 if (dialogId == UserConfig.getInstance(currentAccount).getClientUserId()) {
                     list.gifts.remove(boughtGift);
                     updateList(false);
@@ -899,20 +896,17 @@ public class ResaleGiftsFragment extends BaseFragment implements FactorAnimator.
                         }
                     };
                     if (parentLayout != null && parentLayout.isSheet()) {
-                        if (parentDialog instanceof BottomSheet && fragmentsImmediately) {
-                            ((BottomSheet) parentDialog).skipDismissAnimation();
-                        }
                         finishFragment();
                         BaseFragment lastFragment = LaunchActivity.getSafeLastFragment();
                         if (lastFragment != null) {
-                            lastFragment.presentFragment(chatActivity, false, fragmentsImmediately);
+                            lastFragment.presentFragment(chatActivity);
                         }
                     } else {
-                        presentFragment(chatActivity, true, fragmentsImmediately);
+                        presentFragment(chatActivity, true);
                     }
 
                     if (closeParentSheet != null) {
-                        closeParentSheet.run(fragmentsImmediately);
+                        closeParentSheet.run();
                     }
                 }
             });
@@ -1531,7 +1525,7 @@ public class ResaleGiftsFragment extends BaseFragment implements FactorAnimator.
             super(context, false, false, resourcesProvider);
             setPadding(dp(18), 0, dp(18), 0);
             setColors(Theme.getColor(Theme.key_actionBarDefaultSubmenuItem, resourcesProvider), Theme.getColor(Theme.key_actionBarDefaultSubmenuItemIcon, resourcesProvider));
-            setIconColor(0xFFFFFFFF, PorterDuff.Mode.MULTIPLY);
+            setIconColor(0xFFFFFFFF);
             imageView.setTranslationX(dp(2));
             makeCheckView(2);
             setBackground(null);

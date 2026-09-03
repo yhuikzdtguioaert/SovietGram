@@ -28,7 +28,6 @@ public class VideoForwardDrawable extends Drawable {
     private boolean animating;
     private boolean isOneShootAnimation;
     private boolean showing;
-    private boolean drawBackground = true;
 
     private long lastAnimationTime;
     private VideoForwardDrawableDelegate delegate;
@@ -71,11 +70,6 @@ public class VideoForwardDrawable extends Drawable {
 
     public void setPlayScaleFactor(float playScaleFactor) {
         this.playScaleFactor = playScaleFactor;
-        invalidate();
-    }
-
-    public void setDrawBackground(boolean drawBackground) {
-        this.drawBackground = drawBackground;
         invalidate();
     }
 
@@ -174,9 +168,7 @@ public class VideoForwardDrawable extends Drawable {
                 textPaint.setAlpha((int) (255 * (1.0f - (animationProgress - 0.7f) / 0.3f)));
             }
         }
-        if (drawBackground) {
-            canvas.drawCircle(x + Math.max(rect.width(), rect.height()) / 4 * (leftSide ? -1 : 1), y + AndroidUtilities.dp(16), Math.max(rect.width(), rect.height()) / 2, paint);
-        }
+        canvas.drawCircle(x + Math.max(rect.width(), rect.height()) / 4 * (leftSide ? -1 : 1), y + AndroidUtilities.dp(16), Math.max(rect.width(), rect.height()) / 2, paint);
         canvas.restore();
 
         if (timeStr != null) {

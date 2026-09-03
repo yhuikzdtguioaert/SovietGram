@@ -692,7 +692,7 @@ public class ProfileGiftsContainer extends FrameLayout implements NotificationCe
                         .setOnGiftUpdatedListener(() -> {
                             update(false);
                         })
-                        .setOnBoughtGift((boughtGift, dialogId, fragmentsImmediately) -> {
+                        .setOnBoughtGift((boughtGift, dialogId) -> {
                             list.gifts.remove(userGift);
                             update(true);
 

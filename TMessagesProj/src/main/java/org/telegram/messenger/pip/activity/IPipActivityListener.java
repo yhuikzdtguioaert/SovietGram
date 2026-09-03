@@ -5,10 +5,6 @@ public interface IPipActivityListener {
 
     default void onCompleteEnterToPip() {}
 
-    default void onPipStashStart() {}
-
-    default void onPipStashEnd() {}
-
     default void onStartExitFromPip(boolean byActivityStop) {}
 
     default void onCompleteExitFromPip(boolean byActivityStop) {}

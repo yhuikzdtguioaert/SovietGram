@@ -13,6 +13,7 @@ import android.os.Looper;
 import android.text.Editable;
 import android.text.Layout;
 import android.text.Spannable;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.MotionEvent;
@@ -21,10 +22,11 @@ import android.widget.EditText;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.BuildVars;
 import org.telegram.messenger.FileLog;
-import org.telegram.messenger.R;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.spoilers.SpoilerEffect;
 import org.telegram.ui.Components.spoilers.SpoilersClickDetector;
+
+import tw.nekomimi.nekogram.helpers.TextAnimationHelper;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -52,6 +54,21 @@ public class EditTextEffects extends EditText {
     private Layout lastLayout = null;
     private int lastTextLength;
 
+    // SovietGram: per character appearance effects, allocated only once the feature is switched on.
+    private TextAnimationHelper textAnimation;
+
+    private TextAnimationHelper textAnimation() {
+        if (textAnimation == null && TextAnimationHelper.isEnabled()) {
+            textAnimation = new TextAnimationHelper(this);
+        }
+        return TextAnimationHelper.isEnabled() ? textAnimation : null;
+    }
+
+    /** Null unless the effect is switched on; subclasses use it to shape the caret. */
+    protected TextAnimationHelper getTextAnimation() {
+        return textAnimation();
+    }
+
     private Runnable spoilerTimeout = () -> {
         postedSpoilerTimeout = false;
         isSpoilersRevealed = false;
@@ -69,12 +86,44 @@ public class EditTextEffects extends EditText {
     private boolean clipToPadding;
 
     public EditTextEffects(Context context) {
-        super(context, null, 0, R.style.EditTextNoBackgroundStyle);
+        super(context);
 
         if (Looper.getMainLooper().getThread() == Thread.currentThread()) {
             clickDetector = new SpoilersClickDetector(this, spoilers, this::onSpoilerClicked);
         }
+
     }
+
+    /**
+     * SovietGram: TextView has no protected beforeTextChanged, and the layout is the only place that
+     * knows where a character sat before it was deleted, so read it from a watcher instead.
+     * <p>
+     * Registered from {@link #onAttachedToWindow()} rather than the constructor: EditTextBoldCursor
+     * overrides addTextChangedListener to keep its own list, and that list is a field initialiser, so
+     * it is still null while this constructor runs.
+     */
+    private final TextWatcher textAnimationWatcher = new TextWatcher() {
+        @Override
+        public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            if (suppressOnTextChanged) {
+                return;
+            }
+            TextAnimationHelper animation = textAnimation();
+            if (animation != null) {
+                animation.beforeTextChanged(s, start, count);
+            }
+        }
+
+        @Override
+        public void onTextChanged(CharSequence s, int start, int before, int count) {
+        }
+
+        @Override
+        public void afterTextChanged(Editable s) {
+        }
+    };
+
+    private boolean textAnimationWatcherAdded;
 
     private void onSpoilerClicked(SpoilerEffect eff, float x, float y) {
         if (isSpoilersRevealed) return;
@@ -152,6 +201,10 @@ public class EditTextEffects extends EditText {
     @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
+        if (!textAnimationWatcherAdded) {
+            textAnimationWatcherAdded = true;
+            addTextChangedListener(textAnimationWatcher);
+        }
         updateAnimatedEmoji(true);
         invalidateQuotes(false);
     }
@@ -166,6 +219,10 @@ public class EditTextEffects extends EditText {
     protected void onTextChanged(CharSequence text, int start, int lengthBefore, int lengthAfter) {
         super.onTextChanged(text, start, lengthBefore, lengthAfter);
         if (!suppressOnTextChanged) {
+            TextAnimationHelper animation = textAnimation();
+            if (animation != null) {
+                animation.onTextChanged(text, start, lengthBefore, lengthAfter);
+            }
             invalidateEffects();
 
             try {
@@ -338,6 +395,11 @@ public class EditTextEffects extends EditText {
             super.onDraw(wrappedCanvas);
         } else {
             super.onDraw(canvas);
+        }
+        // SovietGram: the animated characters were hidden from the text pass by a zero alpha span,
+        // so they are painted here, on top, where the layout has already decided their position.
+        if (textAnimation != null) {
+            textAnimation.draw(canvas);
         }
         if (drawAnimatedEmojiDrawables && animatedEmojiDrawables != null) {
             canvas.save();

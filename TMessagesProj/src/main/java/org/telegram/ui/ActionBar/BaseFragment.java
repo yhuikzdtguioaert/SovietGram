@@ -20,7 +20,6 @@ import android.graphics.Paint;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Trace;
 import android.text.TextUtils;
 import android.view.Menu;
 import android.view.MotionEvent;
@@ -74,7 +73,7 @@ import tw.nekomimi.nekogram.helpers.CloudStorageHelper;
 import tw.nekomimi.nekogram.helpers.UserHelper;
 import tw.nekomimi.nekogram.helpers.MessageHelper;
 import tw.nekomimi.nekogram.utils.AndroidUtil;
-import xyz.nextalone.nagram.NaConfig;
+import sovietgram.com.NaConfig;
 
 public abstract class BaseFragment {
 
@@ -261,23 +260,7 @@ public abstract class BaseFragment {
         this.fragmentView = fragmentView;
     }
 
-    public View performCreateView(Context context) {
-        if (!BuildConfig.DEBUG) {
-            return createView(context);
-        }
-
-        final String className = getClass().getSimpleName();
-        final String sectionNameBase = "Fragment#createView#";
-        final String sectionName = TextUtils.isEmpty(className) ? sectionNameBase : (sectionNameBase + className);
-        Trace.beginSection(sectionName);
-        try {
-            return createView(context);
-        } finally {
-            Trace.endSection();
-        }
-    }
-
-    protected View createView(Context context) {
+    public View createView(Context context) {
         return null;
     }
 
@@ -1455,13 +1438,6 @@ public abstract class BaseFragment {
         public boolean occupyNavigationBar;
     }
 
-    public EdgeToEdgeSupportMode getEdgeToEdgeSupportMode() {
-        return isSupportEdgeToEdge() ?
-            EdgeToEdgeSupportMode.VERTICAL :
-            EdgeToEdgeSupportMode.NONE;
-    }
-
-    @Deprecated
     public boolean isSupportEdgeToEdge() {
         // warn: overridden method must return a constant
         return false;

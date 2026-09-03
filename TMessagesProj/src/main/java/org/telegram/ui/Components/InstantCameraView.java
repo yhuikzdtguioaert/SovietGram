@@ -126,7 +126,7 @@ import javax.microedition.khronos.egl.EGLDisplay;
 import javax.microedition.khronos.egl.EGLSurface;
 
 import tw.nekomimi.nekogram.NekoConfig;
-import xyz.nextalone.nagram.NaConfig;
+import sovietgram.com.NaConfig;
 
 @SuppressLint("ViewConstructor")
 public class InstantCameraView extends FrameLayout implements NotificationCenter.NotificationCenterDelegate {
@@ -1078,7 +1078,7 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
         if (bitmap != null && bitmap.getPixel(0, 0) != 0) {
             lastBitmap = Bitmap.createScaledBitmap(textureView.getBitmap(), 50, 50, true);
             if (lastBitmap != null) {
-                Utilities.blurBitmap(lastBitmap, 7);
+                Utilities.blurBitmap(lastBitmap, 7, 1, lastBitmap.getWidth(), lastBitmap.getHeight(), lastBitmap.getRowBytes());
                 try {
                     File file = new File(ApplicationLoader.getFilesDirFixed(), "icthumb.jpg");
                     FileOutputStream stream = new FileOutputStream(file);
@@ -1372,12 +1372,29 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
                 }
             } else {
                 if (index == 1) return;
+                // A reinit can re-enter here while the previous session is still
+                // driving the camera — the updateScale branch of the open callback
+                // below fires another reinitForNewCamera(). Overwriting the field
+                // would leave that camera open with nobody owning it, and the
+                // second openRound() would then re-attach a preview texture to a
+                // camera that is still previewing; that throws, the catch inside
+                // openRound releases the camera, and the preview stays frozen on
+                // its last frame.
+                if (cameraSession != null) {
+                    cameraSession.destroy();
+                    CameraController.getInstance().close(cameraSession, null, null);
+                    cameraSession = null;
+                }
                 surfaceTexture.setDefaultBufferSize(previewSize[0].getWidth(), previewSize[0].getHeight());
-                cameraSession = new CameraSession(selectedCamera, previewSize[0], pictureSize, ImageFormat.JPEG, true);
+                final CameraSession session = cameraSession = new CameraSession(selectedCamera, previewSize[0], pictureSize, ImageFormat.JPEG, true);
                 updateFlash();
-                cameraThread.setCurrentSession(cameraSession);
-                CameraController.getInstance().openRound(cameraSession, surfaceTexture, () -> {
-                    if (cameraSession != null) {
+                cameraThread.setCurrentSession(session);
+                CameraController.getInstance().openRound(session, surfaceTexture, () -> {
+                    // Compared against the local session, not just null-checked: this
+                    // callback is posted from the camera pool and can land after another
+                    // switch already replaced the field, in which case its preview/picture
+                    // sizes and setInitied() belong to a camera that is no longer open.
+                    if (cameraSession == session) {
                         updateFlash();
 
                         boolean updateScale = false;
@@ -1413,8 +1430,8 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
                         }
                     }
                 }, () -> {
-                    if (cameraThread != null) {
-                        cameraThread.setCurrentSession(cameraSession);
+                    if (cameraThread != null && cameraSession == session) {
+                        cameraThread.setCurrentSession(session);
                     }
                 });
             }
@@ -1527,7 +1544,9 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
 
         private boolean recording;
 
-        private Integer cameraId = 0;
+        // written on the gl thread in DO_REINIT_MESSAGE, read by requestRender from whichever thread
+        // the SurfaceTexture listener is bound to, so a stale read would drop a live frame in onDraw
+        private volatile Integer cameraId = 0;
 
         private int surfaceWidth;
         private int surfaceHeight;
@@ -2884,6 +2903,16 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
 
                 @Override
                 public void onRenderedFirstFrame() {
+
+                }
+
+                @Override
+                public boolean onSurfaceDestroyed(SurfaceTexture surfaceTexture) {
+                    return false;
+                }
+
+                @Override
+                public void onSurfaceTextureUpdated(SurfaceTexture surfaceTexture) {
 
                 }
             });

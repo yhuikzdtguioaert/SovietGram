@@ -17,12 +17,10 @@ import android.annotation.TargetApi;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
-import android.graphics.ColorFilter;
 import android.graphics.LinearGradient;
 import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.PorterDuff;
-import android.graphics.PorterDuffColorFilter;
 import android.graphics.PorterDuffXfermode;
 import android.graphics.Shader;
 import android.graphics.drawable.Drawable;
@@ -31,11 +29,9 @@ import android.graphics.Rect;
 import android.graphics.drawable.ShapeDrawable;
 import android.graphics.drawable.shapes.RectShape;
 import android.os.Build;
-import android.os.Looper;
 import android.os.SystemClock;
 
 import androidx.annotation.Keep;
-import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.graphics.ColorUtils;
 import androidx.core.view.accessibility.AccessibilityNodeInfoCompat;
@@ -74,6 +70,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
+
+import tw.nekomimi.nekogram.helpers.TextAnimationHelper;
 
 public class EditTextBoldCursor extends EditTextEffects {
 
@@ -141,7 +139,6 @@ public class EditTextBoldCursor extends EditTextEffects {
 
     private boolean nextSetTextAnimated;
     private boolean transformHintToHeader;
-    private boolean transformHintToHeaderOnFocus = true;
     private boolean currentDrawHintAsHeader;
     private AnimatorSet headerTransformAnimation;
     private float headerAnimationProgress;
@@ -457,12 +454,6 @@ public class EditTextBoldCursor extends EditTextEffects {
         }
     }
 
-    public void setTransformHintToHeaderOnFocus(boolean value) {
-        if (transformHintToHeaderOnFocus == value) return;
-        transformHintToHeaderOnFocus = value;
-        checkHeaderVisibility(false);
-    }
-
     public void setAllowDrawCursor(boolean value) {
         allowDrawCursor = value;
         invalidate();
@@ -676,8 +667,7 @@ public class EditTextBoldCursor extends EditTextEffects {
     }
 
     private void checkHeaderVisibility(boolean animated) {
-        boolean newHintHeader = transformHintToHeader
-            && (getText().length() > 0 || transformHintToHeaderOnFocus && isFocused());
+        boolean newHintHeader = transformHintToHeader && (isFocused() || getText().length() > 0);
         if (currentDrawHintAsHeader != newHintHeader) {
             if (headerTransformAnimation != null) {
                 headerTransformAnimation.cancel();
@@ -694,14 +684,6 @@ public class EditTextBoldCursor extends EditTextEffects {
                 headerAnimationProgress = newHintHeader ? 1.0f : 0.0f;
             }
             invalidate();
-        }
-    }
-
-    @Override
-    protected void onTextChanged(CharSequence text, int start, int lengthBefore, int lengthAfter) {
-        super.onTextChanged(text, start, lengthBefore, lengthAfter);
-        if (transformHintToHeader && !transformHintToHeaderOnFocus) {
-            checkHeaderVisibility(true);
         }
     }
 
@@ -863,6 +845,44 @@ public class EditTextBoldCursor extends EditTextEffects {
         }
     }
 
+    private long lastCursorFrame;
+
+    /**
+     * SovietGram: reshapes the caret rect in place — width from the settings, an eased x so it glides
+     * to the new offset instead of jumping, and a stretch along the direction of travel for the
+     * liquid look. Leaves the rect untouched when the effect is off.
+     */
+    private void applyCursorAnimation(Rect r) {
+        TextAnimationHelper animation = getTextAnimation();
+        if (animation == null) {
+            lastCursorFrame = 0;
+            return;
+        }
+        long now = SystemClock.uptimeMillis();
+        long dt = lastCursorFrame == 0 ? 16 : Math.min(48, now - lastCursorFrame);
+        lastCursorFrame = now;
+
+        int width = animation.getCursorWidth(cursorWidth);
+        float x = animation.animateCursor(r.left, dt);
+        boolean selecting = getSelectionStart() != getSelectionEnd();
+        float stretch = animation.getCursorStretch(selecting);
+        float side = selecting ? animation.getSelectionSideStretch() : 0f;
+
+        r.left = Math.round(x);
+        r.right = r.left + width;
+        // The trailing edge is the one that lags, so stretch backwards along the travel direction.
+        if (stretch > 0) {
+            r.left -= Math.round(stretch);
+        } else if (stretch < 0) {
+            r.right -= Math.round(stretch);
+        }
+        if (side > 0) {
+            int grow = Math.round(dp(2) * side);
+            r.top -= grow;
+            r.bottom += grow;
+        }
+    }
+
     @Override
     protected void onDraw(Canvas canvas) {
         drawHint(canvas);
@@ -945,6 +965,7 @@ public class EditTextBoldCursor extends EditTextEffects {
                     }
                     rect.top = rect.centerY() - cursorSize / 2;
                     rect.bottom = rect.top + cursorSize;
+                    applyCursorAnimation(rect);
                     gradientDrawable.setBounds(rect);
                     gradientDrawable.draw(canvas);
                     canvas.restore();
@@ -983,6 +1004,7 @@ public class EditTextBoldCursor extends EditTextEffects {
                     }
                     rect.top = rect.centerY() - cursorSize / 2;
                     rect.bottom = rect.top + cursorSize;
+                    applyCursorAnimation(rect);
                     gradientDrawable.setBounds(rect);
                     gradientDrawable.draw(canvas);
                     canvas.restore();
@@ -1140,40 +1162,14 @@ public class EditTextBoldCursor extends EditTextEffects {
             FileLog.e(e);
         }
         attachedToWindow = getRootView();
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-            Choreographer60FpsContent.getInstance().addFrameCallback(invalidateCallback, 2);
-        }
+        Choreographer60FpsContent.getInstance().addFrameCallback(invalidateCallback, 2);
     }
 
     @Override
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
         attachedToWindow = null;
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-            Choreographer60FpsContent.getInstance().removeFrameCallback(invalidateCallback);
-        }
-    }
-
-    private static final String BLINK_CLASS = "android.widget.Editor$Blink";
-
-    @Override
-    public boolean postDelayed(Runnable action, long delayMillis) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
-                && action != null && delayMillis == 500
-                && BLINK_CLASS.equals(action.getClass().getName())
-                && Looper.myLooper() == Looper.getMainLooper()) {
-            Choreographer60FpsContent.getInstance().addFrameCallbackOnce(action, 2);
-            return true;
-        }
-        return super.postDelayed(action, delayMillis);
-    }
-
-    @Override
-    public boolean removeCallbacks(Runnable action) {
-        if (Looper.myLooper() == Looper.getMainLooper()) {
-            Choreographer60FpsContent.getInstance().removeFrameCallbackOnce(action);
-        }
-        return super.removeCallbacks(action);
+        Choreographer60FpsContent.getInstance().removeFrameCallback(invalidateCallback);
     }
 
     BlurredBackgroundDrawableViewFactory blurredBackgroundDrawableViewFactory;
@@ -1278,82 +1274,23 @@ public class EditTextBoldCursor extends EditTextEffects {
         return null;
     }
 
-    private Drawable mTextSelectHandleLeft;
-    private Drawable mTextSelectHandleRight;
-    private Drawable mTextSelectHandle;
-    private ColorFilter mHandlesColorFilter;
-    private int mHandlesColor;
-
-    private Drawable updateHandleDrawable(Drawable d, boolean mutate) {
-        if (d != null) {
-            if (mutate) {
-                d = d.mutate();
-            }
-            if (mHandlesColorFilter != null) {
-                d.setColorFilter(mHandlesColorFilter);
-            }
-        }
-
-        return d;
-    }
-
     public void setHandlesColor(int color) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q || XiaomiUtilities.isMIUI()) {
             return;
         }
-        if (mHandlesColor != color) {
-            mHandlesColor = color;
-            mHandlesColorFilter = new PorterDuffColorFilter(color, PorterDuff.Mode.SRC_IN);
+        try {
+            Drawable left = getTextSelectHandleLeft();
+            left.setColorFilter(color, PorterDuff.Mode.SRC_IN);
+            setTextSelectHandleLeft(left);
 
-            updateHandleDrawable(mTextSelectHandleLeft, false);
-            updateHandleDrawable(mTextSelectHandleRight, false);
-            updateHandleDrawable(mTextSelectHandle, false);
-        }
-    }
+            Drawable middle = getTextSelectHandle();
+            middle.setColorFilter(color, PorterDuff.Mode.SRC_IN);
+            setTextSelectHandle(middle);
 
-    @Nullable
-    @Override
-    public Drawable getTextSelectHandleLeft() {
-        if (mTextSelectHandleLeft == null) {
-            mTextSelectHandleLeft = updateHandleDrawable(super.getTextSelectHandleLeft(), true);
-        }
-        return mTextSelectHandleLeft;
-    }
-
-    @Nullable
-    @Override
-    public Drawable getTextSelectHandleRight() {
-        if (mTextSelectHandleRight == null) {
-            mTextSelectHandleRight = updateHandleDrawable(super.getTextSelectHandleRight(), true);
-        }
-        return mTextSelectHandleRight;
-    }
-
-    @Nullable
-    @Override
-    public Drawable getTextSelectHandle() {
-        if (mTextSelectHandle == null) {
-            mTextSelectHandle = updateHandleDrawable(super.getTextSelectHandle(), true);
-        }
-        return mTextSelectHandle;
-    }
-
-    @Override
-    public void setTextSelectHandleLeft(@NonNull Drawable drawable) {
-        mTextSelectHandleLeft = updateHandleDrawable(drawable, true);
-        super.setTextSelectHandleLeft(mTextSelectHandleLeft);
-    }
-
-    @Override
-    public void setTextSelectHandleRight(@NonNull Drawable drawable) {
-        mTextSelectHandleRight = updateHandleDrawable(drawable, true);
-        super.setTextSelectHandleRight(mTextSelectHandleRight);
-    }
-
-    @Override
-    public void setTextSelectHandle(@NonNull Drawable drawable) {
-        mTextSelectHandle = updateHandleDrawable(drawable, true);
-        super.setTextSelectHandle(mTextSelectHandle);
+            Drawable right = getTextSelectHandleRight();
+            right.setColorFilter(color, PorterDuff.Mode.SRC_IN);
+            setTextSelectHandleRight(right);
+        } catch (Exception ignore) {}
     }
 
     private Runnable onPremiumMenuLockClickListener;

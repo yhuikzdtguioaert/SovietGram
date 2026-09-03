@@ -21,7 +21,7 @@ import android.widget.FrameLayout;
 import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 import androidx.core.view.WindowInsetsCompat;
-import org.telegram.ui.recyclerview.ChatListItemAnimator;
+import androidx.recyclerview.widget.ChatListItemAnimator;
 
 import com.google.android.exoplayer2.util.Log;
 

@@ -25,6 +25,8 @@ import me.vkryl.android.AnimatorUtils;
 import me.vkryl.android.animator.BoolAnimator;
 import me.vkryl.android.animator.FactorAnimator;
 
+import sovietgram.com.NaConfig;
+
 @SuppressLint("ViewConstructor")
 public class ChatActivitySideControlsButtonsLayout extends FrameLayout implements FactorAnimator.Target {
     public static final int BUTTON_ATTACH = 0;
@@ -64,7 +66,6 @@ public class ChatActivitySideControlsButtonsLayout extends FrameLayout implement
     private final BlurredBackgroundColorProvider colorProvider;
     private final BlurredBackgroundDrawableViewFactory blurredBackgroundDrawableViewFactory;
     private final ButtonHolder[] buttonHolders = new ButtonHolder[BUTTONS_COUNT];
-    private final ButtonPendingState[] pendingStates = new ButtonPendingState[BUTTONS_COUNT];
 
     private ButtonOnClickListener onClickListener;
     private ButtonOnLongClickListener onLongClickListener;
@@ -77,7 +78,15 @@ public class ChatActivitySideControlsButtonsLayout extends FrameLayout implement
         this.blurredBackgroundDrawableViewFactory = blurredBackgroundDrawableViewFactory;
         this.colorProvider = colorProvider;
         this.resourcesProvider = resourcesProvider;
+        this.legacyStyle = NaConfig.isLegacyChatBottom();
     }
+
+    /**
+     * Pre-12.2.0 look for the scroll-down / mention / reaction stack: opaque white discs
+     * with a drop shadow instead of blurred glass pucks. Only the button skin changes —
+     * sizes, gaps and the whole positioning pass stay as they are.
+     */
+    private final boolean legacyStyle;
 
     private int gravity = Gravity.LEFT | Gravity.BOTTOM;
     public void setGravity(int gravity) {
@@ -119,20 +128,14 @@ public class ChatActivitySideControlsButtonsLayout extends FrameLayout implement
     }
 
     public void setButtonCount(final int buttonId, int count, boolean animated) {
-        getOrCreatePendingState(buttonId).count = count;
-        final ButtonHolder holder = buttonHolders[buttonId];
-        if (holder != null) {
-            holder.button.setCount(count, animated);
-            holder.counterVisibilityAnimator.setValue(count > 0, animated);
-        }
+        final ButtonHolder holder = getOrCreateButtonHolder(buttonId);
+        holder.button.setCount(count, animated);
+        holder.counterVisibilityAnimator.setValue(count > 0, animated);
     }
 
     public void setButtonLoading(final int buttonId, boolean loading, boolean animated) {
-        getOrCreatePendingState(buttonId).loading = loading;
-        final ButtonHolder holder = buttonHolders[buttonId];
-        if (holder != null) {
-            holder.button.showLoading(loading, animated);
-        }
+        final ButtonHolder holder = getOrCreateButtonHolder(buttonId);
+        holder.button.showLoading(loading, animated);
     }
 
     public boolean isButtonVisible(final int buttonId) {
@@ -142,11 +145,8 @@ public class ChatActivitySideControlsButtonsLayout extends FrameLayout implement
     }
 
     public void setButtonEnabled(final int buttonId, boolean enabled, boolean animated) {
-        getOrCreatePendingState(buttonId).enabled = enabled;
-        final ButtonHolder holder = buttonHolders[buttonId];
-        if (holder != null) {
-            holder.button.setEnabled(enabled, animated);
-        }
+        ButtonHolder holder = getOrCreateButtonHolder(buttonId);
+        holder.button.setEnabled(enabled, animated);
     }
 
 
@@ -192,13 +192,6 @@ public class ChatActivitySideControlsButtonsLayout extends FrameLayout implement
     }
 
 
-
-    private ButtonPendingState getOrCreatePendingState(final int buttonId) {
-        if (pendingStates[buttonId] == null) {
-            pendingStates[buttonId] = new ButtonPendingState();
-        }
-        return pendingStates[buttonId];
-    }
 
     @Nullable
     private ButtonHolder getButtonHolder(final int buttonId) {
@@ -253,6 +246,10 @@ public class ChatActivitySideControlsButtonsLayout extends FrameLayout implement
                 return false;
             });
 
+            if (legacyStyle) {
+                button.setLegacyStyle();
+            }
+
             if (buttonId == BUTTON_SEARCH_UP) {
                 button.reverseIconByY();
             }
@@ -263,16 +260,6 @@ public class ChatActivitySideControlsButtonsLayout extends FrameLayout implement
             addView(button, LayoutHelper.createFrame(size, size + 8, gravity));
 
             buttonHolders[buttonId] = new ButtonHolder(button, visibilityAnimator, counterVisibilityAnimator);
-
-            final ButtonPendingState pending = pendingStates[buttonId];
-            if (pending != null) {
-                button.setCount(pending.count, false);
-                visibilityAnimator.setValue(false, false);
-                counterVisibilityAnimator.setValue(pending.count > 0, false);
-                button.showLoading(pending.loading, false);
-                button.setEnabled(pending.enabled, false);
-            }
-
             checkButtonsPositionsAndVisibility();
         }
 
@@ -294,11 +281,5 @@ public class ChatActivitySideControlsButtonsLayout extends FrameLayout implement
             this.visibilityAnimator = visibilityAnimator;
             this.counterVisibilityAnimator = counterVisibilityAnimator;
         }
-    }
-
-    private static class ButtonPendingState {
-        public int count = 0;
-        public boolean loading = false;
-        public boolean enabled = true;
     }
 }

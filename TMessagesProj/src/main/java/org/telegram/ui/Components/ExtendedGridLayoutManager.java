@@ -23,7 +23,6 @@ public class ExtendedGridLayoutManager extends GridLayoutManager {
 
     private SparseIntArray itemSpans = new SparseIntArray();
     private SparseIntArray itemsToRow = new SparseIntArray();
-    private int lastSpanCount;
     private int firstRowMax;
     private int rowsCount;
     private int calculatedWidth;
@@ -57,7 +56,6 @@ public class ExtendedGridLayoutManager extends GridLayoutManager {
         firstRowMax = 0;
 
         final int itemsCount = getFlowItemCount();
-        lastSpanCount = itemsCount;
         if (itemsCount == 0) {
             return;
         }
@@ -162,7 +160,7 @@ public class ExtendedGridLayoutManager extends GridLayoutManager {
     }
 
     private void checkLayout() {
-        if (itemSpans.size() != getFlowItemCount() || calculatedWidth != getWidth() || lastSpanCount != getSpanCount()) {
+        if (itemSpans.size() != getFlowItemCount() || calculatedWidth != getWidth()) {
             calculatedWidth = getWidth();
             prepareLayout(getWidth());
         }
