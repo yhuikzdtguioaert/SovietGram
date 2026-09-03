@@ -1,6 +1,5 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="NagramX" translatable="false">Nagram X Turbo</string>
     <string name="XChannel">Nagram X Turbo Channel</string>
     <string name="EnableSaveDeletedMessages">Save Deleted Messages</string>
     <string name="DeletedMessages">Deleted Messages</string>
@@ -26,7 +25,7 @@
     <string name="LlmProviderGeminiModel" translatable="false">gemini-flash-lite-latest</string>
     <string name="LlmProviderGroqModel" translatable="false">openai/gpt-oss-120b</string>
     <string name="LlmProviderDeepSeekModel" translatable="false">deepseek-v4-flash</string>
-    <string name="LlmProviderXAIModel" translatable="false"></string>
+    <string name="LlmProviderXAIModel" translatable="false" />
     <string name="LlmProviderCerebrasModel" translatable="false">gpt-oss-120b</string>
     <string name="LlmProviderOllamaCloudModel" translatable="false">gemma4:31b</string>
     <string name="LlmProviderOpenRouterModel" translatable="false">openrouter/free</string>
@@ -154,7 +153,6 @@
     <string name="GhostModeDisabled">Ghost mode turned off</string>
     <string name="GhostModeInDrawer">Shortcuts</string>
     <string name="GhostModeStatusIndicator">Ghost Mode Indicator</string>
-    <string name="GhostModeSoundOverride">Ghost Mode is active — sound is always off</string>
     <string name="DontSendReadMessagePackets">Don\'t Read Messages</string>
     <string name="DontReadStoriesPackets">Don\'t Read Stories</string>
     <string name="DontSendOnlinePackets">Don\'t Send Online</string>
@@ -317,8 +315,8 @@
     <string name="CameraInVideoMessagesAsk">Ask</string>
     <string name="CameraSettings">Camera</string>
     <string name="ContactNotes">Notes</string>
-    <string name="PhoneNotOnTelegramInvite">This phone number is not on Telegram. **Invite >**</string>
-    <string name="PhoneAlreadyInContacts">This phone number is already in your contacts. **View >**</string>
+    <string name="PhoneNotOnTelegramInvite">This phone number is not on Telegram. **Invite &gt;**</string>
+    <string name="PhoneAlreadyInContacts">This phone number is already in your contacts. **View &gt;**</string>
     <string name="PhoneOnTelegram">This phone number is on Telegram.</string>
     <string name="SIMCard">SIM Card</string>
     <string name="DeviceAccount">Device</string>
@@ -346,16 +344,7 @@
     <string name="StickerCopied">Sticker copied to clipboard.</string>
     <string name="StrokeOnViews">Glare effects</string>
     <string name="HideBottomNavigationBar">Hide Bottom Navigation Bar</string>
-    <string name="AccDescrForwardAuthor">Toggle forward author name</string>
-    <string name="AccDescrForwardCaption">Toggle forward caption</string>
-    <string name="AccDescrForwardSound">Toggle notification sound</string>
     <string name="AccDescrForwardCommentPosition">Toggle forward comment position</string>
-    <string name="ForwardAuthorShown">Author name will be shown</string>
-    <string name="ForwardAuthorHidden">Author name will be hidden</string>
-    <string name="ForwardCaptionShown">Caption will be shown</string>
-    <string name="ForwardCaptionHidden">Caption will be hidden</string>
-    <string name="ForwardNotifyOn">Recipient will be notified</string>
-    <string name="ForwardNotifyOff">Recipient will receive a silent notification</string>
     <string name="ForwardCommentAfter">Comment will be sent after the message</string>
     <string name="ForwardCommentBefore">Comment will be sent before the message</string>
     <string name="TranslatorMode">With Original Text</string>
