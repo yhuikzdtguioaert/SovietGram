@@ -33,8 +33,6 @@ import java.util.HashSet;
 import me.vkryl.android.animator.BoolAnimator;
 import me.vkryl.android.animator.FactorAnimator;
 
-import sovietgram.com.NaConfig;
-
 @SuppressLint("ViewConstructor")
 public class ChatActivityChannelButtonsLayout extends FrameLayout implements FactorAnimator.Target {
     public static final int BUTTON_SEARCH = 0;
@@ -82,20 +80,11 @@ public class ChatActivityChannelButtonsLayout extends FrameLayout implements Fac
         this.colorProvider = colorProvider;
         this.resourcesProvider = resourcesProvider;
 
-        flatBar = NaConfig.isLegacyChatBottom();
-
         container = new FrameLayout(context);
         container.setClipToOutline(true);
-        container.setOutlineProvider(ViewOutlineProviderImpl.boundsWithPaddingRoundRect(0, flatBar ? 0 : dp(22)));
+        container.setOutlineProvider(ViewOutlineProviderImpl.boundsWithPaddingRoundRect(0, dp(22)));
         addView(container, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 44, Gravity.CENTER_VERTICAL));
     }
-
-    /**
-     * Pre-12.2.0 look: the channel bar spans the full width with square corners instead
-     * of sitting in a rounded island. Only the rounding and the side gutters change —
-     * the button layout and every width calculation stay as they are.
-     */
-    private final boolean flatBar;
 
     public void updateColors() {
         for (ButtonHolder holder : buttonHolders) {
@@ -166,8 +155,8 @@ public class ChatActivityChannelButtonsLayout extends FrameLayout implements Fac
     public void setupDrawableForContainer() {
         containerDrawable = blurredBackgroundDrawableViewFactory.create(this)
             .setColorProvider(colorProvider)
-            .setRadius(flatBar ? 0 : dp(22))
-            .setPadding(flatBar ? 0 : dp(6));
+            .setRadius(dp(22))
+            .setPadding(dp(6));
     }
 
     public boolean isButtonVisible(final int buttonId) {
@@ -274,32 +263,22 @@ public class ChatActivityChannelButtonsLayout extends FrameLayout implements Fac
     private float totalWidthLeft, totalWidthRight;
 
     private void checkContainerPaddings(boolean canRequestLayout) {
-        int paddingLeft = 0, paddingRight = 0;
-        boolean hasLeftButton = false, hasRightButton = false;
+        int paddingLeft = dp(7), paddingRight = dp(7);
         for (final int buttonId : buttonsOrderLeft) {
             final ButtonHolder holder = buttonHolders[buttonId];
-            if (holder == null || !holder.visibilityAnimator.getValue()) {
+            if (holder == null) {
                 continue;
             }
-            paddingLeft += dp(44 + 10);
-            hasLeftButton = true;
+            paddingLeft += holder.visibilityAnimator.getValue() ? dp(44 + 10) : 0;
         }
 
         for (final int buttonId : buttonsOrderRight) {
             final ButtonHolder holder = buttonHolders[buttonId];
-            if (holder == null || !holder.visibilityAnimator.getValue()) {
+            if (holder == null) {
                 continue;
             }
-            paddingRight += dp(44 + 10);
-            hasRightButton = true;
+            paddingRight += holder.visibilityAnimator.getValue() ? dp(44 + 10) : 0;
         }
-
-        // The island always keeps a 7dp gutter on both sides. A flat bar has none — it is
-        // meant to run edge to edge — but where a round button (search, gift, direct) sits
-        // next to it the gutter still has to be there, or the bar's own content grows right
-        // up against the icon.
-        paddingLeft += !flatBar || hasLeftButton ? dp(7) : 0;
-        paddingRight += !flatBar || hasRightButton ? dp(7) : 0;
 
         final MarginLayoutParams lp = (MarginLayoutParams) container.getLayoutParams();
 
@@ -435,15 +414,9 @@ public class ChatActivityChannelButtonsLayout extends FrameLayout implements Fac
     @Override
     protected boolean drawChild(@NonNull Canvas canvas, View child, long drawingTime) {
         if (child == container && containerDrawable != null) {
-            // containerDrawable carries a 6dp inset of its own (0 when flat), so the extra
-            // 1dp here is what lands the island edge on the 7dp gutter. Flat mode needs the
-            // full 7dp on any side that has a round button, otherwise the bar slides under
-            // the button's overhang — the buttons are 56dp wide over a 44dp slot.
-            final int leftInset = flatBar ? (totalWidthLeft > 0 ? dp(7) : 0) : dp(1);
-            final int rightInset = flatBar ? (totalWidthRight > 0 ? dp(7) : 0) : dp(1);
             tmpRect.set(
-                totalWidthLeft + leftInset, 0,
-                getMeasuredWidth() - rightInset - totalWidthRight,
+                totalWidthLeft + dp(1), 0,
+                getMeasuredWidth() - dp(1) - totalWidthRight,
                 getMeasuredHeight());
 
             tmpRect.round(AndroidUtilities.rectTmp2);
@@ -458,18 +431,15 @@ public class ChatActivityChannelButtonsLayout extends FrameLayout implements Fac
     protected void dispatchDraw(@NonNull Canvas canvas) {
         final int accentAlpha = (int) (255 * totalVisibilityFactor * animatorCenterAccentBackground.getFloatValue());
         if (accentAlpha > 0) {
-            final int accentLeftInset = flatBar ? (totalWidthLeft > 0 ? dp(7) : 0) : dp(10);
-            final int accentRightInset = flatBar ? (totalWidthRight > 0 ? dp(7) : 0) : dp(10);
             tmpRect.set(
-                totalWidthLeft + accentLeftInset,
+                totalWidthLeft + dp(10),
                 dp(9),
-                getMeasuredWidth() - accentRightInset - totalWidthRight,
+                getMeasuredWidth() - dp(10) - totalWidthRight,
                 getMeasuredHeight() - dp(9)
             );
             backgroundAccentPaint.setColor(accentColor);
             backgroundAccentPaint.setAlpha(accentAlpha);
-            final float accentRadius = flatBar ? 0 : dp(19);
-            canvas.drawRoundRect(tmpRect, accentRadius, accentRadius, backgroundAccentPaint);
+            canvas.drawRoundRect(tmpRect, dp(19), dp(19), backgroundAccentPaint);
         }
 
         super.dispatchDraw(canvas);

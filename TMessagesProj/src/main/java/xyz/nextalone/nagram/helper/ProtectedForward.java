@@ -20,7 +20,7 @@ import java.util.ArrayList;
 
 import tw.nekomimi.nekogram.NekoConfig;
 import tw.nekomimi.nekogram.helpers.MessageHelper;
-import sovietgram.com.NaConfig;
+import xyz.nextalone.nagram.NaConfig;
 
 public class ProtectedForward {
 

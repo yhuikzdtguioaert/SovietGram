@@ -19,9 +19,8 @@ import org.telegram.tgnet.TLRPC;
 import java.util.ArrayList;
 
 public abstract class BaseRemoteHelper {
-    public static final long CHANNEL_METADATA_ID = 0L;
-    public static final String CHANNEL_METADATA_NAME = "sovietuniongram_remote_metadata";
-    private static long resolvedChannelMetadataId;
+    public static final long CHANNEL_METADATA_ID = 4376344842L;
+    public static final String CHANNEL_METADATA_NAME = "nagramxturbo_remote_metadata";
 
     protected static final SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences("nekoremoteconfig", Activity.MODE_PRIVATE);
 
@@ -45,22 +44,6 @@ public abstract class BaseRemoteHelper {
 
     abstract protected String getTag();
 
-    protected JSONObject getJSON() {
-        var tag = getTag();
-        var json = preferences.getString(tag, "");
-        if (TextUtils.isEmpty(json)) {
-            load();
-            return null;
-        }
-        try {
-            return new JSONObject(json);
-        } catch (JSONException e) {
-            FileLog.e(e);
-            load();
-            return null;
-        }
-    }
-
     protected void onLoadSuccess(ArrayList<JSONObject> responses, Delegate delegate) {
         var tag = getTag();
         var json = responses.size() > 0 ? responses.get(0) : null;
@@ -80,10 +63,7 @@ public abstract class BaseRemoteHelper {
     private void onGetMessageSuccess(TLObject response, Delegate delegate) {
         var tag = "#" + getTag();
         final var res = (TLRPC.messages_Messages) response;
-        long channelId = getResolvedChannelMetadataId();
-        if (channelId != 0) {
-            getMessagesController().removeDeletedMessagesFromArray(channelId, res.messages);
-        }
+        getMessagesController().removeDeletedMessagesFromArray(CHANNEL_METADATA_ID, res.messages);
         ArrayList<JSONObject> responses = new ArrayList<>();
         for (var message : res.messages) {
             if (TextUtils.isEmpty(message.message) || !message.message.startsWith(tag)) {
@@ -106,111 +86,50 @@ public abstract class BaseRemoteHelper {
         load(false, delegate);
     }
 
-    /**
-     * How many tagged channel messages to fetch. Helpers that keep their whole config in one
-     * message are fine with the default; helpers that publish one entry per message (see
-     * {@link ApiServersHelper}) override this so the list isn't silently truncated.
-     */
-    protected int getMessagesLimit() {
-        return 10;
-    }
-
     private void load(boolean forceRefreshAccessHash, Delegate delegate) {
         var tag = "#" + getTag();
-        loadMessages(tag, getMessagesLimit(), forceRefreshAccessHash, (response, error) -> {
-            if (error == null) {
-                onGetMessageSuccess(response, delegate);
-            } else if (!forceRefreshAccessHash) {
-                load(true, delegate);
-            } else {
-                onError(error, delegate);
-            }
-        });
-    }
-
-    protected void loadMessages(String query, int limit, MessagesDelegate delegate) {
-        loadMessages(query, limit, new TLRPC.TL_inputMessagesFilterEmpty(), false, delegate);
-    }
-
-    protected void loadDocuments(int limit, MessagesDelegate delegate) {
-        loadDocuments(limit, false, delegate);
-    }
-
-    private void loadDocuments(int limit, boolean forceRefreshAccessHash, MessagesDelegate delegate) {
-        loadMessages("", limit, new TLRPC.TL_inputMessagesFilterDocument(), forceRefreshAccessHash, (response, error) -> {
-            if (error == null) {
-                delegate.onMessages(response, null);
-            } else if (!forceRefreshAccessHash) {
-                loadDocuments(limit, true, delegate);
-            } else {
-                delegate.onMessages(null, error);
-            }
-        });
-    }
-
-    private long getResolvedChannelMetadataId() {
-        return resolvedChannelMetadataId != 0 ? resolvedChannelMetadataId : CHANNEL_METADATA_ID;
-    }
-
-    private void loadMessages(String query, int limit, boolean forceRefreshAccessHash, MessagesDelegate delegate) {
-        loadMessages(query, limit, new TLRPC.TL_inputMessagesFilterEmpty(), forceRefreshAccessHash, delegate);
-    }
-
-    private void loadMessages(String query, int limit, TLRPC.MessagesFilter filter, boolean forceRefreshAccessHash, MessagesDelegate delegate) {
         TLRPC.TL_messages_search req = new TLRPC.TL_messages_search();
-        req.limit = limit;
+        req.limit = 10;
         req.offset_id = 0;
-        req.filter = filter;
-        req.q = query == null ? "" : query;
-        long channelId = getResolvedChannelMetadataId();
-        if (channelId != 0) {
-            req.peer = getMessagesController().getInputPeer(-channelId);
-        }
+        req.filter = new TLRPC.TL_inputMessagesFilterEmpty();
+        req.q = tag;
+        req.peer = getMessagesController().getInputPeer(-CHANNEL_METADATA_ID);
         if (req.peer == null || req.peer.access_hash == 0 || forceRefreshAccessHash) {
             TLRPC.TL_contacts_resolveUsername req1 = new TLRPC.TL_contacts_resolveUsername();
             req1.username = CHANNEL_METADATA_NAME;
             getConnectionsManager().sendRequest(req1, (response1, error1) -> {
                 if (error1 != null) {
-                    delegate.onMessages(null, error1.text);
                     return;
                 }
-                if (!(response1 instanceof TLRPC.TL_contacts_resolvedPeer)) {
-                    delegate.onMessages(null, "Remote metadata channel not found");
+                if (!(response1 instanceof TLRPC.TL_contacts_resolvedPeer resolvedPeer)) {
                     return;
                 }
-                TLRPC.TL_contacts_resolvedPeer resolvedPeer = (TLRPC.TL_contacts_resolvedPeer) response1;
                 getMessagesController().putUsers(resolvedPeer.users, false);
                 getMessagesController().putChats(resolvedPeer.chats, false);
                 getMessagesStorage().putUsersAndChats(resolvedPeer.users, resolvedPeer.chats, false, true);
                 if ((resolvedPeer.chats == null || resolvedPeer.chats.size() == 0)) {
-                    delegate.onMessages(null, "Remote metadata channel not found");
                     return;
                 }
-                resolvedChannelMetadataId = resolvedPeer.chats.get(0).id;
                 req.peer = new TLRPC.TL_inputPeerChannel();
                 req.peer.channel_id = resolvedPeer.chats.get(0).id;
                 req.peer.access_hash = resolvedPeer.chats.get(0).access_hash;
                 getConnectionsManager().sendRequest(req, (response, error) -> {
                     if (error == null) {
-                        delegate.onMessages((TLRPC.messages_Messages) response, null);
+                        onGetMessageSuccess(response, delegate);
                     } else {
-                        delegate.onMessages(null, error.text);
+                        onError(error.text, delegate);
                     }
                 });
             });
         } else {
             getConnectionsManager().sendRequest(req, (response, error) -> {
                 if (error == null) {
-                    delegate.onMessages((TLRPC.messages_Messages) response, null);
+                    onGetMessageSuccess(response, delegate);
                 } else {
-                    delegate.onMessages(null, error.text);
+                    load(true, delegate);
                 }
             });
         }
-    }
-
-    protected interface MessagesDelegate {
-        void onMessages(TLRPC.messages_Messages response, String error);
     }
 
     public interface Delegate {

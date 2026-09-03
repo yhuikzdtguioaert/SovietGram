@@ -18,11 +18,15 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.radolyn.ayugram.AyuConstants;
 import com.radolyn.ayugram.database.AyuData;
 import com.radolyn.ayugram.messages.AyuMessagesController;
 
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.ApplicationLoader;
+import org.telegram.messenger.FileLog;
 import org.telegram.messenger.LocaleController;
+import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
 import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.Utilities;
@@ -39,10 +43,13 @@ import org.telegram.ui.Cells.TextSettingsCell;
 import org.telegram.ui.Components.AlertsCreator;
 import org.telegram.ui.Components.BlurredRecyclerView;
 import org.telegram.ui.Components.BulletinFactory;
+import org.telegram.ui.Components.ItemOptions;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.RecyclerListView;
 import org.telegram.ui.Components.UndoView;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -62,7 +69,8 @@ import tw.nekomimi.nekogram.config.cell.ConfigCellTextInput;
 import tw.nekomimi.nekogram.filters.RegexFiltersSettingActivity;
 import tw.nekomimi.nekogram.ui.PopupBuilder;
 import tw.nekomimi.nekogram.ui.cells.HeaderCell;
-import sovietgram.com.NaConfig;
+import tw.nekomimi.nekogram.utils.ShareUtil;
+import xyz.nextalone.nagram.NaConfig;
 
 @SuppressLint("RtlHardcoded")
 @SuppressWarnings("unused")
@@ -103,6 +111,7 @@ public class NekoExperimentalSettingsActivity extends BaseNekoXSettingsActivity 
                     getString(R.string.BackAnimationSpring),
             }, null));
     private final AbstractConfigCell springAnimationCrossfadeRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getSpringAnimationCrossfade()));
+    private final AbstractConfigCell localPremiumRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.localPremium));
     private final AbstractConfigCell unlimitedPinnedDialogsRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.unlimitedPinnedDialogs, getString(R.string.UnlimitedPinnedDialogsAbout)));
     private final AbstractConfigCell unlimitedFavedStickersRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.unlimitedFavedStickers, getString(R.string.UnlimitedFavoredStickersAbout)));
     private final AbstractConfigCell dividerGeneral = cellGroup.appendCell(new ConfigCellDivider());
@@ -131,16 +140,19 @@ public class NekoExperimentalSettingsActivity extends BaseNekoXSettingsActivity 
     private final AbstractConfigCell ghostModeRow = cellGroup.appendCell(new ConfigCellText("GhostMode", () -> presentFragment(new GhostModeActivity())));
     private final AbstractConfigCell regexFiltersEnabledRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getRegexFiltersEnabled(), getString(R.string.RegexFiltersNotice)));
     private final AbstractConfigCell saveLastSeenRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getSaveLocalLastSeen()));
-    private final AbstractConfigCell enableSaveDeletedMessagesRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getEnableSaveDeletedMessages()));
-    private final AbstractConfigCell enableSaveEditsHistoryRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getEnableSaveEditsHistory()));
+    private final AbstractConfigCell dividerAyuMoments = cellGroup.appendCell(new ConfigCellDivider());
+
+    // Saved Messages (deleted text + media + edits). Save-deleted is the source of truth; media requires deleted messages.
+    private final AbstractConfigCell headerSavedDeletedMessages = cellGroup.appendCell(new ConfigCellHeader(getString(R.string.DeletedMessages)));
+    private final AbstractConfigCell enableSaveDeletedMessagesRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getEnableSaveDeletedMessages(), getString(R.string.SaveDeletedMessagesHint)));
     private final AbstractConfigCell messageSavingSaveMediaRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getMessageSavingSaveMedia(), getString(R.string.MessageSavingSaveMediaHint)));
-    private final AbstractConfigCell showDeletedMessagesInChatRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getShowDeletedMessagesInChat(), getString(R.string.ShowDeletedMessagesInChatNotice)));
-    private final AbstractConfigCell showDeletedMessagesInChatListRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getShowDeletedMessagesInChatList()));
     private final AbstractConfigCell saveDeletedMessageForBotsUserRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getSaveDeletedMessageForBotUser()));
     private final AbstractConfigCell saveDeletedMessageInBotChatRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getSaveDeletedMessageForBot()));
     private final AbstractConfigCell translucentDeletedMessagesRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getTranslucentDeletedMessages()));
     private final AbstractConfigCell useDeletedIconRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getUseDeletedIcon()));
     private final AbstractConfigCell customDeletedMarkRow = cellGroup.appendCell(new ConfigCellTextInput(null, NaConfig.INSTANCE.getCustomDeletedMark(), "", null));
+    private final AbstractConfigCell enableSaveEditsHistoryRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getEnableSaveEditsHistory()));
+    private final AbstractConfigCell dividerSavedMessages = cellGroup.appendCell(new ConfigCellDivider());
     private final AbstractConfigCell clearMessageDatabaseRow = cellGroup.appendCell(new ConfigCellTextCheckIcon(null, "ClearMessageDatabase", null, AyuData.totalSize > 0 ? AndroidUtilities.formatFileSize(AyuData.totalSize) : "...", R.drawable.msg_clear, false, () -> new AlertDialog.Builder(getContext(), getResourceProvider())
             .setTitle(getString(R.string.ClearMessageDatabase))
             .setMessage(getString(R.string.AreYouSure))
@@ -160,11 +172,12 @@ public class NekoExperimentalSettingsActivity extends BaseNekoXSettingsActivity 
             .setNegativeButton(getString(R.string.Cancel), (d, w) -> d.dismiss())
             .makeRed(AlertDialog.BUTTON_POSITIVE)
             .show()));
-    private final AbstractConfigCell dividerAyuMoments = cellGroup.appendCell(new ConfigCellDivider());
+    private final AbstractConfigCell dividerClear = cellGroup.appendCell(new ConfigCellDivider());
 
     // N-Config
     private final AbstractConfigCell headerNConfig = cellGroup.appendCell(new ConfigCellHeader(getString(R.string.N_Config)));
     private final AbstractConfigCell showRPCErrorRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getShowRPCError()));
+    private final ConfigCellTextCheck forceFontWeightFallbackRow = (ConfigCellTextCheck) cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.forceFontWeightFallback, null, getString(R.string.ForceFontWeightFallback)));
     private final AbstractConfigCell disableChoosingStickerRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.disableChoosingSticker));
     private final AbstractConfigCell disableFilteringRow = cellGroup.appendCell(new ConfigCellCustom("SensitiveDisableFiltering", CellGroup.ITEM_TYPE_TEXT_CHECK, true));
     private final AbstractConfigCell devicePerformanceClassRow = cellGroup.appendCell(new ConfigCellSelectBox(null, NaConfig.INSTANCE.getPerformanceClass(), new String[]{
@@ -200,6 +213,7 @@ public class NekoExperimentalSettingsActivity extends BaseNekoXSettingsActivity 
         checkUseDeletedIconRows();
         checkSaveBotMsgRows();
         checkSaveDeletedRows();
+        updateForceFontWeightFallbackEnabled();
         addRowsToMap(cellGroup);
     }
 
@@ -237,14 +251,13 @@ public class NekoExperimentalSettingsActivity extends BaseNekoXSettingsActivity 
         // Cells: Set OnSettingChanged Callbacks
         cellGroup.callBackSettingsChanged = (key, newValue) -> {
             if (key.equals(NaConfig.INSTANCE.getEnableSaveDeletedMessages().getKey())) {
-                if (Boolean.TRUE.equals(newValue)) {
-                    // Auto-enable showing deleted messages inside the chat when the master is switched on.
-                    NaConfig.INSTANCE.getShowDeletedMessagesInChat().setConfigBool(true);
-                }
                 checkSaveDeletedRows();
             } else if (key.equals(NaConfig.INSTANCE.getDisableStories().getKey())) {
                 checkStoriesRows();
                 tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
+            } else if (key.equals(NekoConfig.localPremium.getKey())) {
+                NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.mainUserInfoChanged);
+                NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.reloadInterface);
             } else if (key.equals(NaConfig.INSTANCE.getUseDeletedIcon().getKey())) {
                 checkUseDeletedIconRows();
             } else if (key.equals(NaConfig.INSTANCE.getSaveDeletedMessageForBotUser().getKey())) {
@@ -271,6 +284,8 @@ public class NekoExperimentalSettingsActivity extends BaseNekoXSettingsActivity 
                 tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             } else if (key.equals(NaConfig.INSTANCE.getPlayerDecoder().getKey())) {
                 tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
+            } else if (key.equals(NekoConfig.forceFontWeightFallback.getKey())) {
+                tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             } else if (key.equals(NaConfig.INSTANCE.getHideStoriesFromHeader().getKey())) {
                 tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             }
@@ -283,6 +298,11 @@ public class NekoExperimentalSettingsActivity extends BaseNekoXSettingsActivity 
     public void onResume() {
         super.onResume();
         checkSensitive();
+        updateForceFontWeightFallbackEnabled();
+    }
+
+    private void updateForceFontWeightFallbackEnabled() {
+        forceFontWeightFallbackRow.setEnabled(NekoConfig.typeface.Bool());
     }
 
     @Override
@@ -300,8 +320,25 @@ public class NekoExperimentalSettingsActivity extends BaseNekoXSettingsActivity 
                 showBottomSheet();
                 return;
             }
+            if (position == cellGroup.rows.indexOf(enableSaveDeletedMessagesRow) && (LocaleController.isRTL && x > AndroidUtilities.dp(76) || !LocaleController.isRTL && x < (view.getMeasuredWidth() - AndroidUtilities.dp(76)))) {
+                showDeletedCategoriesSheet();
+                return;
+            }
         }
         super.handleCellClick(view, position, x, y);
+    }
+
+    @Override
+    protected boolean onItemLongClick(View view, int position, float x, float y) {
+        AbstractConfigCell a = cellGroup.rows.get(position);
+        if (a == clearMessageDatabaseRow) {
+            ItemOptions options = makeLongClickOptions(view);
+            options.add(R.drawable.msg_instant_link_solar, getString(R.string.ExportAyuDB), this::exportAyuDB);
+            addDefaultLongClickOptions(options, "experimental", position);
+            showLongClickOptions(view, options);
+            return true;
+        }
+        return false;
     }
 
     @Override
@@ -477,16 +514,33 @@ public class NekoExperimentalSettingsActivity extends BaseNekoXSettingsActivity 
         TextCheckBoxCell[] cells = new TextCheckBoxCell[5];
         for (int a = 0; a < cells.length; a++) {
             TextCheckBoxCell checkBoxCell = cells[a] = new TextCheckBoxCell(getParentActivity(), true, false);
+            boolean mediaFlag;
+            boolean deletedEnabled;
             if (a == 0) {
-                cells[a].setTextAndCheck(getString(R.string.MessageSavingSaveMediaInPrivateChats), NaConfig.INSTANCE.getSaveMediaInPrivateChats().Bool(), true);
+                mediaFlag = NaConfig.INSTANCE.getSaveMediaInPrivateChats().Bool();
+                deletedEnabled = NaConfig.INSTANCE.getSaveDeletedInPrivateChats().Bool();
+                cells[a].setTextAndCheck(getString(R.string.MessageSavingSaveMediaInPrivateChats), mediaFlag && deletedEnabled, true);
             } else if (a == 1) {
-                cells[a].setTextAndCheck(getString(R.string.MessageSavingSaveMediaInPublicChannels), NaConfig.INSTANCE.getSaveMediaInPublicChannels().Bool(), true);
+                mediaFlag = NaConfig.INSTANCE.getSaveMediaInPublicChannels().Bool();
+                deletedEnabled = NaConfig.INSTANCE.getSaveDeletedInPublicChannels().Bool();
+                cells[a].setTextAndCheck(getString(R.string.MessageSavingSaveMediaInPublicChannels), mediaFlag && deletedEnabled, true);
             } else if (a == 2) {
-                cells[a].setTextAndCheck(getString(R.string.MessageSavingSaveMediaInPrivateChannels), NaConfig.INSTANCE.getSaveMediaInPrivateChannels().Bool(), true);
+                mediaFlag = NaConfig.INSTANCE.getSaveMediaInPrivateChannels().Bool();
+                deletedEnabled = NaConfig.INSTANCE.getSaveDeletedInPrivateChannels().Bool();
+                cells[a].setTextAndCheck(getString(R.string.MessageSavingSaveMediaInPrivateChannels), mediaFlag && deletedEnabled, true);
             } else if (a == 3) {
-                cells[a].setTextAndCheck(getString(R.string.MessageSavingSaveMediaInPublicGroups), NaConfig.INSTANCE.getSaveMediaInPublicGroups().Bool(), true);
+                mediaFlag = NaConfig.INSTANCE.getSaveMediaInPublicGroups().Bool();
+                deletedEnabled = NaConfig.INSTANCE.getSaveDeletedInPublicGroups().Bool();
+                cells[a].setTextAndCheck(getString(R.string.MessageSavingSaveMediaInPublicGroups), mediaFlag && deletedEnabled, true);
             } else { // a == 4
-                cells[a].setTextAndCheck(getString(R.string.MessageSavingSaveMediaInPrivateGroups), NaConfig.INSTANCE.getSaveMediaInPrivateGroups().Bool(), true);
+                mediaFlag = NaConfig.INSTANCE.getSaveMediaInPrivateGroups().Bool();
+                deletedEnabled = NaConfig.INSTANCE.getSaveDeletedInPrivateGroups().Bool();
+                cells[a].setTextAndCheck(getString(R.string.MessageSavingSaveMediaInPrivateGroups), mediaFlag && deletedEnabled, true);
+            }
+            // Media requires deleted messages: a category disabled for deleted messages cannot be enabled for media.
+            if (!deletedEnabled) {
+                cells[a].setEnabled(false);
+                cells[a].setAlpha(0.5f);
             }
             cells[a].setBackground(Theme.getSelectorDrawable(false));
             cells[a].setOnClickListener(v -> {
@@ -521,11 +575,92 @@ public class NekoExperimentalSettingsActivity extends BaseNekoXSettingsActivity 
         textView.setPadding(AndroidUtilities.dp(10), 0, AndroidUtilities.dp(10), 0);
         buttonsLayout.addView(textView, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, 36, Gravity.TOP | Gravity.RIGHT));
         textView.setOnClickListener(v1 -> {
-            NaConfig.INSTANCE.getSaveMediaInPrivateChats().setConfigBool(cells[0].isChecked());
-            NaConfig.INSTANCE.getSaveMediaInPublicChannels().setConfigBool(cells[1].isChecked());
-            NaConfig.INSTANCE.getSaveMediaInPrivateChannels().setConfigBool(cells[2].isChecked());
-            NaConfig.INSTANCE.getSaveMediaInPublicGroups().setConfigBool(cells[3].isChecked());
-            NaConfig.INSTANCE.getSaveMediaInPrivateGroups().setConfigBool(cells[4].isChecked());
+            // Media requires deleted messages: only persist media flags for categories where deleted messages
+            // are enabled. Disabled categories keep their stored value (intent) untouched, so
+            // re-enabling deleted later restores media with its previous setting.
+            if (NaConfig.INSTANCE.getSaveDeletedInPrivateChats().Bool()) {
+                NaConfig.INSTANCE.getSaveMediaInPrivateChats().setConfigBool(cells[0].isChecked());
+            }
+            if (NaConfig.INSTANCE.getSaveDeletedInPublicChannels().Bool()) {
+                NaConfig.INSTANCE.getSaveMediaInPublicChannels().setConfigBool(cells[1].isChecked());
+            }
+            if (NaConfig.INSTANCE.getSaveDeletedInPrivateChannels().Bool()) {
+                NaConfig.INSTANCE.getSaveMediaInPrivateChannels().setConfigBool(cells[2].isChecked());
+            }
+            if (NaConfig.INSTANCE.getSaveDeletedInPublicGroups().Bool()) {
+                NaConfig.INSTANCE.getSaveMediaInPublicGroups().setConfigBool(cells[3].isChecked());
+            }
+            if (NaConfig.INSTANCE.getSaveDeletedInPrivateGroups().Bool()) {
+                NaConfig.INSTANCE.getSaveMediaInPrivateGroups().setConfigBool(cells[4].isChecked());
+            }
+
+            builder.getDismissRunnable().run();
+        });
+        showDialog(builder.create());
+    }
+
+    private void showDeletedCategoriesSheet() {
+        if (getParentActivity() == null) {
+            return;
+        }
+        BottomSheet.Builder builder = new BottomSheet.Builder(getParentActivity());
+        builder.setApplyTopPadding(false);
+        builder.setApplyBottomPadding(false);
+        LinearLayout linearLayout = new LinearLayout(getParentActivity());
+        linearLayout.setOrientation(LinearLayout.VERTICAL);
+        builder.setCustomView(linearLayout);
+
+        HeaderCell headerCell = new HeaderCell(getParentActivity(), Theme.key_dialogTextBlue2, 21, 15, false);
+        headerCell.setText(getString(R.string.SaveDeletedMessagesSettings).toUpperCase());
+        linearLayout.addView(headerCell, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
+
+        TextCheckBoxCell[] cells = new TextCheckBoxCell[5];
+        for (int a = 0; a < cells.length; a++) {
+            TextCheckBoxCell checkBoxCell = cells[a] = new TextCheckBoxCell(getParentActivity(), true, false);
+            if (a == 0) {
+                cells[a].setTextAndCheck(getString(R.string.SaveDeletedInPrivateChats), NaConfig.INSTANCE.getSaveDeletedInPrivateChats().Bool(), true);
+            } else if (a == 1) {
+                cells[a].setTextAndCheck(getString(R.string.SaveDeletedInPublicChannels), NaConfig.INSTANCE.getSaveDeletedInPublicChannels().Bool(), true);
+            } else if (a == 2) {
+                cells[a].setTextAndCheck(getString(R.string.SaveDeletedInPrivateChannels), NaConfig.INSTANCE.getSaveDeletedInPrivateChannels().Bool(), true);
+            } else if (a == 3) {
+                cells[a].setTextAndCheck(getString(R.string.SaveDeletedInPublicGroups), NaConfig.INSTANCE.getSaveDeletedInPublicGroups().Bool(), true);
+            } else { // a == 4
+                cells[a].setTextAndCheck(getString(R.string.SaveDeletedInPrivateGroups), NaConfig.INSTANCE.getSaveDeletedInPrivateGroups().Bool(), true);
+            }
+            cells[a].setBackground(Theme.getSelectorDrawable(false));
+            cells[a].setOnClickListener(v -> checkBoxCell.setChecked(!checkBoxCell.isChecked()));
+            linearLayout.addView(cells[a], LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 50));
+        }
+
+        FrameLayout buttonsLayout = new FrameLayout(getParentActivity());
+        buttonsLayout.setPadding(AndroidUtilities.dp(8), AndroidUtilities.dp(8), AndroidUtilities.dp(8), AndroidUtilities.dp(8));
+        linearLayout.addView(buttonsLayout, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 52));
+
+        TextView textView = new TextView(getParentActivity());
+        textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
+        textView.setTextColor(Theme.getColor(Theme.key_dialogTextBlue2));
+        textView.setGravity(Gravity.CENTER);
+        textView.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
+        textView.setText(getString(R.string.Cancel).toUpperCase());
+        textView.setPadding(AndroidUtilities.dp(10), 0, AndroidUtilities.dp(10), 0);
+        buttonsLayout.addView(textView, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, 36, Gravity.TOP | Gravity.LEFT));
+        textView.setOnClickListener(v14 -> builder.getDismissRunnable().run());
+
+        textView = new TextView(getParentActivity());
+        textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
+        textView.setTextColor(Theme.getColor(Theme.key_dialogTextBlue2));
+        textView.setGravity(Gravity.CENTER);
+        textView.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
+        textView.setText(getString(R.string.Save).toUpperCase());
+        textView.setPadding(AndroidUtilities.dp(10), 0, AndroidUtilities.dp(10), 0);
+        buttonsLayout.addView(textView, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, 36, Gravity.TOP | Gravity.RIGHT));
+        textView.setOnClickListener(v1 -> {
+            NaConfig.INSTANCE.getSaveDeletedInPrivateChats().setConfigBool(cells[0].isChecked());
+            NaConfig.INSTANCE.getSaveDeletedInPublicChannels().setConfigBool(cells[1].isChecked());
+            NaConfig.INSTANCE.getSaveDeletedInPrivateChannels().setConfigBool(cells[2].isChecked());
+            NaConfig.INSTANCE.getSaveDeletedInPublicGroups().setConfigBool(cells[3].isChecked());
+            NaConfig.INSTANCE.getSaveDeletedInPrivateGroups().setConfigBool(cells[4].isChecked());
 
             builder.getDismissRunnable().run();
         });
@@ -537,6 +672,39 @@ public class NekoExperimentalSettingsActivity extends BaseNekoXSettingsActivity 
             ((ConfigCellTextCheckIcon) clearMessageDatabaseRow).setValue(AyuData.totalSize > 0 ? AndroidUtilities.formatFileSize(AyuData.totalSize) : "...");
             listAdapter.notifyItemChanged(cellGroup.rows.indexOf(clearMessageDatabaseRow));
         }
+    }
+
+    private void exportAyuDB() {
+        if (getParentActivity() == null) return;
+        AlertDialog progressDialog = new AlertDialog(getParentActivity(), AlertDialog.ALERT_TYPE_SPINNER);
+        progressDialog.setCanCancel(false);
+        progressDialog.show();
+        Utilities.globalQueue.postRunnable(() -> {
+            try {
+                File dbFile = ApplicationLoader.applicationContext.getDatabasePath(AyuConstants.AYU_DATABASE);
+                File exportFile = new File(AndroidUtilities.getCacheDir(), AyuConstants.AYU_DATABASE_EXPORT);
+                AyuData.checkpointDatabase();
+                if (!AndroidUtilities.copyFile(dbFile, exportFile)) {
+                    if (!exportFile.delete()) exportFile.deleteOnExit();
+                    throw new IOException("Failed to copy Ayu database");
+                }
+                AndroidUtilities.runOnUIThread(() -> {
+                    Context parentActivity = getParentActivity();
+                    progressDialog.dismiss();
+                    if (parentActivity != null) {
+                        ShareUtil.shareFile(parentActivity, exportFile);
+                    }
+                });
+            } catch (Exception e) {
+                FileLog.e(e);
+                AndroidUtilities.runOnUIThread(() -> {
+                    progressDialog.dismiss();
+                    if (getParentActivity() != null) {
+                        BulletinFactory.of(this).createSimpleBulletin(R.raw.error, getString(R.string.ErrorOccurred)).show();
+                    }
+                });
+            }
+        });
     }
 
     private void checkStoriesRows() {
@@ -566,8 +734,6 @@ public class NekoExperimentalSettingsActivity extends BaseNekoXSettingsActivity 
         final boolean isSaveEnabled = NaConfig.INSTANCE.getEnableSaveDeletedMessages().Bool();
         final List<AbstractConfigCell> allManagedRows = Arrays.asList(
                 messageSavingSaveMediaRow,
-                showDeletedMessagesInChatRow,
-                showDeletedMessagesInChatListRow,
                 saveDeletedMessageForBotsUserRow,
                 saveDeletedMessageInBotChatRow,
                 translucentDeletedMessagesRow,
@@ -580,7 +746,7 @@ public class NekoExperimentalSettingsActivity extends BaseNekoXSettingsActivity 
             }
             return;
         }
-        final int anchorIndex = cellGroup.rows.indexOf(enableSaveEditsHistoryRow);
+        final int anchorIndex = cellGroup.rows.indexOf(enableSaveDeletedMessagesRow);
         int firstManagedRowIndex = -1;
         int lastManagedRowIndex = -1;
         for (int i = anchorIndex + 1; i < cellGroup.rows.size(); i++) {
@@ -599,8 +765,6 @@ public class NekoExperimentalSettingsActivity extends BaseNekoXSettingsActivity 
         if (isSaveEnabled) {
             final List<AbstractConfigCell> rowsToAdd = new ArrayList<>();
             rowsToAdd.add(messageSavingSaveMediaRow);
-            rowsToAdd.add(showDeletedMessagesInChatRow);
-            rowsToAdd.add(showDeletedMessagesInChatListRow);
             rowsToAdd.add(saveDeletedMessageForBotsUserRow);
             if (NaConfig.INSTANCE.getSaveDeletedMessageForBotUser().Bool()) {
                 rowsToAdd.add(saveDeletedMessageInBotChatRow);

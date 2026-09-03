@@ -21,6 +21,7 @@ import org.json.JSONObject;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.LocaleController;
+import org.telegram.messenger.PushListenerController;
 import org.telegram.messenger.R;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.Theme;
@@ -43,10 +44,10 @@ import tw.nekomimi.nekogram.utils.AlertUtil;
 import tw.nekomimi.nekogram.utils.FileUtil;
 import tw.nekomimi.nekogram.utils.GsonUtil;
 import tw.nekomimi.nekogram.utils.ShareUtil;
-import sovietgram.com.NaConfig;
-import sovietgram.com.helper.BookmarksHelper;
-import sovietgram.com.helper.LocalPeerColorHelper;
-import sovietgram.com.helper.LocalPremiumStatusHelper;
+import xyz.nextalone.nagram.NaConfig;
+import xyz.nextalone.nagram.helper.BookmarksHelper;
+import xyz.nextalone.nagram.helper.LocalPeerColorHelper;
+import xyz.nextalone.nagram.helper.LocalPremiumStatusHelper;
 
 public final class SettingsBackupHelper {
     public static String backupSettingsJson(boolean isCloud, int indentSpaces) throws JSONException {
@@ -129,6 +130,7 @@ public final class SettingsBackupHelper {
         spToJSON("mainconfig", configJson, mainconfig::contains);
         if (!isCloud) spToJSON("themeconfig", configJson, null);
         spToJSON("nkmrcfg", configJson, null, includeApiKeys);
+        spToJSON("nekox_config", configJson, null, includeApiKeys);
 
         return configJson.toString(indentSpaces);
     }
@@ -142,6 +144,9 @@ public final class SettingsBackupHelper {
         JSONObject jsonConfig = new JSONObject();
         for (Map.Entry<String, ?> entry : preferences.getAll().entrySet()) {
             String key = entry.getKey();
+            if ("nkmrcfg".equals(sp) && isDeviceSpecificPushKey(key)) {
+                continue;
+            }
             if (!includeApiKeys && (key.endsWith("Key") || key.contains("Token") || key.contains("AccountID"))) {
                 continue;
             }
@@ -173,7 +178,7 @@ public final class SettingsBackupHelper {
             importSettings(configJson);
 
             AlertDialog restart = new AlertDialog(context, 0);
-            restart.setTitle(getString(R.string.SovietGram));
+            restart.setTitle(getString(R.string.NagramX));
             restart.setMessage(getString(R.string.RestartAppToTakeEffect));
             restart.setPositiveButton(getString(R.string.OK), (__, ___) -> AppRestartHelper.triggerRebirth(context, new Intent(context, LaunchActivity.class)));
             restart.show();
@@ -208,6 +213,9 @@ public final class SettingsBackupHelper {
             SharedPreferences.Editor editor = preferences.edit();
             for (Map.Entry<String, JsonElement> config : ((JsonObject) element.getValue()).entrySet()) {
                 String key = config.getKey();
+                if ("nkmrcfg".equals(spName) && isDeviceSpecificPushKey(key)) {
+                    continue;
+                }
                 if (!config.getValue().isJsonPrimitive()) {
                     continue;
                 }
@@ -259,9 +267,13 @@ public final class SettingsBackupHelper {
             }
             editor.commit();
         }
+        PushListenerController.reconcilePushRegistration();
     }
 
     private static boolean isCompatibleConfigValue(String key, JsonPrimitive value, int type) {
+        if (key.equals(NaConfig.INSTANCE.getPushServiceType().getKey())) {
+            return value.isNumber() && value.getAsInt() >= 0 && value.getAsInt() <= 3;
+        }
         if (type == ConfigItem.configTypeBool || type == ConfigItem.configTypeBoolLinkInt) {
             return value.isBoolean();
         }
@@ -301,7 +313,7 @@ public final class SettingsBackupHelper {
         builder.setPositiveButton(getString(R.string.ExportTheme), (dialog, which) -> {
             boolean includeApiKeys = checkBoxCell.isChecked();
             try {
-                File cacheFile = new File(AndroidUtilities.getCacheDir(), new Date().toLocaleString() + ".nekox-settings.json");
+                File cacheFile = new File(AndroidUtilities.getCacheDir(), new Date() + ".nekox-settings.json");
                 FileUtil.writeUtf8String(SettingsBackupHelper.backupSettingsJson(false, 4, includeApiKeys), cacheFile);
                 ShareUtil.shareFile(context, cacheFile);
             } catch (Exception e) {
@@ -310,5 +322,12 @@ public final class SettingsBackupHelper {
         });
         builder.setNegativeButton(getString(R.string.Cancel), null);
         builder.show();
+    }
+
+    private static boolean isDeviceSpecificPushKey(String key) {
+        return key.equals(NaConfig.INSTANCE.getPushServiceTypeUnifiedSimple().getKey())
+                || key.equals(NaConfig.INSTANCE.getPushServiceTypeUnifiedWebPushPrivateKey().getKey())
+                || key.equals(NaConfig.INSTANCE.getPushServiceTypeUnifiedWebPushPublicKey().getKey())
+                || key.equals(NaConfig.INSTANCE.getPushServiceTypeUnifiedWebPushAuthSecret().getKey());
     }
 }

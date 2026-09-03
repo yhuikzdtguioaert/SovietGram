@@ -38,7 +38,7 @@ import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.ProfileActivity;
 
-import sovietgram.com.NaConfig;
+import xyz.nextalone.nagram.NaConfig;
 
 public class ProfileMusicView extends View {
 

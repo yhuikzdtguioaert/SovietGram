@@ -141,13 +141,7 @@ public class SettingsSearchCell extends FrameLayout {
             valueTextView.setVisibility(GONE);
         }
         if (icon != 0) {
-            if (icon == R.drawable.sovietgram_bypass_blocking) {
-                Drawable drawable = getContext().getResources().getDrawable(icon).mutate();
-                imageView.setImageDrawable(drawable);
-                imageView.clearColorFilter();
-            } else {
-                imageView.setImageResource(icon);
-            }
+            imageView.setImageResource(icon);
             imageView.setVisibility(VISIBLE);
         } else {
             imageView.setVisibility(GONE);

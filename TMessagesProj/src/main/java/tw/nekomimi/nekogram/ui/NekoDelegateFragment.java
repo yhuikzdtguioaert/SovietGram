@@ -28,7 +28,6 @@ import android.view.ViewTreeObserver;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
-import androidx.recyclerview.widget.ChatListItemAnimator;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.telegram.PhoneFormat.PhoneFormat;
@@ -44,7 +43,9 @@ import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.TranslateController;
 import org.telegram.messenger.browser.Browser;
 import org.telegram.messenger.utils.RectFMergeBounding;
+import org.telegram.messenger.utils.tlutils.TLKeyboardHelper;
 import org.telegram.tgnet.TLRPC;
+import org.telegram.tgnet.tl.TL_keyboard;
 import org.telegram.ui.ActionBar.ActionBar;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.BottomSheet;
@@ -71,6 +72,7 @@ import org.telegram.ui.Components.chat.WallpaperBitmapProvider;
 import org.telegram.ui.Components.chat.layouts.ChatActivityFadeView;
 import org.telegram.ui.ContactAddActivity;
 import org.telegram.ui.ProfileActivity;
+import org.telegram.ui.recyclerview.ChatListItemAnimator;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -85,7 +87,7 @@ import tw.nekomimi.nekogram.translate.TranslatorKt;
 import tw.nekomimi.nekogram.ui.cells.NekoMessageCell;
 import tw.nekomimi.nekogram.utils.AlertUtil;
 import tw.nekomimi.nekogram.utils.AndroidUtil;
-import sovietgram.com.NaConfig;
+import xyz.nextalone.nagram.NaConfig;
 
 public abstract class NekoDelegateFragment extends BaseFragment implements NotificationCenter.NotificationCenterDelegate, NekoMessageCell.NekoMessageCellDelegate {
 
@@ -146,7 +148,7 @@ public abstract class NekoDelegateFragment extends BaseFragment implements Notif
     }
 
     protected void setupGlassActionBar(@NonNull ViewGroup container, @NonNull RecyclerListView listView) {
-        if (!NaConfig.isLatestDesign() || actionBar == null) {
+        if (actionBar == null) {
             return;
         }
         BlurredBackgroundSource source;
@@ -191,8 +193,7 @@ public abstract class NekoDelegateFragment extends BaseFragment implements Notif
 
     @RequiresApi(Build.VERSION_CODES.S)
     private void setupContentGlassSource(@NonNull ViewGroup container, @NonNull RecyclerListView listView, @NonNull BlurredBackgroundSourceRenderNode source, @NonNull DownscaleScrollableNoiseSuppressor noiseSuppressor, int capturePadding) {
-        final ActionBar glassActionBar = actionBar;
-        ContentGlassSourceUpdater updater = new ContentGlassSourceUpdater(container, listView, source, noiseSuppressor, capturePadding, glassActionBar);
+        ContentGlassSourceUpdater updater = new ContentGlassSourceUpdater(container, listView, source, noiseSuppressor, capturePadding);
         View.OnLayoutChangeListener updateListener = (v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> updater.requestUpdate();
         container.addOnLayoutChangeListener(updateListener);
         listView.addOnLayoutChangeListener(updateListener);
@@ -214,18 +215,16 @@ public abstract class NekoDelegateFragment extends BaseFragment implements Notif
         private final BlurredBackgroundSourceRenderNode source;
         private final DownscaleScrollableNoiseSuppressor noiseSuppressor;
         private final int capturePadding;
-        private final ActionBar glassActionBar;
         private final ArrayList<RectF> positions = new ArrayList<>();
         private final ArrayList<RectF> positionsMerged = new ArrayList<>();
         private final IBlur3Capture capture;
         private boolean updateScheduled;
 
-        private ContentGlassSourceUpdater(@NonNull ViewGroup container, @NonNull RecyclerListView listView, @NonNull BlurredBackgroundSourceRenderNode source, @NonNull DownscaleScrollableNoiseSuppressor noiseSuppressor, int capturePadding, @NonNull ActionBar glassActionBar) {
+        private ContentGlassSourceUpdater(@NonNull ViewGroup container, @NonNull RecyclerListView listView, @NonNull BlurredBackgroundSourceRenderNode source, @NonNull DownscaleScrollableNoiseSuppressor noiseSuppressor, int capturePadding) {
             this.container = container;
             this.source = source;
             this.noiseSuppressor = noiseSuppressor;
             this.capturePadding = capturePadding;
-            this.glassActionBar = glassActionBar;
             this.capture = new ViewGroupPartRenderer(listView, container, listView::drawChild);
         }
 
@@ -241,7 +240,7 @@ public abstract class NekoDelegateFragment extends BaseFragment implements Notif
         }
 
         private void update() {
-            if (!container.isAttachedToWindow() || container.getWidth() == 0 || container.getHeight() == 0) {
+            if (container.getWidth() == 0 || container.getHeight() == 0) {
                 return;
             }
             int count = source.getVisiblePositions(positions, 0, capturePadding);
@@ -249,22 +248,16 @@ public abstract class NekoDelegateFragment extends BaseFragment implements Notif
             noiseSuppressor.setupRenderNodes(positionsMerged, count);
             if (noiseSuppressor.invalidateResultRenderNodes(capture, container.getWidth(), container.getHeight())) {
                 source.invalidateDisplayListForDrawables();
-                glassActionBar.invalidate();
+                actionBar.invalidate();
             }
         }
     }
 
     protected int getGlassActionBarOffset() {
-        if (!NaConfig.isLatestDesign()) {
-            return 0;
-        }
         return ActionBar.getCurrentActionBarHeight() + AndroidUtilities.statusBarHeight;
     }
 
     protected int getGlassActionBarBottomInWindow() {
-        if (!NaConfig.isLatestDesign()) {
-            return dp(16);
-        }
         if (actionBar == null || actionBar.getHeight() == 0) {
             return getGlassActionBarOffset();
         }
@@ -274,11 +267,8 @@ public abstract class NekoDelegateFragment extends BaseFragment implements Notif
     }
 
     protected void applyGlassMessageListPadding(@NonNull RecyclerListView listView, int bottomPadding) {
-        int topPadding = 0;
-        if (NaConfig.isLatestDesign()) {
-            int actionBarBottom = actionBar == null ? 0 : actionBar.getBottom() + dp(4);
-            topPadding = Math.max(getGlassActionBarOffset(), actionBarBottom);
-        }
+        int actionBarBottom = actionBar == null ? 0 : actionBar.getBottom() + dp(4);
+        int topPadding = Math.max(getGlassActionBarOffset(), actionBarBottom);
         if (listView.getPaddingTop() != topPadding || listView.getPaddingBottom() != bottomPadding) {
             listView.setPadding(0, topPadding, 0, bottomPadding);
         }
@@ -479,19 +469,17 @@ public abstract class NekoDelegateFragment extends BaseFragment implements Notif
     }
 
     @Override
-    public void didPressBotButton(ChatMessageCell cell, TLRPC.KeyboardButton button) {
+    public void didPressBotButton(ChatMessageCell cell, TL_keyboard.KeyboardButtonProto button) {
         if (button == null || getParentActivity() == null) return;
         try {
-            if (button instanceof TLRPC.TL_keyboardButtonUrl) {
-                String url = button.url;
+            TL_keyboard.TL_inlineButtonTypeUrl buttonTypeUrl = TLKeyboardHelper.getType(button, TL_keyboard.TL_inlineButtonTypeUrl.class);
+            if (buttonTypeUrl != null) {
+                String url = buttonTypeUrl.url;
                 if (!TextUtils.isEmpty(url)) {
                     Browser.openUrl(getParentActivity(), url);
                 }
-            } else if (button instanceof TLRPC.TL_keyboardButtonSwitchInline) {
-                // show toast since we can't switch
-                BulletinFactory.of(this).createSimpleBulletin(R.raw.error, getString(R.string.ErrorOccurred)).show();
             } else {
-                BulletinFactory.of(this).createSimpleBulletin(R.raw.error, getString(R.string.ErrorOccurred)).show();
+                BulletinFactory.of(this).createSimpleBulletin(R.raw.error, getString(R.string.Nya)).show();
             }
         } catch (Exception e) {
             FileLog.e(e);
@@ -499,29 +487,35 @@ public abstract class NekoDelegateFragment extends BaseFragment implements Notif
     }
 
     @Override
-    public boolean didLongPressBotButton(ChatMessageCell cell, TLRPC.KeyboardButton button) {
+    public boolean didLongPressBotButton(ChatMessageCell cell, TL_keyboard.KeyboardButtonProto button) {
         if (button == null || getParentActivity() == null) return false;
         try {
-            if (!TextUtils.isEmpty(button.url)) {
-                AndroidUtilities.addToClipboard(button.url);
+            String url = button.getUrl();
+            if (!TextUtils.isEmpty(url)) {
+                AndroidUtilities.addToClipboard(url);
                 BulletinFactory.of(this).createCopyLinkBulletin().show();
             } else {
+                byte[] data = button.getData();
+                TL_keyboard.TL_inlineButtonTypeSwitchInline buttonTypeSwitchInline = TLKeyboardHelper.getType(button, TL_keyboard.TL_inlineButtonTypeSwitchInline.class);
+                TL_keyboard.TL_inlineButtonTypeUserProfile buttonTypeUserProfile = TLKeyboardHelper.getType(button, TL_keyboard.TL_inlineButtonTypeUserProfile.class);
+                String query = buttonTypeSwitchInline != null ? buttonTypeSwitchInline.query : null;
+                long userId = buttonTypeUserProfile != null ? buttonTypeUserProfile.user_id : 0;
                 BottomSheet.Builder builder = new BottomSheet.Builder(getParentActivity(), false, getResourceProvider());
-                builder.setTitle(button.text);
+                builder.setTitle(button.getText());
                 builder.setItems(new CharSequence[]{
                         getString(R.string.Copy),
-                        button.data != null ? getString(R.string.CopyCallback) : null,
-                        button.query != null ? getString(R.string.CopyInlineQuery) : null,
-                        button.user_id != 0 ? getString(R.string.CopyID) : null
+                        data != null ? getString(R.string.CopyCallback) : null,
+                        query != null ? getString(R.string.CopyInlineQuery) : null,
+                        userId != 0 ? getString(R.string.CopyID) : null
                 }, (dialog, which) -> {
                     if (which == 0) {
-                        AndroidUtilities.addToClipboard(button.text);
+                        AndroidUtilities.addToClipboard(button.getText());
                     } else if (which == 1) {
-                        AndroidUtilities.addToClipboard(MessageHelper.getTextOrBase64(button.data));
+                        AndroidUtilities.addToClipboard(MessageHelper.getTextOrBase64(data));
                     } else if (which == 2) {
-                        AndroidUtilities.addToClipboard(button.query);
+                        AndroidUtilities.addToClipboard(query);
                     } else if (which == 3) {
-                        AndroidUtilities.addToClipboard(String.valueOf(button.user_id));
+                        AndroidUtilities.addToClipboard(String.valueOf(userId));
                     }
                     BulletinFactory.of(this).createCopyBulletin(getString(R.string.TextCopied)).show();
                 });
@@ -556,7 +550,7 @@ public abstract class NekoDelegateFragment extends BaseFragment implements Notif
 
     @Override
     public boolean drawEdgeNavigationBar() {
-        return NaConfig.isLatestDesign() ? false : super.drawEdgeNavigationBar();
+        return false;
     }
 
     protected TranslateController getTranslateController() {
@@ -891,11 +885,9 @@ public abstract class NekoDelegateFragment extends BaseFragment implements Notif
         if (!scrimView.getGlobalVisibleRect(scrimTmpRect)) {
             return;
         }
-        if (NaConfig.isLatestDesign()) {
-            scrimTmpRect.top = Math.max(scrimTmpRect.top, getGlassActionBarBottomInWindow());
-            if (scrimTmpRect.isEmpty()) {
-                return;
-            }
+        scrimTmpRect.top = Math.max(scrimTmpRect.top, getGlassActionBarBottomInWindow());
+        if (scrimTmpRect.isEmpty()) {
+            return;
         }
         container.getLocationInWindow(scrimTmpLocation);
         scrimView.getLocationInWindow(scrimTmpLocation2);

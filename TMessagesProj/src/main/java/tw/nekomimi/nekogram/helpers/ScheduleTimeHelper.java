@@ -20,7 +20,7 @@ import org.telegram.ui.Components.SeekBarView;
 
 import java.util.Calendar;
 
-import sovietgram.com.NaConfig;
+import xyz.nextalone.nagram.NaConfig;
 
 public final class ScheduleTimeHelper {
 

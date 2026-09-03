@@ -39,6 +39,7 @@ import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
+import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.XiaomiUtilities;
 import org.telegram.tgnet.TLRPC;
@@ -143,7 +144,6 @@ public class EditTextEmoji extends FrameLayout implements NotificationCenter.Not
         this.resourcesProvider = resourcesProvider;
         currentStyle = style;
 
-        NotificationCenter.getGlobalInstance().addObserver(this, NotificationCenter.emojiLoaded);
         parentFragment = fragment;
         sizeNotifierLayout = parent;
         sizeNotifierLayout.addDelegate(this);
@@ -253,11 +253,11 @@ public class EditTextEmoji extends FrameLayout implements NotificationCenter.Not
         editText.setImeOptions(EditorInfo.IME_FLAG_NO_EXTRACT_UI);
         editText.setInputType(editText.getInputType() | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
         editText.setFocusable(editText.isEnabled());
-        editText.setCursorSize(dp(20));
+        editText.setCursorSize(dp(SharedConfig.fontSize + 2));
         editText.setCursorWidth(1.5f);
         editText.setCursorColor(getThemedColor(Theme.key_windowBackgroundWhiteBlackText));
         if (style == STYLE_FRAGMENT) {
-            editText.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 18);
+            editText.setTextSize(TypedValue.COMPLEX_UNIT_DIP, SharedConfig.fontSize);
             editText.setMaxLines(4);
             editText.setGravity(Gravity.CENTER_VERTICAL | (LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT));
             editText.setBackground(null);
@@ -268,7 +268,9 @@ public class EditTextEmoji extends FrameLayout implements NotificationCenter.Not
             editText.setPadding(LocaleController.isRTL ? dp(40) : 0, 0, LocaleController.isRTL ? 0 : dp(40), dp(11));
             addView(editText, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.LEFT | Gravity.CENTER_VERTICAL, LocaleController.isRTL ? 11 : 0, 1, LocaleController.isRTL ? 0 : 11, 0));
         } else if (style == STYLE_STORY || style == STYLE_PHOTOVIEWER) {
-            editText.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
+            int storyFontSize = Math.max(12, SharedConfig.fontSize - 2);
+            editText.setTextSize(TypedValue.COMPLEX_UNIT_DIP, storyFontSize);
+            editText.setCursorSize(dp(storyFontSize + 2));
             editText.setMaxLines(8);
             editText.setGravity(Gravity.CENTER_VERTICAL | Gravity.LEFT);
             editText.setAllowTextEntitiesIntersection(true);
@@ -287,7 +289,7 @@ public class EditTextEmoji extends FrameLayout implements NotificationCenter.Not
             setClipToPadding(false);
             addView(editText, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.LEFT | Gravity.CENTER_VERTICAL, 40, 0, 24, 0));
         } else if (style == STYLE_GIFT) {
-            editText.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 18);
+            editText.setTextSize(TypedValue.COMPLEX_UNIT_DIP, SharedConfig.fontSize);
             editText.setMaxLines(4);
             editText.setGravity(Gravity.CENTER_VERTICAL | Gravity.LEFT);
             editText.setHintTextColor(getThemedColor(Theme.key_dialogTextHint));
@@ -296,7 +298,7 @@ public class EditTextEmoji extends FrameLayout implements NotificationCenter.Not
             editText.setPadding(0, dp(11), 0, dp(12));
             addView(editText, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.LEFT | Gravity.CENTER_VERTICAL, 14, 0, 48, 0));
         } else {
-            editText.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 18);
+            editText.setTextSize(TypedValue.COMPLEX_UNIT_DIP, SharedConfig.fontSize);
             editText.setMaxLines(4);
             editText.setGravity(Gravity.CENTER_VERTICAL | Gravity.LEFT);
             editText.setHintTextColor(getThemedColor(Theme.key_dialogTextHint));
@@ -495,6 +497,18 @@ public class EditTextEmoji extends FrameLayout implements NotificationCenter.Not
                 AndroidUtilities.runOnUIThread(openKeyboardRunnable, 100);
             }
         }
+    }
+
+    @Override
+    protected void onAttachedToWindow() {
+        super.onAttachedToWindow();
+        NotificationCenter.getGlobalInstance().addObserver(this, NotificationCenter.emojiLoaded);
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        super.onDetachedFromWindow();
+        NotificationCenter.getGlobalInstance().removeObserver(this, NotificationCenter.emojiLoaded);
     }
 
     public void onDestroy() {
@@ -947,7 +961,7 @@ public class EditTextEmoji extends FrameLayout implements NotificationCenter.Not
             @Override
             public void onClearEmojiRecent() {
                 AlertDialog.Builder builder = new AlertDialog.Builder(getContext(), resourcesProvider);
-                builder.setTitle(LocaleController.getString(R.string.SovietGram));
+                builder.setTitle(LocaleController.getString(R.string.NagramX));
                 builder.setMessage(LocaleController.getString(R.string.ClearRecentEmojiText));
                 builder.setPositiveButton(LocaleController.getString(R.string.ClearButton), (dialogInterface, i) -> emojiView.clearRecentEmoji());
                 builder.setNegativeButton(LocaleController.getString(R.string.Cancel), null);

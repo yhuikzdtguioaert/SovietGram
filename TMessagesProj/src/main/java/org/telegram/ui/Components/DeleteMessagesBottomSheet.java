@@ -56,7 +56,7 @@ import java.util.Arrays;
 import java.util.Locale;
 import java.util.stream.Collectors;
 
-import sovietgram.com.NaConfig;
+import xyz.nextalone.nagram.NaConfig;
 
 public class DeleteMessagesBottomSheet extends BottomSheetWithRecyclerListView {
     private UniversalAdapter adapter;

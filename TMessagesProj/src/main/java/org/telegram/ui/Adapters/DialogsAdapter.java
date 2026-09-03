@@ -75,7 +75,6 @@ import org.telegram.ui.Components.ListView.AdapterWithDiffUtils;
 import org.telegram.ui.Components.PullForegroundDrawable;
 import org.telegram.ui.Components.RecyclerListView;
 import org.telegram.ui.DialogsActivity;
-import sovietgram.com.NaConfig;
 import org.telegram.ui.Stories.DialogStoriesCell;
 import org.telegram.ui.Stories.StoriesController;
 import org.telegram.ui.Stories.StoriesListPlaceProvider;
@@ -111,8 +110,7 @@ public class DialogsAdapter extends RecyclerListView.SelectionAdapter implements
             VIEW_TYPE_GRAY_SECTION = 20,
             VIEW_TYPE_FORWARD_TO_STORIES_CELL = 21,
             VIEW_TYPE_HEADER_3 = 22,
-            VIEW_TYPE_DIALOG_COMMUNITY = 23,
-            VIEW_TYPE_DELETED_MESSAGES = 24;
+            VIEW_TYPE_DIALOG_COMMUNITY = 23;
 
     private Context mContext;
     private ArchiveHintCell archiveHintCell;
@@ -130,8 +128,6 @@ public class DialogsAdapter extends RecyclerListView.SelectionAdapter implements
     private ArrayList<Long> selectedDialogs;
     private boolean hasHints;
     private boolean hasChatlistHint;
-    private boolean hasDeletedMessagesRow;
-    private int deletedMessagesRowIndex = -1;
     private int currentAccount;
     private boolean dialogsListFrozen;
     private boolean isReordering;
@@ -186,12 +182,6 @@ public class DialogsAdapter extends RecyclerListView.SelectionAdapter implements
     }
 
     public int fixPosition(int position) {
-        // Only positions AFTER the synthetic "Deleted Messages" row are shifted by it. The row sits
-        // right after the archive folder, so adapter position 0 (the archive) must still map to
-        // dialogs index 0 - decrementing unconditionally would hand moveDialogs() a -1 index.
-        if (hasDeletedMessagesRow && position > deletedMessagesRowIndex) {
-            position--;
-        }
         if (hasChatlistHint) {
             position--;
         }
@@ -394,8 +384,6 @@ public class DialogsAdapter extends RecyclerListView.SelectionAdapter implements
             this.emptyType = viewTypeEmpty;
             if (viewTypeEmpty == VIEW_TYPE_LAST_EMPTY) {
                 stableId = 1;
-            } else if (viewTypeEmpty == VIEW_TYPE_DELETED_MESSAGES) {
-                stableId = 6;
             } else {
                 if (viewType == VIEW_TYPE_ARCHIVE_FULLSCREEN) {
                     stableId = 5;
@@ -666,7 +654,6 @@ public class DialogsAdapter extends RecyclerListView.SelectionAdapter implements
                 }
                 view = dialogCell2;
                 break;
-            case VIEW_TYPE_DELETED_MESSAGES:
             case VIEW_TYPE_FORWARD_TO_STORIES_CELL:
             case VIEW_TYPE_DIALOG:
                 if (dialogsType == DialogsActivity.DIALOGS_TYPE_ADD_USERS_TO ||
@@ -906,18 +893,6 @@ public class DialogsAdapter extends RecyclerListView.SelectionAdapter implements
     @Override
     public void onBindViewHolder(RecyclerView.ViewHolder holder, int i) {
         switch (holder.getItemViewType()) {
-            case VIEW_TYPE_DELETED_MESSAGES: {
-                DialogCell cell = (DialogCell) holder.itemView;
-                cell.setHideTime(true);
-                DialogCell.CustomDialog customDialog = new DialogCell.CustomDialog();
-                customDialog.name = getString(R.string.DeletedMessagesChat);
-                customDialog.message = getString(R.string.DeletedMessagesChatSubtitle);
-                cell.useSeparator = true;
-                cell.fullSeparator = false;
-                cell.setDialog(customDialog);
-                cell.checkHeight();
-                break;
-            }
             case VIEW_TYPE_FORWARD_TO_STORIES_CELL: {
                 TLRPC.Dialog nextDialog = (TLRPC.Dialog) getItem(i + 1);
 
@@ -1532,8 +1507,6 @@ public class DialogsAdapter extends RecyclerListView.SelectionAdapter implements
                         } else {
                             dialogsHeight += cellHeight;
                         }
-                    } else if (itemInternals.get(i).viewType == VIEW_TYPE_DELETED_MESSAGES) {
-                        dialogsHeight += cellHeight;
                     } else  if (itemInternals.get(i).viewType == VIEW_TYPE_FLICKER) {
                         dialogsHeight += cellHeight;
                     }
@@ -1638,8 +1611,6 @@ public class DialogsAdapter extends RecyclerListView.SelectionAdapter implements
         }
 
         itemInternals.clear();
-        hasDeletedMessagesRow = false;
-        deletedMessagesRowIndex = -1;
         updateHasHints();
 
         MessagesController messagesController = MessagesController.getInstance(currentAccount);
@@ -1837,45 +1808,11 @@ public class DialogsAdapter extends RecyclerListView.SelectionAdapter implements
                 }
             }
         }
-
-        // SovietGram: a single "Deleted Messages" entry near the top of the real "All chats" list.
-        // Insert it AFTER the archive folder (so the archive keeps position 0 and hidden-archive
-        // scrolling keeps working), otherwise right before the first dialog.
-        if (dialogsType == DialogsActivity.DIALOGS_TYPE_DEFAULT && folderId == 0 && !isOnlySelect
-                && !collapsedView && !isTransitionSupport && requestPeerType == null
-                && parentFragment != null && !parentFragment.isArchive()
-                && NaConfig.INSTANCE.getEnableSaveDeletedMessages().Bool()
-                && NaConfig.INSTANCE.getShowDeletedMessagesInChatList().Bool()) {
-            int insertAt = -1;
-            for (int i = 0; i < itemInternals.size(); i++) {
-                ItemInternal it = itemInternals.get(i);
-                if (it.viewType == VIEW_TYPE_DIALOG && it.dialog != null) {
-                    // NB: TLRPC.Dialog.isFolder is only ever assigned in TLRPC.Dialog.fromConstructor(),
-                    // i.e. for folder dialogs deserialized straight off the wire. Folder dialogs read back
-                    // from the local DB (MessagesStorage.getDialogs) or created locally
-                    // (MessagesController.ensureFolderDialogExists) have isFolder == false, so it must not
-                    // be used to detect the archive - do it the way the rest of the codebase does.
-                    // The hidden-archive machinery in DialogsActivity hardcodes "index 0 == archive,
-                    // index 1 == first visible row", so the archive must keep index 0 and this row must
-                    // land on index 1, otherwise it is permanently scrolled off-screen with the archive.
-                    final boolean isArchiveFolder = it.dialog instanceof TLRPC.TL_dialogFolder
-                            || DialogObject.isFolderDialogId(it.dialog.id);
-                    insertAt = isArchiveFolder ? i + 1 : i;
-                    break;
-                }
-            }
-            if (insertAt >= 0) {
-                itemInternals.add(insertAt, new ItemInternal(VIEW_TYPE_DELETED_MESSAGES));
-                hasDeletedMessagesRow = true;
-                deletedMessagesRowIndex = insertAt;
-            }
-        }
     }
 
     public int getItemHeight(int position) {
-        int viewType = itemInternals.get(position).viewType;
-        if (viewType == VIEW_TYPE_DIALOG || viewType == VIEW_TYPE_DELETED_MESSAGES) {
-            if (viewType == VIEW_TYPE_DIALOG && itemInternals.get(position).isForumCell && !collapsedView) {
+        if (itemInternals.get(position).viewType == VIEW_TYPE_DIALOG) {
+            if (itemInternals.get(position).isForumCell && !collapsedView) {
                 return AndroidUtilities.dp(SharedConfig.useThreeLinesLayout ? 86 : 91) + 1;
             } else {
                 return AndroidUtilities.dp(SharedConfig.useThreeLinesLayout ? 76 : 70) + 1;

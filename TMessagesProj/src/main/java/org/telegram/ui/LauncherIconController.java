@@ -2,56 +2,26 @@ package org.telegram.ui;
 
 import android.content.ComponentName;
 import android.content.Context;
-import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.R;
 
 public class LauncherIconController {
-    private static final int SOVIETGRAM_ICON_MIGRATION_VERSION = 3;
-    private static final String[] LEGACY_ICON_KEYS = {
-            "DefaultIcon",
-            "NagramIcon",
-            "NagramXIcon",
-            "NekoXIcon",
-            "SovietGramGoogleIcon",
-            "SovietGramColorfulIcon",
-            "SovietGramDarkGreenIcon",
-            "SovietGramNeonIcon",
-            "SovietGramNielloIcon",
-            "SovietGramBlueIcon",
-            "SovietGramDarkBlueIcon",
-            "SovietGramBlurBlueIcon",
-            "SovietGramTelegramIcon",
-            "SovietGramVintageIcon",
-            "SovietGramAquaIcon",
-            "SovietGramPremiumIcon",
-            "SovietGramTurboIcon",
-            "SovietGramNoxIcon"
-    };
-
     public static void tryFixLauncherIconIfNeeded() {
-        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences("mainconfig", Context.MODE_PRIVATE);
-        if (preferences.getInt("sovietgramIconMigrationVersion", 0) < SOVIETGRAM_ICON_MIGRATION_VERSION) {
-            setIcon(LauncherIcon.DEFAULT);
-            preferences.edit().putInt("sovietgramIconMigrationVersion", SOVIETGRAM_ICON_MIGRATION_VERSION).apply();
-            return;
-        }
-
         for (LauncherIcon icon : LauncherIcon.values()) {
             if (isEnabled(icon)) {
                 return;
             }
         }
 
-        setIcon(LauncherIcon.DEFAULT);
+        setIcon(LauncherIcon.BLUE);
     }
 
     public static boolean isEnabled(LauncherIcon icon) {
         Context ctx = ApplicationLoader.applicationContext;
         int i = ctx.getPackageManager().getComponentEnabledSetting(icon.getComponentName(ctx));
-        return i == PackageManager.COMPONENT_ENABLED_STATE_ENABLED || i == PackageManager.COMPONENT_ENABLED_STATE_DEFAULT && icon == LauncherIcon.DEFAULT;
+        return i == PackageManager.COMPONENT_ENABLED_STATE_ENABLED || i == PackageManager.COMPONENT_ENABLED_STATE_DEFAULT && icon == LauncherIcon.BLUE;
     }
 
     public static void setIcon(LauncherIcon icon) {
@@ -61,21 +31,18 @@ public class LauncherIconController {
             pm.setComponentEnabledSetting(i.getComponentName(ctx), i == icon ? PackageManager.COMPONENT_ENABLED_STATE_ENABLED :
                     PackageManager.COMPONENT_ENABLED_STATE_DISABLED, PackageManager.DONT_KILL_APP);
         }
-        for (String legacyIconKey : LEGACY_ICON_KEYS) {
-            try {
-                pm.setComponentEnabledSetting(new ComponentName(ctx.getPackageName(), "org.telegram.messenger." + legacyIconKey),
-                        PackageManager.COMPONENT_ENABLED_STATE_DISABLED, PackageManager.DONT_KILL_APP);
-            } catch (Exception ignored) {
-            }
-        }
-        ctx.getSharedPreferences("mainconfig", Context.MODE_PRIVATE)
-                .edit()
-                .putInt("sovietgramIconMigrationVersion", SOVIETGRAM_ICON_MIGRATION_VERSION)
-                .apply();
     }
 
     public enum LauncherIcon {
-        DEFAULT("SovietGramIcon", R.mipmap.ic_launcher_sovietuniongram, R.mipmap.icon_background_sovietuniongram, R.string.SovietGram),
+        DEFAULT("DefaultIcon", R.mipmap.ic_launcher_nagram, R.mipmap.icon_background_nagram, R.string.AppIconDefault),
+        GOOGLE("GoogleIcon", R.mipmap.icon_background_google, R.mipmap.icon_foreground_google, R.string.AppIconGoogle),
+        COLORFUL("ColorfulIcon", R.mipmap.icon_background_colorful, R.mipmap.icon_foreground_colorful, R.string.AppIconColorful),
+        DARKGREEN("DarkGreenIcon", R.mipmap.icon_background_darkgreen, R.mipmap.icon_foreground_darkgreen, R.string.AppIconDarkGreen),
+        NEON("NeonIcon", R.mipmap.icon_background_neon, R.mipmap.icon_foreground_neon, R.string.AppIconNeon),
+        NIELLO("NielloIcon", R.drawable.ic_launcher_nagram_round_niello_background, R.drawable.ic_launcher_nagram_round_niello_foreground, R.string.AppIconNiello),
+        BLUE("BlueIcon", R.color.nagram_block_round_background, R.drawable.ic_launcher_nagram_blue_foreground, R.string.AppIconBlue),
+        DARKBLUE("DarkBlueIcon", R.color.nagram_dark_blue_background, R.drawable.ic_launcher_nagram_dark_blue_foreground, R.string.AppIconDarkBlue),
+        BLURBLUE("BlurBlueIcon", R.drawable.ic_launcher_nagram_blur_blue_background, R.drawable.ic_launcher_nagram_blur_blue_foreground, R.string.AppIconBlurBlue),
         TELEGRAM("TelegramIcon", R.drawable.icon_background_sa, R.mipmap.icon_foreground_sa, R.string.AppIconTelegramOriginal),
         VINTAGE("VintageIcon", R.drawable.icon_6_background_sa, R.mipmap.icon_6_foreground_sa, R.string.AppIconVintage),
         AQUA("AquaIcon", R.drawable.icon_4_background_sa, R.mipmap.icon_foreground_sa, R.string.AppIconAqua),

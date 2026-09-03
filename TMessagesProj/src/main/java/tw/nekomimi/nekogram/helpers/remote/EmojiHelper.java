@@ -9,8 +9,6 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Typeface;
-import android.graphics.fonts.Font;
-import android.graphics.fonts.SystemFonts;
 import android.os.Build;
 import android.os.SystemClock;
 import android.text.Spannable;
@@ -22,7 +20,6 @@ import android.util.Base64;
 import android.util.Pair;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.RequiresApi;
 
 import com.jaredrummler.truetypeparser.TTFFile;
 
@@ -61,7 +58,6 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Objects;
-import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
@@ -130,45 +126,6 @@ public class EmojiHelper extends BaseRemoteHelper implements NotificationCenter.
             }
         }
         return localInstance;
-    }
-
-    public static File getSystemEmojiFontPath() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            File fontFile = getSystemEmojiFontPathV29();
-            if (fontFile != null) {
-                FileLog.d("Emoji font found using SystemFonts API: " + fontFile.getAbsolutePath());
-                return fontFile;
-            }
-            FileLog.d("SystemFonts API failed to find emoji font, falling back to legacy method.");
-        }
-        return getSystemEmojiFontPathLegacy();
-    }
-
-    @RequiresApi(Build.VERSION_CODES.Q)
-    private static File getSystemEmojiFontPathV29() {
-        Paint paint = new Paint();
-        Set<Font> fonts = SystemFonts.getAvailableFonts();
-        for (Font font : fonts) {
-            if (font == null) {
-                continue;
-            }
-            File fontFile = font.getFile();
-            if (fontFile == null || !fontFile.exists()) {
-                continue;
-            }
-            String fontName = fontFile.getName().toLowerCase();
-            if (fontName.contains("samsungcoloremoji")) {
-                return fontFile;
-            }
-            if (fontName.contains("emoji")) {
-                return fontFile;
-            }
-            paint.setTypeface(new Typeface.Builder(fontFile).build());
-            if (paint.hasGlyph("\uD83D\uDE00")) {
-                return fontFile;
-            }
-        }
-        return null;
     }
 
     public static File getSystemEmojiFontPathLegacy() {
@@ -703,12 +660,6 @@ public class EmojiHelper extends BaseRemoteHelper implements NotificationCenter.
         }
     }
 
-    public boolean isSelectedCustomEmojiPack() {
-        return getAllEmojis().parallelStream()
-                .filter(EmojiHelper::isValidCustomPack)
-                .anyMatch(file -> file.getName().startsWith(emojiPack) || file.getName().endsWith(emojiPack));
-    }
-
     public void cancelableDelete(BaseFragment fragment, EmojiPackBase emojiPackBase, OnBulletinAction onUndoBulletinAction) {
         if (emojiPackBulletin != null && pendingDeleteEmojiPackId != null) {
             AlertDialog progressDialog = new AlertDialog(fragment.getParentActivity(), 3);
@@ -807,21 +758,27 @@ public class EmojiHelper extends BaseRemoteHelper implements NotificationCenter.
                 documents.put(message.id, message.media.document);
             }
 
-            SerializedData serializedData = new SerializedData();
-            serializedData.writeInt32(packs.size());
+            ArrayList<EmojiPackInfo> complete = new ArrayList<>();
             for (EmojiPackInfo pack : packs) {
                 TLRPC.Document file = documents.get(pack.fileId);
-                if (file != null) {
-                    pack.flags |= 1;
-                    pack.fileDocument = file;
-                    pack.fileSize = file.size;
-                    pack.fileLocation = getFileLoader().getPathToAttach(file).getAbsolutePath();
-                }
                 TLRPC.Document preview = documents.get(pack.previewId);
-                if (preview != null) {
-                    pack.flags |= 2;
-                    pack.previewDocument = preview;
+                // Skip packs whose preview/file documents are missing (empty/partial
+                // remote channel, or stale manifest IDs). Guards serializeToStream NPE
+                // when a Document is absent.
+                if (file == null || preview == null) {
+                    continue;
                 }
+                pack.flags |= 1;
+                pack.fileDocument = file;
+                pack.fileSize = file.size;
+                pack.fileLocation = getFileLoader().getPathToAttach(file).getAbsolutePath();
+                pack.flags |= 2;
+                pack.previewDocument = preview;
+                complete.add(pack);
+            }
+            SerializedData serializedData = new SerializedData();
+            serializedData.writeInt32(complete.size());
+            for (EmojiPackInfo pack : complete) {
                 pack.serializeToStream(serializedData);
             }
             preferences.edit().putString("emoji_packs_v2", Base64.encodeToString(serializedData.toByteArray(), Base64.NO_WRAP | Base64.NO_PADDING)).apply();
@@ -829,7 +786,7 @@ public class EmojiHelper extends BaseRemoteHelper implements NotificationCenter.
 
             AndroidUtilities.runOnUIThread(() -> {
                 emojiPacksInfo.removeIf(emojiPackBase -> emojiPackBase instanceof EmojiPackInfo);
-                emojiPacksInfo.addAll(packs);
+                emojiPacksInfo.addAll(complete);
             });
         }
         delegate.onTLResponse(null, null);

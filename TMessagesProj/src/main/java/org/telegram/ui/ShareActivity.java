@@ -32,12 +32,6 @@ import org.telegram.ui.Components.ShareAlert;
 
 public class ShareActivity extends Activity {
 
-    /** Same reason as {@link BasePermissionsActivity#getResources()}: icon packs apply per context. */
-    @Override
-    public android.content.res.Resources getResources() {
-        return tw.nekomimi.nekogram.ui.icons.IconsResources.wrap(super.getResources());
-    }
-
     private Dialog visibleDialog;
 
     @Override

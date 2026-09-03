@@ -61,7 +61,7 @@ import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.stream.Collectors;
 
 import tw.nekomimi.nekogram.NekoConfig;
-import sovietgram.com.NaConfig;
+import xyz.nextalone.nagram.NaConfig;
 
 import java.util.List;
 import java.util.Locale;
@@ -1411,6 +1411,7 @@ public class SharedConfig {
         SharedPreferences.Editor editor = preferences.edit();
         editor.putBoolean("pauseMusicOnMedia", pauseMusicOnMedia);
         editor.apply();
+        NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.pauseMusicOnMediaChanged);
     }
 
     public static void toggleChatBlur() {
@@ -1887,11 +1888,11 @@ public class SharedConfig {
     }
 
     public static boolean canBlurChat() {
-        return getDevicePerformanceClass() >= (Build.VERSION.SDK_INT >= 31 ? PERFORMANCE_CLASS_AVERAGE : PERFORMANCE_CLASS_HIGH) || BuildVars.DEBUG_PRIVATE_VERSION || NekoConfig.forceBlurInChat.Bool();
+        return getDevicePerformanceClass() >= (Build.VERSION.SDK_INT >= 31 ? PERFORMANCE_CLASS_AVERAGE : PERFORMANCE_CLASS_HIGH) || BuildVars.DEBUG_PRIVATE_VERSION;
     }
 
     public static boolean chatBlurEnabled() {
-        return (canBlurChat() && LiteMode.isEnabled(LiteMode.FLAG_CHAT_BLUR)) || NekoConfig.forceBlurInChat.Bool();
+        return canBlurChat() && LiteMode.isEnabled(LiteMode.FLAG_CHAT_BLUR);
     }
 
     public static class BackgroundActivityPrefs {

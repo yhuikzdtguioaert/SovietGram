@@ -23,7 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-import sovietgram.com.NaConfig;
+import xyz.nextalone.nagram.NaConfig;
 
 @SuppressLint("ViewConstructor")
 public class GroupedIconsView extends FrameLayout {

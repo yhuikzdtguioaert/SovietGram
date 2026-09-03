@@ -9,7 +9,7 @@ import org.telegram.ui.Components.Reactions.ReactionsLayoutInBubble;
 import java.util.ArrayList;
 
 import tw.nekomimi.nekogram.ui.PinnedReactionsActivity;
-import sovietgram.com.NaConfig;
+import xyz.nextalone.nagram.NaConfig;
 
 public class PinnedElementsHelper {
 

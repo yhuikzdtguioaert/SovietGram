@@ -9,8 +9,6 @@ import android.graphics.BlendModeColorFilter;
 import android.graphics.Canvas;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffColorFilter;
-import android.graphics.drawable.Drawable;
-import android.graphics.drawable.InsetDrawable;
 import android.os.Build;
 import android.view.Gravity;
 import android.widget.FrameLayout;
@@ -21,10 +19,8 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import org.telegram.messenger.AndroidUtilities;
-import org.telegram.messenger.R;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.CircularProgressDrawable;
-import org.telegram.ui.Components.CombinedDrawable;
 import org.telegram.ui.Components.CubicBezierInterpolator;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.blur3.BlurredBackgroundDrawableViewFactory;
@@ -61,42 +57,8 @@ public class ChatActivityBlurredRoundButton extends FrameLayout implements Facto
 
     @Override
     public void draw(@NonNull Canvas canvas) {
-        if (!legacyStyle) {
-            backgroundDrawable.draw(canvas);
-        }
+        backgroundDrawable.draw(canvas);
         super.draw(canvas);
-    }
-
-    /**
-     * Pre-12.2.0 look: a flat white disc with a drop shadow instead of the blurred glass
-     * puck. The blurred drawable is left attached but never drawn, so switching styles
-     * costs nothing and every size/position calculation upstream stays untouched.
-     */
-    private boolean legacyStyle;
-
-    public void setLegacyStyle() {
-        if (legacyStyle) {
-            return;
-        }
-        legacyStyle = true;
-        applyLegacyStyle();
-    }
-
-    private void applyLegacyStyle() {
-        final int size = dp(BUTTON_SIZE);
-        Drawable circle = Theme.createSimpleSelectorCircleDrawable(size,
-            Theme.getColor(Theme.key_chat_goDownButton, resourcesProvider),
-            Theme.getColor(Theme.key_listSelector, resourcesProvider));
-
-        // The shadow asset is 9-patch-like padding around the disc, so it has to wrap the
-        // circle rather than sit behind it at the same size.
-        final Drawable shadow = getContext().getResources().getDrawable(R.drawable.floating_shadow).mutate();
-        shadow.setColorFilter(new PorterDuffColorFilter(0xff000000, PorterDuff.Mode.MULTIPLY));
-        final CombinedDrawable combined = new CombinedDrawable(shadow, circle, 0, 0);
-        combined.setIconSize(size, size);
-
-        setBackground(new InsetDrawable(combined, dp(CLICK_ZONE_MARGIN)));
-        setIconColor(Theme.getColor(Theme.key_chat_messagePanelIcons, resourcesProvider));
     }
 
     @Override
@@ -243,12 +205,6 @@ public class ChatActivityBlurredRoundButton extends FrameLayout implements Facto
         if (backgroundDrawable != null) {
             backgroundDrawable.updateColors();
             invalidate();
-        }
-
-        if (legacyStyle) {
-            applyLegacyStyle();
-            invalidate();
-            return;
         }
 
         final int color = Theme.getColor(Theme.key_glass_defaultIcon, resourcesProvider);

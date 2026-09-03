@@ -22,6 +22,7 @@ import android.widget.TextView;
 import androidx.core.widget.NestedScrollView;
 
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.DocumentObject;
 import org.telegram.messenger.FileLoader;
 import org.telegram.messenger.ImageLocation;
@@ -33,8 +34,10 @@ import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.BottomSheet;
 import org.telegram.ui.ActionBar.Theme;
 
-import sovietgram.com.NaConfig;
+import java.io.File;
+
 import tw.nekomimi.nekogram.TextViewEffects;
+import tw.nekomimi.nekogram.helpers.remote.ApkDownloader;
 
 public class UpdateAppAlertDialog extends BottomSheet {
 
@@ -77,11 +80,9 @@ public class UpdateAppAlertDialog extends BottomSheet {
 
             background = new View(context);
             if (hasBackground) {
-                background.setBackground(Theme.AdaptiveRipple.filledRectByKey(Theme.key_featuredStickers_addButton, NaConfig.isLatestDesign() ? 24 : 4));
-                if (NaConfig.isLatestDesign()) {
-                    background.setDuplicateParentStateEnabled(true);
-                    ScaleStateListAnimator.apply(this, .02f, 1.2f);
-                }
+                background.setBackground(Theme.AdaptiveRipple.filledRectByKey(Theme.key_featuredStickers_addButton, 24));
+                background.setDuplicateParentStateEnabled(true);
+                ScaleStateListAnimator.apply(this, .02f, 1.2f);
             }
             addView(background, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, 0, 16, withoutBackground ? 0 : 16, 16, 16));
 
@@ -259,7 +260,7 @@ public class UpdateAppAlertDialog extends BottomSheet {
         textView.setTextColor(Theme.getColor(Theme.key_dialogTextBlack));
         textView.setSingleLine(true);
         textView.setEllipsize(TextUtils.TruncateAt.END);
-        textView.setText(LocaleController.getString(R.string.UpdateTelegram).replace("Telegram", LocaleController.getString(R.string.SovietGram)));
+        textView.setText(LocaleController.getString(R.string.UpdateTelegram).replace("Telegram", LocaleController.getString(R.string.NagramX)));
         linearLayout.addView(textView, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.TOP | Gravity.CENTER_HORIZONTAL, 23, 16, 23, 0));
 
         TextView messageTextView = new TextView(getContext());
@@ -267,7 +268,11 @@ public class UpdateAppAlertDialog extends BottomSheet {
         messageTextView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
         messageTextView.setMovementMethod(new AndroidUtilities.LinkMovementMethodMy());
         messageTextView.setLinkTextColor(Theme.getColor(Theme.key_dialogTextLink));
-        messageTextView.setText(LocaleController.formatString("AppUpdateVersionAndSize", R.string.AppUpdateVersionAndSize, appUpdate.version, AndroidUtilities.formatFileSize(appUpdate.document.size)));
+        if (appUpdate.document != null) {
+            messageTextView.setText(LocaleController.formatString("AppUpdateVersionAndSize", R.string.AppUpdateVersionAndSize, appUpdate.version, AndroidUtilities.formatFileSize(appUpdate.document.size)));
+        } else {
+            messageTextView.setText(appUpdate.version);
+        }
         messageTextView.setGravity(Gravity.CENTER_HORIZONTAL | Gravity.TOP);
         linearLayout.addView(messageTextView, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.TOP | Gravity.CENTER_HORIZONTAL, 23, 0, 23, 5));
 
@@ -297,8 +302,17 @@ public class UpdateAppAlertDialog extends BottomSheet {
 
         BottomSheetCell doneButton = new BottomSheetCell(context, false);
         doneButton.setText(LocaleController.formatString("AppUpdateDownloadNow", R.string.AppUpdateDownloadNow), false);
-        (NaConfig.isLatestDesign() ? doneButton : doneButton.background).setOnClickListener(v -> {
-            FileLoader.getInstance(accountNum).loadFile(appUpdate.document, "update", FileLoader.PRIORITY_NORMAL, 1);
+        doneButton.background.setOnClickListener(v -> {
+            if (!TextUtils.isEmpty(appUpdate.url)) {
+                ApkDownloader.download(appUpdate.url, new ApkDownloader.Callback() {
+                    @Override
+                    public void onSuccess(File file) {
+                        ApplicationLoader.applicationLoaderInstance.openApkInstall(AndroidUtilities.findActivity(getContext()), file);
+                    }
+                });
+            } else if (appUpdate.document != null) {
+                FileLoader.getInstance(accountNum).loadFile(appUpdate.document, "update", FileLoader.PRIORITY_NORMAL, 1);
+            }
             dismiss();
         });
         container.addView(doneButton, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 50, Gravity.LEFT | Gravity.BOTTOM, 0, 0, 0, 50));

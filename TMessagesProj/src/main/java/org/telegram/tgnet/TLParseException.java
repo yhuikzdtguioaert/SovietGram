@@ -1,7 +1,7 @@
 package org.telegram.tgnet;
 
 import org.telegram.messenger.AndroidUtilities;
-import org.telegram.messenger.BuildVars;
+import org.telegram.messenger.BuildConfig;
 import org.telegram.messenger.FileLog;
 import org.telegram.messenger.NotificationCenter;
 
@@ -16,9 +16,7 @@ public class TLParseException extends RuntimeException {
         final TLParseException tlParseException = new TLParseException(message);
 
         FileLog.e(tlParseException, constructorId != 0xcd78e586);
-        // A regular debug APK is also distributed to testers. Do not turn recoverable
-        // cache/network scheme mismatches into a blocking internal developer dialog.
-        if (BuildVars.DEBUG_PRIVATE_VERSION && constructorId != 0xcd78e586 && constructorId != 0xd18be2ef) {
+        if (BuildConfig.DEBUG && constructorId != 0xcd78e586 && constructorId != 0xd18be2ef) {
             AndroidUtilities.runOnUIThread(() -> {
                 NotificationCenter.getGlobalInstance()
                     .postNotificationName(NotificationCenter.tlSchemeParseException, tlParseException);

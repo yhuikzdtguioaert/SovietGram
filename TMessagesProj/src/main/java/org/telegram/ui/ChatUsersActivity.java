@@ -1078,7 +1078,7 @@ public class ChatUsersActivity extends BaseFragment implements NotificationCente
                     return;
                 } else if (position == antiSpamRow) {
                     final TextCell textCell = (TextCell) view;
-                    // sovietuniongram: no this limit
+                    // nagram: no this limit
 //                    if (info != null && !info.antispam && getParticipantsCount() < getMessagesController().telegramAntispamGroupSizeMin) {
                     if (false) {
                         BulletinFactory.of(this).createSimpleBulletin(R.raw.msg_antispam, AndroidUtilities.replaceTags(LocaleController.formatPluralString("ChannelAntiSpamForbidden", getMessagesController().telegramAntispamGroupSizeMin))).show();
@@ -1360,7 +1360,7 @@ public class ChatUsersActivity extends BaseFragment implements NotificationCente
                             final boolean canEdit = canEditAdmin;
                             final String rankFinal = rank;
                             AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
-                            builder.setTitle(getString(R.string.SovietGram));
+                            builder.setTitle(getString(R.string.NagramX));
                             builder.setMessage(LocaleController.formatString("AdminWillBeRemoved", R.string.AdminWillBeRemoved, UserObject.getUserName(user)));
                             builder.setPositiveButton(getString("OK", R.string.OK), (dialog, which) -> openRightsEdit(user.id, participant, ar, br, rankFinal, canEdit, selectType == SELECT_TYPE_ADMIN ? 0 : 1, false));
                             builder.setNegativeButton(getString("Cancel", R.string.Cancel), null);
@@ -1949,7 +1949,7 @@ public class ChatUsersActivity extends BaseFragment implements NotificationCente
                     if (participant instanceof TLRPC.TL_channelParticipantAdmin || participant instanceof TLRPC.TL_chatParticipantAdmin) {
                         showDialog(
                             new AlertDialog.Builder(getParentActivity())
-                                .setTitle(getString(R.string.SovietGram))
+                                .setTitle(getString(R.string.NagramX))
                                 .setMessage(LocaleController.formatString(R.string.AdminWillBeRemoved, UserObject.getUserName(user)))
                                 .setPositiveButton(getString("OK", R.string.OK), (dialog, which) -> openRightsFor.run(1))
                                 .setNegativeButton(getString("Cancel", R.string.Cancel), null)

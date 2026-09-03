@@ -122,7 +122,6 @@ public class PremiumPreviewBottomSheet extends BottomSheetWithRecyclerListView i
 
     boolean animateConfetti;
     boolean animateConfettiWithStars;
-    boolean fakeMarker;
     FrameLayout buttonContainer;
     FrameLayout bulletinContainer;
 
@@ -194,17 +193,6 @@ public class PremiumPreviewBottomSheet extends BottomSheetWithRecyclerListView i
 
     public PremiumPreviewBottomSheet setOutboundGift(boolean outboundGift) {
         isOutboundGift = outboundGift;
-        return this;
-    }
-
-    /**
-     * Marks this preview as a locally-fabricated SovietGram premium gift (the source message
-     * carries a negative id). When set, an orange authenticity badge is drawn under the subtitle
-     * so the user can tell it apart from a genuine Telegram premium purchase. This sheet is shared
-     * with real purchases, hence the opt-in flag rather than always drawing the badge.
-     */
-    public PremiumPreviewBottomSheet setFakeMarker(boolean fakeMarker) {
-        this.fakeMarker = fakeMarker;
         return this;
     }
 
@@ -564,18 +552,6 @@ public class PremiumPreviewBottomSheet extends BottomSheetWithRecyclerListView i
                         ((ViewGroup) subtitleView.getParent()).removeView(subtitleView);
                     }
                     linearLayout.addView(subtitleView, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, 0, 24, 9, 24, 20));
-
-                    if (fakeMarker) {
-                        TextView fakeBadge = new TextView(context);
-                        fakeBadge.setText(getString(R.string.SovietGramFakeBadge));
-                        fakeBadge.setGravity(Gravity.CENTER);
-                        fakeBadge.setTextColor(getThemedColor(Theme.key_color_orange));
-                        fakeBadge.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 12);
-                        fakeBadge.setTypeface(AndroidUtilities.bold());
-                        fakeBadge.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(10), Theme.multAlpha(getThemedColor(Theme.key_color_orange), .12f)));
-                        fakeBadge.setPadding(AndroidUtilities.dp(10), AndroidUtilities.dp(4), AndroidUtilities.dp(10), AndroidUtilities.dp(4));
-                        linearLayout.addView(fakeBadge, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 24, 0, 24, 16));
-                    }
 
                     setTitle(false);
 

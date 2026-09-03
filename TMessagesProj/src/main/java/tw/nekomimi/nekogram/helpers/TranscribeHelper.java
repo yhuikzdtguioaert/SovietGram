@@ -51,7 +51,7 @@ import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 import tw.nekomimi.nekogram.utils.HttpClient;
-import sovietgram.com.NaConfig;
+import xyz.nextalone.nagram.NaConfig;
 
 public class TranscribeHelper {
     private static final Gson gson = new Gson();
@@ -227,7 +227,7 @@ public class TranscribeHelper {
         if (button != null) {
             button.setOnClickListener(v -> {
                 var apiKey = editTextApiKey.getText();
-                if (!TextUtils.isEmpty(apiKey) && (apiKey.length() != 39 || !apiKey.toString().startsWith("AIzaSy"))) {
+                if (!TextUtils.isEmpty(apiKey) && apiKey.length() < 39) {
                     AndroidUtilities.shakeViewSpring(editTextApiKey, -6);
                     BotWebViewVibrationEffect.APP_ERROR.vibrate();
                     return;
