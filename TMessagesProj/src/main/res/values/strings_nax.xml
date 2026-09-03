@@ -1,30 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="SovietGram" translatable="false">SovietGram</string>
-    <string name="SovietGramChannel">SovietGram Channel</string>
-    <string name="XChannel">Nagram X Channel</string>
-    <string name="NagramXChannel">Nagram X Channel</string>
+    <string name="NagramX" translatable="false">Nagram X Turbo</string>
+    <string name="XChannel">Nagram X Turbo Channel</string>
     <string name="EnableSaveDeletedMessages">Save Deleted Messages</string>
+    <string name="DeletedMessages">Deleted Messages</string>
     <string name="DeletedMessage">deleted</string>
-    <string name="ShowDeletedMessagesInChat">Show Deleted Messages in chat</string>
-    <string name="ShowDeletedMessagesInChatNotice">Keep deleted messages visible in the conversation, marked as deleted.</string>
-    <string name="ShowDeletedMessagesInChatList">Show Deleted Messages in chat list</string>
-    <string name="DeletedMessagesChat">Deleted Messages</string>
-    <string name="DeletedMessagesChatSubtitle">Chats with saved deleted messages</string>
-    <string name="DeletedMessagesEmpty">No saved deleted messages yet</string>
-    <string name="DeletedMessagesCount_one">%1$d deleted message</string>
-    <!-- English has no few/many forms, but LocaleController resolves the quantity suffix by
-         name via getIdentifier() and then getString(). A suffix that exists only inside a
-         localised folder has no value in the default configuration, so the lookup falls back
-         to _other and Russian/Ukrainian/Polish render the wrong form for every count above 1.
-         Declaring the suffixes here gives them a resolvable default; the localised folders
-         still win whenever their configuration is active. -->
-    <string name="DeletedMessagesCount_few">%1$d deleted messages</string>
-    <string name="DeletedMessagesCount_many">%1$d deleted messages</string>
-    <string name="DeletedMessagesCount_other">%1$d deleted messages</string>
-    <string name="DeletedMessagesSortNewest">Recently deleted first</string>
-    <string name="DeletedMessagesSortOldest">Earliest deleted first</string>
-    <string name="DeletedMessagesSearchHint">Search chats</string>
     <string name="EnableSaveEditsHistory">Save Edits History</string>
     <string name="EditsHistoryMenuText">Edits History</string>
     <string name="DeleteKeepLocally">Keep locally</string>
@@ -116,6 +96,13 @@
     <string name="MessageSavingSaveMediaInPrivateChannels">… in Private Channels</string>
     <string name="MessageSavingSaveMediaInPublicGroups">… in Public Groups</string>
     <string name="MessageSavingSaveMediaInPrivateGroups">… in Private Groups</string>
+    <string name="SaveDeletedMessagesHint">Click to choose categories.</string>
+    <string name="SaveDeletedMessagesSettings">Save Deleted Messages</string>
+    <string name="SaveDeletedInPrivateChats">… in Private Chats</string>
+    <string name="SaveDeletedInPublicChannels">… in Public Channels</string>
+    <string name="SaveDeletedInPrivateChannels">… in Private Channels</string>
+    <string name="SaveDeletedInPublicGroups">… in Public Groups</string>
+    <string name="SaveDeletedInPrivateGroups">… in Private Groups</string>
     <string name="TelegramUIAutoTranslate">Translate Entire Chats</string>
     <string name="Translated">translated</string>
     <string name="ProviderRealMicrosoftTranslator">Microsoft Translator</string>
@@ -143,7 +130,7 @@
     <string name="Other">Other</string>
     <string name="RestartApp">Restart App</string>
     <string name="ResetSettings">Reset Settings</string>
-    <string name="ResetSettingsAlert">Are you sure you want to reset all SovietGram Settings?</string>
+    <string name="ResetSettingsAlert">Are you sure you want to reset all N-Settings?</string>
     <string name="DontAutoPlayNextVoice">Don\'t Auto Play Next Voice Message</string>
     <string name="SaveToChatSubfolder">Save Attachments by Chat Name</string>
     <string name="MessageColoredBackground">Colorful Message Backgrounds</string>
@@ -167,6 +154,7 @@
     <string name="GhostModeDisabled">Ghost mode turned off</string>
     <string name="GhostModeInDrawer">Shortcuts</string>
     <string name="GhostModeStatusIndicator">Ghost Mode Indicator</string>
+    <string name="GhostModeSoundOverride">Ghost Mode is active — sound is always off</string>
     <string name="DontSendReadMessagePackets">Don\'t Read Messages</string>
     <string name="DontReadStoriesPackets">Don\'t Read Stories</string>
     <string name="DontSendOnlinePackets">Don\'t Send Online</string>
@@ -263,6 +251,7 @@
     <string name="SwitchStyle">Switch Style</string>
     <string name="SliderStyle">Slider Style</string>
     <string name="StyleModern">Modern</string>
+    <string name="StyleMaterialDesign3" translatable="false">Material Design 3</string>
     <string name="SaveDeletedExclusionMenu">Save Deleted</string>
     <string name="SaveDeletedExcluded">Exclude</string>
     <string name="MarkdownParser">Markdown Parser</string>
@@ -343,8 +332,8 @@
     <string name="BackAnimationSpring">Spring</string>
     <string name="BackAnimationPredictive">Predictive</string>
     <string name="AddToFilter">Add to Filter</string>
-    <string name="UnifiedPushNeverReceivedNotifications">You never received notifications with UnifiedPush since SovietGram was started.</string>
-    <string name="UnifiedPushLastReceivedNotification">The last received notification with UnifiedPush was %1$d seconds ago.\n\nYou received %2$d notifications since SovietGram was started.</string>
+    <string name="UnifiedPushNeverReceivedNotifications">You never received notifications with UnifiedPush since Nagram X Turbo was started.</string>
+    <string name="UnifiedPushLastReceivedNotification">The last received notification with UnifiedPush was %1$d seconds ago.\n\nYou received %2$d notifications since Nagram X Turbo was started.</string>
     <string name="UnifiedPushCurrentEndpoint">The current UnifiedPush endpoint is: %1$s</string>
     <string name="PlayOnce">Play once</string>
     <string name="StorageSettings">Storage</string>
@@ -357,6 +346,18 @@
     <string name="StickerCopied">Sticker copied to clipboard.</string>
     <string name="StrokeOnViews">Glare effects</string>
     <string name="HideBottomNavigationBar">Hide Bottom Navigation Bar</string>
+    <string name="AccDescrForwardAuthor">Toggle forward author name</string>
+    <string name="AccDescrForwardCaption">Toggle forward caption</string>
+    <string name="AccDescrForwardSound">Toggle notification sound</string>
+    <string name="AccDescrForwardCommentPosition">Toggle forward comment position</string>
+    <string name="ForwardAuthorShown">Author name will be shown</string>
+    <string name="ForwardAuthorHidden">Author name will be hidden</string>
+    <string name="ForwardCaptionShown">Caption will be shown</string>
+    <string name="ForwardCaptionHidden">Caption will be hidden</string>
+    <string name="ForwardNotifyOn">Recipient will be notified</string>
+    <string name="ForwardNotifyOff">Recipient will receive a silent notification</string>
+    <string name="ForwardCommentAfter">Comment will be sent after the message</string>
+    <string name="ForwardCommentBefore">Comment will be sent before the message</string>
     <string name="TranslatorMode">With Original Text</string>
     <string name="TranslatorWithOriginalTextOff">Off</string>
     <string name="TranslatorWithOriginalTextManualOnly">Manual Only</string>
@@ -369,96 +370,9 @@
     <string name="DeepLTranslateKey">DeepL API Key</string>
     <string name="DeepLTranslateKeyNotice">Configure DeepL API Key, leave blank to use built-in credentials.</string>
     <string name="DefaultScheduleDelay">Default delay</string>
-
-    <!-- Extra login methods -->
-    <string name="BotTokenLogin">Log in with bot token</string>
-    <string name="BotTokenLoginInfo">Enter a bot token from @BotFather to log in as a bot on this device.</string>
-    <string name="BotTokenHint">Bot token</string>
-    <string name="SessionStringLogin">Log in with session string</string>
-    <string name="SessionStringLoginInfo">Paste a session string exported by Telethon or Pyrogram. The account it belongs to will be signed in on this device.</string>
-    <string name="SessionStringHint">Session string</string>
-    <string name="SessionStringDcHint">Datacenter (for a raw key)</string>
-    <string name="SessionStringRawKeyInfo">You can also paste a bare 256-byte authorization key in hex or base64. In that case the datacenter number is required.</string>
-    <string name="SessionStringInvalid">This does not look like a valid session string. Supported: Telethon and Pyrogram session strings, or a 256-byte key in hex/base64 together with a datacenter number.</string>
-    <string name="SessionLogin">Log in by session</string>
-    <string name="SessionLoginInfo">Choose a .session file exported by Telethon or Pyrogram. The account stored in it will be signed in on this device.</string>
-    <string name="SessionChooseFile">Choose session file</string>
-    <string name="SessionLoginWarning">Only a .session file from Telethon or Pyrogram is supported.</string>
-    <string name="SessionInvalid">The session file does not contain a valid authorization key.</string>
-    <string name="SessionFileInvalid">This file could not be read as a Telethon or Pyrogram .session file.</string>
-    <string name="TdataLogin">Log in with tdata (ZIP)</string>
-    <string name="TdataLoginInfo">Choose a ZIP archive that contains the tdata folder of Telegram Desktop. The account stored in it will be signed in on this device.</string>
-    <string name="TdataChooseZip">Choose ZIP file</string>
-    <string name="TdataLoginWarning">Only a tdata folder without a local passcode can be imported.</string>
-    <string name="TdataPickerUnavailable">No app on this device can pick a file.</string>
-    <string name="TdataZipInvalid">This file could not be read as a ZIP archive.</string>
-    <string name="TdataNotFound">No tdata folder was found inside this archive.</string>
-    <string name="TdataPasscodeProtected">This tdata folder is protected by a local passcode. Remove the passcode in Telegram Desktop and export it again.</string>
-    <string name="TdataNoAuthorization">No authorization was found in this tdata folder.</string>
-    <string name="TdataUnsupported">This tdata folder uses a storage format that is not supported.</string>
-    <string name="TdataReadFailed">The tdata folder could not be read.</string>
-    <string name="LoginAuthKeyInvalid">The authorization key is not valid.</string>
-    <string name="LoginAuthKeyImportFailed">The authorization key could not be installed on this device.</string>
-    <string name="LoginAuthKeyUnregistered">This authorization key is no longer valid — the session was probably terminated.</string>
-    <string name="LoginAuthKeyTimeout">Could not reach Telegram with this authorization key. Check your connection and try again.</string>
-
-    <!-- TG WS Proxy self-healing -->
-    <string name="TgWsProxyNotificationReconnecting">Reconnecting…</string>
-    <string name="TgWsProxyStartFailed">The proxy service could not be started</string>
-    <string name="TgWsProxyInvalidPort">Invalid port</string>
-    <!-- %1$s status line, %2$s uploaded, %3$s downloaded -->
-    <string name="TgWsProxyNotificationTraffic">%1$s · ↑ %2$s ↓ %3$s</string>
-
-    <!-- VLESS (Xray) bypass -->
-    <string name="VlessHeader">VLESS (Xray)</string>
-    <string name="VlessEnabled">VLESS (Xray)</string>
-    <string name="VlessKey">VLESS key</string>
-    <string name="VlessSocksPort">SOCKS port</string>
-    <string name="VlessKeyHint">Paste your vless:// key</string>
-    <string name="VlessKeyDialogTitle">VLESS key</string>
-    <string name="VlessKeyInvalid">Invalid VLESS key</string>
-    <string name="VlessStartFailed">Xray start failed: %1$s</string>
-    <string name="Vless">VLESS</string>
-    <string name="VlessNotificationChannel">VLESS Proxy</string>
-    <string name="VlessNotificationChannelDescription">Telegram VLESS proxy status</string>
-    <string name="VlessNotificationStarting">Starting VLESS…</string>
-    <string name="VlessNotificationRunning">VLESS is running</string>
-    <string name="VlessNotificationStopping">Stopping VLESS…</string>
-    <string name="VlessNotificationReconnecting">Reconnecting…</string>
-    <string name="VlessNotificationError">Error: %1$s</string>
-    <!-- %1$s status line, %2$s uploaded, %3$s downloaded -->
-    <string name="VlessNotificationTraffic">%1$s · ↑ %2$s ↓ %3$s</string>
-    <string name="VlessNotificationRestart">Restart</string>
-    <string name="VlessNotificationStop">Stop</string>
-    <string name="VPN">VPN</string>
-    <string name="VlessVpn">Vless VPN</string>
-    <string name="VlessVpnLink">VLESS link</string>
-    <string name="VlessVpnLinkHint">Paste a vless:// link</string>
-    <string name="VlessVpnNotConfigured">Not configured</string>
-    <string name="VlessVpnConfigured">Configured</string>
-    <string name="VlessNotificationEnabled">Show notification</string>
-
-    <string name="VlessSettings">Settings</string>
-    <string name="VlessSubscription">Subscription</string>
-    <string name="VlessSubscriptionUrl">Subscription link</string>
-    <string name="VlessSubscriptionUrlHint">Paste a subscription link (http:// or https://)</string>
-    <string name="VlessSubscriptionUrlInvalid">The link must start with http:// or https://</string>
-    <string name="VlessSubscriptionRefresh">Refresh server list</string>
-    <string name="VlessSubscriptionInfo">A subscription is a link that returns a list of servers. Any of them can be selected below.</string>
-    <string name="VlessSubscriptionUpdated">Servers found: %1$d</string>
-    <string name="VlessSubscriptionFailed">Could not load the subscription</string>
-    <string name="VlessServers">Servers</string>
-    <string name="VlessServerSelected">Server selected</string>
-    <string name="VlessServerFallbackName">Server %1$d</string>
-
     <string name="ExportAyuDB">Export Database</string>
     <string name="ImportAyuDB">Import Database</string>
     <string name="ImportAyuDBAlert">The current message database will be replaced. The app will restart after the import.</string>
     <string name="DisableSwipeToNext">Disable Swipe to Next</string>
-
-    <string name="ShowLastVisitInOwnProfile">Show Last Visit in Own Profile</string>
-    <string name="ShowLastVisitInOwnProfileNotice">While Ghost Mode is on, your own profile shows the last time you opened the app instead of \"online\".</string>
-    <string name="AccDescrForwardCommentPosition">Toggle forward comment position</string>
-    <string name="ForwardCommentAfter">Comment will be sent after the message</string>
-    <string name="ForwardCommentBefore">Comment will be sent before the message</string>
+    <string name="ForceFontWeightFallback">Force Font Weight Fallback</string>
 </resources>

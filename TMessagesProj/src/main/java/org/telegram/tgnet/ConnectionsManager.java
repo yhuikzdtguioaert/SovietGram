@@ -16,6 +16,12 @@ import androidx.annotation.Keep;
 
 import com.google.android.exoplayer2.upstream.DefaultBandwidthMeter;
 
+// import com.google.android.gms.tasks.Task;
+// import com.google.android.play.core.integrity.IntegrityManager;
+// import com.google.android.play.core.integrity.IntegrityManagerFactory;
+// import com.google.android.play.core.integrity.IntegrityTokenRequest;
+// import com.google.android.play.core.integrity.IntegrityTokenResponse;
+
 import com.radolyn.ayugram.utils.AyuGhostUtils;
 
 import org.json.JSONArray;
@@ -79,7 +85,7 @@ import tw.nekomimi.nekogram.ErrorDatabase;
 import tw.nekomimi.nekogram.NekoXConfig;
 import tw.nekomimi.nekogram.utils.DnsFactory;
 import tw.nekomimi.nekogram.utils.ProxyUtil;
-import sovietgram.com.NaConfig;
+import xyz.nextalone.nagram.NaConfig;
 
 public class ConnectionsManager extends BaseController {
 
@@ -626,13 +632,6 @@ public class ConnectionsManager extends BaseController {
         native_applyDatacenterAddress(currentAccount, datacenterId, ipAddress, port);
     }
 
-    public void importAuthorizationKey(int datacenterId, String ipAddress, int port, byte[] authKey) {
-        if (datacenterId <= 0 || authKey == null || authKey.length != 256) {
-            throw new IllegalArgumentException("A 256-byte authorization key and a valid data center are required");
-        }
-        native_importAuthorizationKey(currentAccount, datacenterId, ipAddress == null ? "" : ipAddress, port, authKey);
-    }
-
     public int getConnectionState() {
         if (connectionState == ConnectionStateConnected && isUpdating) {
             return ConnectionStateUpdating;
@@ -914,21 +913,13 @@ public class ConnectionsManager extends BaseController {
                     task.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, null, null, null);
                     FileLog.d("9. currentTask = mozilla");
                     currentTask = task;
-                } else if (second == 1) {
+                } else {
                     if (BuildVars.LOGS_ENABLED) {
                         FileLog.d("start google txt task");
                     }
                     GoogleDnsLoadTask task = new GoogleDnsLoadTask(currentAccount);
                     task.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, null, null, null);
                     FileLog.d("11. currentTask = dnstxt");
-                    currentTask = task;
-                } else {
-                    if (BuildVars.LOGS_ENABLED) {
-                        FileLog.d("start firebase task");
-                    }
-                    FirebaseTask task = new FirebaseTask(currentAccount);
-                    task.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, null, null, null);
-                    FileLog.d("12. currentTask = firebase");
                     currentTask = task;
                 }
             });
@@ -1036,7 +1027,6 @@ public class ConnectionsManager extends BaseController {
     public static native void native_cancelRequestsForGuid(int currentAccount, int guid);
     public static native void native_bindRequestToGuid(int currentAccount, int requestToken, int guid);
     public static native void native_applyDatacenterAddress(int currentAccount, int datacenterId, String ipAddress, int port);
-    public static native void native_importAuthorizationKey(int currentAccount, int datacenterId, String ipAddress, int port, byte[] authKey);
     public static native int native_getConnectionState(int currentAccount);
     public static native void native_setUserId(int currentAccount, long id);
     public static native void native_init(int currentAccount, int version, int layer, int apiId, String deviceModel, String systemVersion, String appVersion, String langCode, String systemLangCode, String configPath, String logPath, String regId, String cFingerprint, String installer, String packageId, int timezoneOffset, long userId, boolean userPremium, boolean enablePushConnection, boolean hasNetwork, int networkType, int performanceClass);
@@ -1520,52 +1510,6 @@ public class ConnectionsManager extends BaseController {
                     }
                 }
             });
-        }
-    }
-
-    private static class FirebaseTask extends AsyncTask<Void, Void, NativeByteBuffer> {
-
-        private int currentAccount;
-
-        public FirebaseTask(int instance) {
-            super();
-            currentAccount = instance;
-        }
-
-        protected NativeByteBuffer doInBackground(Void... voids) {
-            try {
-                if (native_isTestBackend(currentAccount) != 0) {
-                    throw new Exception("test backend");
-                }
-                Utilities.stageQueue.postRunnable(() -> {
-                    if (BuildVars.LOGS_ENABLED) {
-                        FileLog.d("failed to get firebase result 2");
-                        FileLog.d("start dns txt task");
-                    }
-                    GoogleDnsLoadTask task = new GoogleDnsLoadTask(currentAccount);
-                    task.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, null, null, null);
-                    FileLog.d("7. currentTask = GoogleDnsLoadTask");
-                    currentTask = task;
-                });
-            } catch (Throwable e) {
-                Utilities.stageQueue.postRunnable(() -> {
-                    if (BuildVars.LOGS_ENABLED) {
-                        FileLog.d("failed to get firebase result");
-                        FileLog.d("start dns txt task");
-                    }
-                    GoogleDnsLoadTask task = new GoogleDnsLoadTask(currentAccount);
-                    task.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, null, null, null);
-                    FileLog.d("8. currentTask = GoogleDnsLoadTask");
-                    currentTask = task;
-                });
-                FileLog.e(e, false);
-            }
-            return null;
-        }
-
-        @Override
-        protected void onPostExecute(NativeByteBuffer result) {
-
         }
     }
 

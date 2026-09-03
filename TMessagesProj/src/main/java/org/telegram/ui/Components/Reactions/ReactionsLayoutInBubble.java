@@ -24,11 +24,10 @@ import android.view.ViewConfiguration;
 
 import androidx.annotation.NonNull;
 import androidx.core.graphics.ColorUtils;
-import androidx.recyclerview.widget.ChatListItemAnimator;
+import org.telegram.ui.recyclerview.ChatListItemAnimator;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
-import org.telegram.messenger.BotForumHelper;
 import org.telegram.messenger.DocumentObject;
 import org.telegram.messenger.Emoji;
 import org.telegram.messenger.ImageLocation;
@@ -46,6 +45,7 @@ import org.telegram.messenger.UserObject;
 import org.telegram.messenger.Utilities;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
+import org.telegram.ui.ActionBar.MessageDrawable;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Cells.ChatActionCell;
 import org.telegram.ui.Cells.ChatMessageCell;
@@ -59,7 +59,6 @@ import org.telegram.ui.Components.ButtonBounce;
 import org.telegram.ui.Components.CounterView;
 import org.telegram.ui.Components.CubicBezierInterpolator;
 import org.telegram.ui.Components.RLottieDrawable;
-import org.telegram.ui.Components.RLottieImageView;
 import org.telegram.ui.Stars.StarsReactionsSheet;
 
 import java.util.ArrayList;
@@ -69,8 +68,7 @@ import java.util.HashMap;
 import java.util.Objects;
 
 import tw.nekomimi.nekogram.filters.ReactionFilter;
-import tw.nekomimi.nekogram.helpers.GlowSuiteHelper;
-import sovietgram.com.NaConfig;
+import xyz.nextalone.nagram.NaConfig;
 
 public class ReactionsLayoutInBubble {
 
@@ -1119,13 +1117,6 @@ public class ReactionsLayoutInBubble {
                 canvas.scale(bounceScale, bounceScale, x + w / 2f, y + height / 2f);
             }
             float rad = height / 2f;
-            if (GlowSuiteHelper.reactionGlowEnabled()) {
-                GlowSuiteHelper.drawReactionGlow(canvas,
-                        AndroidUtilities.rectTmp.centerX(),
-                        AndroidUtilities.rectTmp.centerY(),
-                        Math.max(AndroidUtilities.rectTmp.width(), AndroidUtilities.rectTmp.height()) / 2f,
-                        visibleReaction, imageReceiver, animatedEmojiDrawable);
-            }
             if (getDrawServiceShaderBackground() > 0 && !drawBgOnlyIfChosen) {
                 Paint paint1 = Theme.getThemePaint(Theme.key_paint_chatActionBackground, resourcesProvider);
                 Paint paint2 = Theme.getThemePaint(Theme.key_paint_chatActionBackgroundDarken, resourcesProvider);
@@ -1141,7 +1132,7 @@ public class ReactionsLayoutInBubble {
                 paint2.setAlpha(oldAlpha2);
             }
             if (drawOverlayScrim && getDrawServiceShaderBackground() < 1 && parentView instanceof ChatMessageCell) {
-                Theme.MessageDrawable messageBackground = ((ChatMessageCell) parentView).getCurrentBackgroundDrawable(false);
+                MessageDrawable messageBackground = ((ChatMessageCell) parentView).getCurrentBackgroundDrawable(false);
                 if (messageBackground != null && !isTag) {
                     canvas.drawRoundRect(AndroidUtilities.rectTmp, rad, rad, messageBackground.getPaint());
                 }

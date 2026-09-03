@@ -128,9 +128,7 @@ public class SimpleTextView extends View implements Drawable.Callback {
     private boolean canHideRightDrawable;
     private boolean rightDrawableHidden;
     private OnClickListener rightDrawableOnClickListener;
-    private OnClickListener rightDrawable2OnClickListener;
     private boolean maybeClick;
-    private Drawable pressedRightDrawable;
     private float touchDownX, touchDownY;
 
     private AnimatedEmojiSpan.EmojiGroupedSpans emojiStack;
@@ -147,6 +145,10 @@ public class SimpleTextView extends View implements Drawable.Callback {
     public SimpleTextView(Context context) {
         super(context);
         textPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
+        Typeface customRegular = tw.nekomimi.nekogram.helpers.TypefaceHelper.getCustomFontForCategory(tw.nekomimi.nekogram.helpers.TypefaceHelper.FONT_CATEGORY_REGULAR);
+        if (customRegular != null) {
+            textPaint.setTypeface(customRegular);
+        }
         setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_YES);
     }
 
@@ -528,6 +530,7 @@ public class SimpleTextView extends View implements Drawable.Callback {
         if (widthWrapContent) {
 //            textWidth = (int) Math.ceil(layout.getLineWidth(0));
             width = Math.min(width, getPaddingLeft() + textWidth + getPaddingRight() + minusWidth + (leftDrawableOutside && leftDrawable != null ? leftDrawable.getIntrinsicWidth() + drawablePadding : 0) + (rightDrawableOutside && rightDrawable != null ? rightDrawable.getIntrinsicWidth() + drawablePadding : 0) + (rightDrawableOutside && rightDrawable2 != null ? rightDrawable2.getIntrinsicWidth() + drawablePadding : 0));
+            width = Math.max(width, 0);
         }
         setMeasuredDimension(width, finalHeight);
 
@@ -1332,74 +1335,34 @@ public class SimpleTextView extends View implements Drawable.Callback {
         rightDrawableOnClickListener = onClickListener;
     }
 
-    public void setRightDrawable2OnClick(OnClickListener onClickListener) {
-        rightDrawable2OnClickListener = onClickListener;
-    }
-
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        if ((rightDrawableOnClickListener != null && rightDrawable != null)
-                || (rightDrawable2OnClickListener != null && rightDrawable2 != null)) {
-            if (event.getAction() == MotionEvent.ACTION_DOWN) {
-                pressedRightDrawable = null;
-                // Resolve the real drawable bounds first. The previous oversized, overlapping
-                // hit boxes preferred the Soviet badge even when the premium status was tapped.
-                if (rightDrawableOnClickListener != null && rightDrawable != null) {
-                    Rect bounds = rightDrawable.getBounds();
-                    if (bounds.contains((int) event.getX(), (int) event.getY())) {
-                        pressedRightDrawable = rightDrawable;
-                    }
-                }
-                if (pressedRightDrawable == null && rightDrawable2OnClickListener != null && rightDrawable2 != null) {
-                    Rect bounds = rightDrawable2.getBounds();
-                    if (bounds.contains((int) event.getX(), (int) event.getY())) {
-                        pressedRightDrawable = rightDrawable2;
-                    }
-                }
-                if (pressedRightDrawable == null && rightDrawableOnClickListener != null && rightDrawable != null) {
-                    Rect bounds = rightDrawable.getBounds();
-                    AndroidUtilities.rectTmp.set(bounds.left - dp(4), bounds.top - dp(4), bounds.right + dp(4), bounds.bottom + dp(4));
-                    if (AndroidUtilities.rectTmp.contains((int) event.getX(), (int) event.getY())) {
-                        pressedRightDrawable = rightDrawable;
-                    }
-                }
-                if (pressedRightDrawable == null && rightDrawable2OnClickListener != null && rightDrawable2 != null) {
-                    Rect bounds = rightDrawable2.getBounds();
-                    AndroidUtilities.rectTmp.set(bounds.left - dp(4), bounds.top - dp(4), bounds.right + dp(4), bounds.bottom + dp(4));
-                    if (AndroidUtilities.rectTmp.contains((int) event.getX(), (int) event.getY())) {
-                        pressedRightDrawable = rightDrawable2;
-                    }
-                }
-                maybeClick = pressedRightDrawable != null;
-                if (maybeClick) {
-                    touchDownX = event.getX();
-                    touchDownY = event.getY();
-                    getParent().requestDisallowInterceptTouchEvent(true);
-                    if (pressedRightDrawable instanceof PressableDrawable) {
-                        ((PressableDrawable) pressedRightDrawable).setPressed(true);
-                    }
+        if (rightDrawableOnClickListener != null && rightDrawable != null) {
+            AndroidUtilities.rectTmp.set(rightDrawableX - dp(16), rightDrawableY - dp(16), rightDrawableX + dp(16), rightDrawableY + dp(16));
+            if (event.getAction() == MotionEvent.ACTION_DOWN && AndroidUtilities.rectTmp.contains((int) event.getX(), (int) event.getY())) {
+                maybeClick = true;
+                touchDownX = event.getX();
+                touchDownY = event.getY();
+                getParent().requestDisallowInterceptTouchEvent(true);
+                if (rightDrawable instanceof PressableDrawable) {
+                    ((PressableDrawable) rightDrawable).setPressed(true);
                 }
             } else if (event.getAction() == MotionEvent.ACTION_MOVE && maybeClick) {
                 if (Math.abs(event.getX() - touchDownX) >= AndroidUtilities.touchSlop || Math.abs(event.getY() - touchDownY) >= AndroidUtilities.touchSlop) {
                     maybeClick = false;
                     getParent().requestDisallowInterceptTouchEvent(false);
-                    if (pressedRightDrawable instanceof PressableDrawable) {
-                        ((PressableDrawable) pressedRightDrawable).setPressed(false);
+                    if (rightDrawable instanceof PressableDrawable) {
+                        ((PressableDrawable) rightDrawable).setPressed(false);
                     }
                 }
             } else if (event.getAction() == MotionEvent.ACTION_UP || event.getAction() == MotionEvent.ACTION_CANCEL) {
                 if (maybeClick && event.getAction() == MotionEvent.ACTION_UP) {
-                    if (pressedRightDrawable == rightDrawable2 && rightDrawable2OnClickListener != null) {
-                        rightDrawable2OnClickListener.onClick(this);
-                    } else if (pressedRightDrawable == rightDrawable && rightDrawableOnClickListener != null) {
-                        rightDrawableOnClickListener.onClick(this);
-                    }
-                    if (pressedRightDrawable instanceof PressableDrawable) {
-                        ((PressableDrawable) pressedRightDrawable).setPressed(false);
+                    rightDrawableOnClickListener.onClick(this);
+                    if (rightDrawable instanceof PressableDrawable) {
+                        ((PressableDrawable) rightDrawable).setPressed(false);
                     }
                 }
                 maybeClick = false;
-                pressedRightDrawable = null;
                 getParent().requestDisallowInterceptTouchEvent(false);
             }
         }
