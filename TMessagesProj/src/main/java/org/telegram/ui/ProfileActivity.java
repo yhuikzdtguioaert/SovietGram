@@ -10157,10 +10157,11 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         super.onResume();
         // Announce whose look this screen paints before anything draws: the own settings, or this
         // peer's as the pull below last cached them.
-        // Group/channel profile pages use the same local Custom Profile treatment as user profile
-        // pages. A fragment identity is passed as well, so an older profile's late onPause() cannot
-        // clear the look just selected by this one during a transition.
-        CustomProfileHelper.setDrawingLook(this, myProfile || chatId != 0, userId);
+        // Only the account's own user profile may use the local Custom Profile settings. Treating a
+        // group/channel as "my profile" makes every owned channel inherit the account's personal
+        // banner, colours and layout. A chat currently has no peer Custom Profile payload, so select
+        // an empty remote look for it instead of leaking the local one.
+        CustomProfileHelper.setDrawingLook(this, myProfile, userId);
         applyCustomProfileNameStyle();
         if (sharedMediaLayout != null) {
             sharedMediaLayout.onResume();
