@@ -25,6 +25,8 @@ import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import tw.nekomimi.nekogram.helpers.SovietGramPushBridge;
+
 public class GcmPushListenerService extends FirebaseMessagingService {
 
     @Override
@@ -56,7 +58,7 @@ public class GcmPushListenerService extends FirebaseMessagingService {
                 FileLog.d("Refreshed FCM token: " + token);
             }
             ApplicationLoader.postInitApplication();
-            PushListenerController.sendRegistrationToServer(PushListenerController.PUSH_TYPE_FIREBASE, token);
+            SovietGramPushBridge.registerFcmToken(token);
         });
     }
 

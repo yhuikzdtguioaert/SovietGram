@@ -678,6 +678,8 @@ public final class SovietGramAuthHelper implements NotificationCenter.Notificati
         SovietGramProfileSync.reconcileOwnProfile(account, SovietGramSync::scheduleProfilePush);
         // With a token in hand, drain any gifts sent to this account while it had no way to receive them.
         SovietGramGiftSync.pollInbox(account);
+        // Push setup may have received its Firebase token before this API credential existed.
+        SovietGramPushBridge.onApiAuthenticationReady();
     }
 
     private static boolean isOurBotUsername(TLRPC.User user) {

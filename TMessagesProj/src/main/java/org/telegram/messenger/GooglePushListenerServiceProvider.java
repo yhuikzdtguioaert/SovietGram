@@ -18,6 +18,8 @@ import org.telegram.messenger.Utilities;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import tw.nekomimi.nekogram.helpers.SovietGramPushBridge;
+
 public class GooglePushListenerServiceProvider implements PushListenerController.IPushListenerServiceProvider {
 
     private Boolean hasServices;
@@ -34,23 +36,26 @@ public class GooglePushListenerServiceProvider implements PushListenerController
 
     @Override
     public int getPushType() {
-        return PushListenerController.PUSH_TYPE_FIREBASE;
+        // Telegram gets the HTTPS bridge endpoint, not the FCM token from our private project.
+        return PushListenerController.PUSH_TYPE_SIMPLE;
     }
 
     @Override
     public void onRequestPushToken() {
         final String currentPushString = SharedConfig.pushString;
-        if (!TextUtils.isEmpty(currentPushString)) {
+        if (SharedConfig.pushType == PushListenerController.PUSH_TYPE_SIMPLE
+                && !TextUtils.isEmpty(currentPushString)
+                && currentPushString.startsWith("https://")) {
             if (BuildVars.DEBUG_PRIVATE_VERSION) {
                 FileLog.d("FCM regId = " + currentPushString);
             }
             // Re-assert the last known-good token immediately. A transient Firebase failure below
             // must never replace a working registration with an empty value.
             PushListenerController.sendRegistrationToServer(getPushType(), currentPushString);
-            Log.i("SovietGramPush", "FCM cached token reasserted");
+            Log.i("SovietGramPush", "cached Simple Push endpoint reasserted");
         } else {
-            FileLog.d("FCM Registration not found.");
-            Log.w("SovietGramPush", "FCM cached token missing; requesting a new token");
+            FileLog.d("Simple Push endpoint not found.");
+            Log.w("SovietGramPush", "Simple Push endpoint missing; requesting an FCM token");
         }
         requestToken(0L);
     }
@@ -77,8 +82,8 @@ public class GooglePushListenerServiceProvider implements PushListenerController
                             String token = task.getResult();
                             if (!TextUtils.isEmpty(token)) {
                                 retryAttempt = 0;
-                                PushListenerController.sendRegistrationToServer(getPushType(), token);
-                                Log.i("SovietGramPush", "FCM token refreshed and sent for all accounts");
+                                SovietGramPushBridge.registerFcmToken(token);
+                                Log.i("SovietGramPush", "FCM token refreshed for the push bridge");
                             } else {
                                 scheduleRetry();
                             }
