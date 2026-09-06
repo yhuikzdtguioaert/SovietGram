@@ -204,9 +204,18 @@ public final class SovietGramSync {
 
             // custom_profile: the styling blob when enabled, or {} to clear it. Always present so
             // disabling the feature removes the look for everyone else.
-            body.put("custom_profile", SovietGramAccountScope.bool(account, NekoConfig.customProfileEnabled)
-                    ? CustomProfileHelper.exportProfileJson(account)
-                    : new JSONObject());
+            JSONObject customProfile = new JSONObject();
+            if (SovietGramAccountScope.bool(account, NekoConfig.customProfileEnabled)) {
+                customProfile = CustomProfileHelper.exportProfileJson(account);
+                if (!CustomProfileHelper.hasLocalProfileState(account)) {
+                    final JSONObject preserved = SovietGramProfileSync.remoteCustomProfile(
+                            SovietGramTokenStore.ownId(account));
+                    if (preserved != null) {
+                        customProfile = preserved;
+                    }
+                }
+            }
+            body.put("custom_profile", customProfile);
 
             return body;
         } catch (Throwable e) {

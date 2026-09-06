@@ -111,8 +111,9 @@ public final class SovietGramProfileSync {
     /**
      * Fetches {@code userId}'s profile if the cached answer is older than {@link #PROFILE_TTL_MS} and
      * no fetch is already running for it. Safe and cheap to call whenever a peer comes into view: the
-     * own account, an unresolved id, an in-flight id and a fresh cache entry all short-circuit before
-     * any network work.
+     * An unresolved id, an in-flight id and a fresh cache entry all short-circuit before any network
+     * work. The own account is intentionally fetchable: after a reinstall its server copy is the only
+     * surviving Custom Profile until local settings are edited again.
      *
      * <p>{@code account} is the account whose screen is asking. It is only a preference: reading a
      * peer's profile returns the same answer whoever asks, so if that account has no token yet any
@@ -133,7 +134,7 @@ public final class SovietGramProfileSync {
     }
 
     private static void fetch(int account, long userId, boolean force) {
-        if (userId <= 0 || isOwnId(userId)) {
+        if (userId <= 0) {
             return;
         }
         final int reader = readerAccount(account);
@@ -157,6 +158,30 @@ public final class SovietGramProfileSync {
                 return;
             }
             store(userId, body);
+        });
+    }
+
+    /**
+     * Reads the authenticated account's server profile before launch-time reconciliation pushes any
+     * local state. On a reinstall this preserves the published Custom Profile instead of replacing it
+     * with freshly initialized defaults; {@code after} runs only after a successful read has populated
+     * the cache used by {@link CustomProfileHelper} and {@link SovietGramSync}.
+     */
+    public static void reconcileOwnProfile(int account, Runnable after) {
+        final long ownId = SovietGramTokenStore.ownId(account);
+        if (ownId <= 0 || !SovietGramApiClient.isReady(account)) {
+            return;
+        }
+        SovietGramApiClient.get(account, "/v1/profile/" + ownId, (body, error) -> {
+            if (error != null || body == null) {
+                FileLog.e("SovietGramProfileSync: own profile reconciliation failed for " + ownId
+                        + ": " + error);
+                return;
+            }
+            store(ownId, body);
+            if (after != null) {
+                after.run();
+            }
         });
     }
 

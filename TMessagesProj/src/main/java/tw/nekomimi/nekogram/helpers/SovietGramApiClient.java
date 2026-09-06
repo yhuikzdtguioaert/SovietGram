@@ -279,7 +279,10 @@ public final class SovietGramApiClient {
             final String text = rb == null ? "" : rb.string();
             if (!r.isSuccessful()) {
                 if (authed && (r.code() == 401 || r.code() == 403)) {
-                    SovietGramAuthHelper.getInstance().onTokenRejected(account);
+                    final String authorization = r.request().header("Authorization");
+                    final String rejectedToken = authorization != null && authorization.startsWith("Bearer ")
+                            ? authorization.substring("Bearer ".length()) : null;
+                    SovietGramAuthHelper.getInstance().onTokenRejected(account, rejectedToken);
                 }
                 throw new ApiError("HTTP " + r.code() + ": " + text);
             }

@@ -290,6 +290,30 @@ public final class CustomProfileHelper {
     }
 
     /**
+     * Whether this account has intentionally changed any local Custom Profile value from its declared
+     * default. A server copy is used only while this is false, which is the precise fresh-install case:
+     * once the user edits or disables the look, local state immediately wins again.
+     */
+    public static boolean hasLocalProfileState(int account) {
+        for (ConfigItem item : EXPORTED) {
+            final Object value = item.defaultValue;
+            if (value instanceof Boolean expected
+                    && SovietGramAccountScope.bool(account, item) != expected) {
+                return true;
+            }
+            if (value instanceof Integer expected
+                    && SovietGramAccountScope.integer(account, item) != expected) {
+                return true;
+            }
+            if (value instanceof String expected
+                    && !expected.equals(SovietGramAccountScope.str(account, item))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * The banner type actually drawable for the look on screen.
      * <p>
      * A picked picture is a local file, so a peer's look cannot name one. What it can name is where the
@@ -795,10 +819,13 @@ public final class CustomProfileHelper {
      * own settings, or {@code peerId}'s as the sync layer last saw them. The settings have no per-peer
      * notion of their own, so without this a custom shape would follow onto everybody's profile.
      */
-    public static void setDrawingLook(Object owner, boolean myProfile, long peerId) {
+    public static void setDrawingLook(Object owner, boolean myProfile, int account, long peerId) {
         drawingOwner = owner;
         drawingMyProfile = myProfile;
-        drawingPeerId = myProfile ? 0 : peerId;
+        // A reinstall has no local look but the authenticated server still has the one peers see. In
+        // that one state draw the own account through the same remote cache as any peer. The first
+        // local edit exits this fallback in onSettingsChanged().
+        drawingPeerId = myProfile && hasLocalProfileState(account) ? 0 : peerId;
         remoteLook = drawingPeerId == 0 ? null : SovietGramProfileSync.remoteCustomProfile(drawingPeerId);
         resolveRemoteMedia();
     }
@@ -849,6 +876,11 @@ public final class CustomProfileHelper {
      * settings screen on every change, so it has to stay cheap when nothing actually moved.
      */
     public static void onSettingsChanged() {
+        if (drawingMyProfile && drawingPeerId != 0) {
+            drawingPeerId = 0;
+            remoteLook = null;
+            resolveRemoteMedia();
+        }
         bannerLoadedFrom = null;
         backgroundLoadedFrom = null;
         bannerBitmap = null;

@@ -121,6 +121,30 @@ public final class SovietGramTokenStore {
         write(item, root);
     }
 
+    /**
+     * Forgets a rejected token only if it is still the value stored for this identity.
+     *
+     * <p>Several requests can be in flight with one bearer. If their 401 responses arrive after a
+     * replacement token has already been acquired, an unconditional clear would delete the new token
+     * because of an old request. Comparing and deleting under this class' lock makes rejection
+     * recovery atomic and leaves a newer credential intact.
+     */
+    public static synchronized boolean clearTokenIfMatches(long telegramId, @Nullable String rejectedToken) {
+        if (telegramId <= 0 || TextUtils.isEmpty(rejectedToken)) {
+            return false;
+        }
+        migrateLegacy();
+        final ConfigItem item = NaConfig.INSTANCE.getSovietGramApiTokens();
+        final JSONObject root = root(item);
+        final String key = String.valueOf(telegramId);
+        if (!TextUtils.equals(root.optString(key, ""), rejectedToken)) {
+            return false;
+        }
+        root.remove(key);
+        write(item, root);
+        return true;
+    }
+
     // ===== accounts =====
 
     /** The logged-in telegram id of slot {@code account}, or {@code 0} if the slot is empty. */

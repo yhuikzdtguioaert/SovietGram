@@ -271,7 +271,9 @@ public class NekoConfig {
     // Colours are stored as signed ARGB ints. Alpha, dim and every "strength" value is a percent,
     // angles are degrees, and centres are a percent of the side they run along, so that every one of
     // them can be driven by the same integer slider.
-    public static ConfigItem customProfileEnabled = addConfig("customProfileEnabled", configTypeBool, false);
+    // Custom Profiles are a viewing feature as well as an editor. A clean install must be able to
+    // render profiles already published by this account and by peers before the user visits settings.
+    public static ConfigItem customProfileEnabled = addConfig("customProfileEnabled", configTypeBool, true);
 
     // Banner: 0 none, 1 solid, 2 gradient, 3 picture, 4 animation.
     public static ConfigItem customProfileBannerType = addConfig("customProfileBannerType", configTypeInt, 0);

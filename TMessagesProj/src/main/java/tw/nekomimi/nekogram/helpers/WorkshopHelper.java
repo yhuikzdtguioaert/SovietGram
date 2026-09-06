@@ -14,6 +14,7 @@ import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.Utilities;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
@@ -29,14 +30,14 @@ import tw.nekomimi.nekogram.helpers.remote.ApiServersHelper;
  * Client for the Custom Profile workshop — the gallery the reference plugin publishes to, talking
  * to the same host, so every look shared there shows up here unchanged.
  * <p>
- * It is a third-party server reached over plain HTTP, so nothing here is allowed to be fatal: work
+ * It is a third-party server reached through its HTTPS reverse proxy, so nothing here is allowed to be fatal: work
  * happens off the main thread and a failure comes back as a message for the screen to show rather
  * than an exception. Listing sends the account's Telegram id as {@code me} because that is what
  * decides which works come back already liked and what "Мои работы" contains.
  */
 public final class WorkshopHelper {
 
-    private static final String BASE = "http://penis.nothalk.fun:8080";
+    private static final String BASE = "https://penis.nothalk.fun/cpb";
     private static final int TIMEOUT = 20000;
 
     /**
@@ -579,15 +580,15 @@ public final class WorkshopHelper {
      * deterministically — a second attempt is worth its one request, a fifth is not.
      */
     private static byte[] getBytes(String url, long limit) throws Exception {
-        TruncatedException truncated = null;
+        Exception failure = null;
         for (int attempt = 0; attempt < 2; attempt++) {
             try {
                 return readOnce(url, limit);
-            } catch (TruncatedException e) {
-                truncated = e;
+            } catch (TruncatedException | IOException e) {
+                failure = e;
             }
         }
-        throw truncated;
+        throw failure;
     }
 
     /**
@@ -611,6 +612,10 @@ public final class WorkshopHelper {
             connection.setReadTimeout(TIMEOUT);
             connection.setInstanceFollowRedirects(true);
             connection.setRequestProperty("User-Agent", "SovietGram/workshop");
+            // Android's HttpURLConnection pools plain-HTTP sockets. The workshop occasionally closes
+            // one between responses, producing "unexpected end of stream" before a byte is readable.
+            // A fresh socket plus the bounded retry above avoids reusing that half-closed connection.
+            connection.setRequestProperty("Connection", "close");
             final long declared = connection.getContentLengthLong();
             if (declared > limit) {
                 throw new Exception("response too large: " + declared);

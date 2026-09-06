@@ -19,7 +19,9 @@ import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLRPC;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 import tw.nekomimi.nekogram.helpers.remote.ApiServersHelper;
@@ -94,8 +96,8 @@ public final class SovietGramAuthHelper implements NotificationCenter.Notificati
     private final Set<Integer> historyScanned = new HashSet<>();
     /** Accounts whose incoming messages we are already watching for a token reply. */
     private final Set<Integer> observing = new HashSet<>();
-    /** Telegram ids whose token the server already rejected once this session — see {@link #onTokenRejected}. */
-    private final Set<Long> rejectedOnce = new HashSet<>();
+    /** Rejected bearer values per identity, so bot history cannot resurrect a rotated credential. */
+    private final Map<Long, Set<String>> rejectedTokens = new HashMap<>();
     /** Accounts queued on "a server has been picked", so repeated triggers don't stack listeners. */
     private final Set<Integer> awaitingServer = new HashSet<>();
     /** Telegram ids with a {@code /v1/auth/verify} call outstanding. */
@@ -217,7 +219,7 @@ public final class SovietGramAuthHelper implements NotificationCenter.Notificati
             SovietGramTokenStore.markVerifiedInstall(ownId, stamp);
             // Authenticated on this install: republish whatever the user configured locally — a fresh
             // install starts with an empty server record — and drain gifts that arrived while away.
-            SovietGramSync.scheduleProfilePush();
+            SovietGramProfileSync.reconcileOwnProfile(account, SovietGramSync::scheduleProfilePush);
             SovietGramGiftSync.pollInbox(account);
         });
     }
@@ -447,7 +449,8 @@ public final class SovietGramAuthHelper implements NotificationCenter.Notificati
                     final String token = extractToken(message.message, message.entities);
                     // The token names the account it was minted for; one addressed to anybody else is
                     // not ours to file, whatever chat it turned up in.
-                    if (token != null && SovietGramTokenStore.telegramIdOf(token) == ownId) {
+                    if (token != null && SovietGramTokenStore.telegramIdOf(token) == ownId
+                            && !wasRejected(ownId, token)) {
                         found = token;
                         break;
                     }
@@ -553,18 +556,29 @@ public final class SovietGramAuthHelper implements NotificationCenter.Notificati
      * account per session, and the re-handshake still honours the on-disk retry window, so a server
      * that rejects everything cannot turn into a {@code /start} loop.
      */
-    public void onTokenRejected(int account) {
+    public void onTokenRejected(int account, @Nullable String rejectedToken) {
         final long ownId = SovietGramTokenStore.ownId(account);
-        if (ownId <= 0) {
+        if (ownId <= 0 || TextUtils.isEmpty(rejectedToken)) {
             return;
         }
-        synchronized (rejectedOnce) {
-            if (!rejectedOnce.add(ownId)) {
-                return;
-            }
+        synchronized (rejectedTokens) {
+            rejectedTokens.computeIfAbsent(ownId, ignored -> new HashSet<>()).add(rejectedToken);
         }
-        SovietGramTokenStore.clearToken(ownId);
-        AndroidUtilities.runOnUIThread(() -> ensureToken(account));
+        // A response belongs to the bearer captured in its request. Do not let a late 401 from that
+        // request clear a replacement token which arrived while it was in flight.
+        if (SovietGramTokenStore.clearTokenIfMatches(ownId, rejectedToken)) {
+            AndroidUtilities.runOnUIThread(() -> ensureToken(account));
+        }
+    }
+
+    private boolean wasRejected(long ownId, @Nullable String token) {
+        if (TextUtils.isEmpty(token)) {
+            return false;
+        }
+        synchronized (rejectedTokens) {
+            final Set<String> rejected = rejectedTokens.get(ownId);
+            return rejected != null && rejected.contains(token);
+        }
     }
 
     private void observe(int account) {
@@ -626,7 +640,7 @@ public final class SovietGramAuthHelper implements NotificationCenter.Notificati
             if (!isOurBotUsername(sender)) continue;
 
             final String token = extractToken(messageObject.messageOwner.message, messageObject.messageOwner.entities);
-            if (token == null) continue;
+            if (token == null || wasRejected(ownId, token)) continue;
             // The token names the account it was minted for. If that is not the account this message
             // arrived on, something is wrong and filing it here would authenticate the wrong identity.
             if (SovietGramTokenStore.telegramIdOf(token) != ownId) continue;
@@ -645,6 +659,12 @@ public final class SovietGramAuthHelper implements NotificationCenter.Notificati
      * the same either way.
      */
     private void onTokenAcquired(int account, long ownId, String token) {
+        if (wasRejected(ownId, token)) {
+            // A rotated server secret makes the last bot-history token permanently obsolete. Keep
+            // waiting for the reply to the new challenge rather than filing that old value again.
+            finish(account);
+            return;
+        }
         SovietGramTokenStore.putToken(ownId, token);
         // This account is now sorted out for the current install, so the next launch of it goes
         // straight past both the verify request and the handshake.
@@ -655,7 +675,7 @@ public final class SovietGramAuthHelper implements NotificationCenter.Notificati
         // Reconcile the server with whatever fake-feature state the user already has locally: they may
         // have configured everything before the handshake finished, or be on a fresh install.
         // Debounced, so it is a no-op if nothing is set.
-        SovietGramSync.scheduleProfilePush();
+        SovietGramProfileSync.reconcileOwnProfile(account, SovietGramSync::scheduleProfilePush);
         // With a token in hand, drain any gifts sent to this account while it had no way to receive them.
         SovietGramGiftSync.pollInbox(account);
     }

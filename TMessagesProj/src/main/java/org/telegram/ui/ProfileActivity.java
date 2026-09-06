@@ -10161,7 +10161,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         // group/channel as "my profile" makes every owned channel inherit the account's personal
         // banner, colours and layout. A chat currently has no peer Custom Profile payload, so select
         // an empty remote look for it instead of leaking the local one.
-        CustomProfileHelper.setDrawingLook(this, myProfile, userId);
+        CustomProfileHelper.setDrawingLook(this, myProfile, currentAccount, userId);
         applyCustomProfileNameStyle();
         if (sharedMediaLayout != null) {
             sharedMediaLayout.onResume();
