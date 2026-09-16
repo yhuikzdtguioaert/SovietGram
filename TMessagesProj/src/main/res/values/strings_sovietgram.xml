@@ -690,4 +690,9 @@
     <string name="SovietGramBadgeSupporter">SovietGram supporter</string>
     <string name="SovietGramBadgeDeveloperInfo">One of the SovietGram developers</string>
     <string name="SovietGramBadgeSupporterInfo">One of the SovietGram supporters</string>
+    <string name="PhotoViewerHdr">HDR in Media Viewer</string>
+    <string name="ScrollToCurrentPhoto">Scroll to Current Photo</string>
+    <string name="IosButtonPlacement">iOS-style Button Placement</string>
+    <string name="IosInputAppearance">iOS-style Input Field</string>
+    <string name="CompactInputSize">Compact Input Field</string>
 </resources>

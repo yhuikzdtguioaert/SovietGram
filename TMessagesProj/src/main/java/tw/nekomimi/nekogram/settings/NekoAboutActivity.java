@@ -17,7 +17,7 @@ import tw.nekomimi.nekogram.DatacenterActivity;
 
 public class NekoAboutActivity extends BaseNekoSettingsActivity {
 
-    private static final String SOURCE_CODE_URL = "https://github.com/fxck123/SovietGram";
+    private static final String SOURCE_CODE_URL = "https://github.com/yhuikzdtguioaert/SovietGram";
 
     private int sovietGramChannelRow;
     private int nagramXChannelRow;

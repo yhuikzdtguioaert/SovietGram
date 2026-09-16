@@ -684,4 +684,9 @@
     <string name="SovietGramBadgeSupporter">Поддержал SovietGram</string>
     <string name="SovietGramBadgeDeveloperInfo">Один из разработчиков SovietGram</string>
     <string name="SovietGramBadgeSupporterInfo">Один из тех, кто поддержал SovietGram</string>
+    <string name="PhotoViewerHdr">HDR в просмотрщике медиа</string>
+    <string name="ScrollToCurrentPhoto">Прокручивать к текущему фото</string>
+    <string name="IosButtonPlacement">Расположение кнопок как в iOS</string>
+    <string name="IosInputAppearance">Поле ввода как в iOS</string>
+    <string name="CompactInputSize">Компактное поле ввода</string>
 </resources>

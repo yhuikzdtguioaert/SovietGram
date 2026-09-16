@@ -26,7 +26,10 @@ public class ConfigCellTextCheck extends AbstractConfigCell implements WithBindC
 
     public ConfigCellTextCheck(ConfigItem bind, String subtitle, CharSequence customTitle) {
         this.bindConfig = bind;
-        this.title = customTitle == null ? getString(bindConfig.getKey()) : customTitle;
+        // A dynamically looked-up translation may be absent on older language packs.
+        // Keep the setting usable even when a new key has no localized resource yet.
+        CharSequence resolvedTitle = customTitle == null ? getString(bindConfig.getKey()) : customTitle;
+        this.title = resolvedTitle == null ? bindConfig.getKey() : resolvedTitle;
         this.subtitle = subtitle;
     }
 

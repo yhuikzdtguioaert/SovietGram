@@ -679,7 +679,7 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
 
     /** Width of Telegram's status slot plus SovietGram's independent role slot. */
     private int getNameStatusIconsWidth() {
-        int width = drawPremium ? dp(24) : 0;
+        int width = drawPremium ? getPremiumNameIconWidth() + dp(2) : 0;
         if (drawSovietBadge) {
             if (width > 0) {
                 width += dp(3);
@@ -687,6 +687,17 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
             width += dp(15);
         }
         return width;
+    }
+
+    private int getPremiumNameIconWidth() {
+        Drawable icon = emojiStatus == null ? null : emojiStatus.getDrawable();
+        if (icon instanceof AnimatedEmojiDrawable) {
+            return dp(22);
+        }
+        int width = icon == null ? PremiumGradient.getInstance().premiumStarDrawableMini.getIntrinsicWidth()
+                : Math.max(0, icon.getIntrinsicWidth());
+        // RTL centers a static star inside the 22dp status slot instead of left-aligning it.
+        return emojiStatus != null && emojiStatus.center ? (dp(22) + width) / 2 : width;
     }
 
     private DialogsActivity parentFragment;
@@ -3690,7 +3701,7 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
             }
 
             // A row in the chat list draws the peer's premium star off their user object, and the list
-            // itself asks the backend about nobody — which is why a peer's fake premium showed inside
+            // itself asks the backend about nobody â€” which is why a peer's fake premium showed inside
             // the conversation with them and on their profile, but not in the list of all chats.
             // Coalesced and TTL-cached; see SovietGramProfileSync.sighted.
             if (user != null && user.id > 0 && !user.self && !user.bot) {
@@ -4653,7 +4664,7 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                     emojiStatus.setColor(Theme.getColor(Theme.key_chats_verifiedBackground, resourcesProvider));
                 } else {
                     Drawable premiumDrawable = PremiumGradient.getInstance().premiumStarDrawableMini;
-                    setDrawableBounds(premiumDrawable, nameMuteLeft - dp(1), dp(useForceThreeLines || SharedConfig.useThreeLinesLayout ? 12.5f : 15.5f));
+                    setDrawableBounds(premiumDrawable, nameMuteLeft - dp(1), y);
                     premiumDrawable.draw(canvas);
                 }
             } else if (drawScam != 0) {
@@ -4668,11 +4679,14 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
             // The SovietGram role is a separate slot. It must never replace Telegram Premium's
             // star/custom emoji; both are laid out and drawn side by side with a compact 3dp gap.
             if (drawSovietBadge && sovietBadgeDrawable != null && !drawVerified && drawScam == 0) {
-                int y = dp(useForceThreeLines || SharedConfig.useThreeLinesLayout ? 15.5f : 18.5f);
+                // The 22dp emoji slot is drawn 4dp above the Premium origin.
+                // Align centers, including when the slot contains the smaller static star.
+                int y = dp(useForceThreeLines || SharedConfig.useThreeLinesLayout ? 12.5f : 15.5f)
+                        - dp(4) + (dp(22) - dp(15)) / 2;
                 if ((!(useForceThreeLines || SharedConfig.useThreeLinesLayout) || isForumCell()) && hasTags()) {
                     y -= dp(9);
                 }
-                int x = nameMuteLeft + (drawPremium ? dp(27) : 0);
+                int x = nameMuteLeft + (drawPremium ? -dp(2) + getPremiumNameIconWidth() + dp(3) : 0);
                 sovietBadgeDrawable.setColorFilter(new PorterDuffColorFilter(
                         Theme.getColor(Theme.key_chats_verifiedBackground, resourcesProvider),
                         PorterDuff.Mode.SRC_IN));
