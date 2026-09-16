@@ -62,7 +62,6 @@ SovietGram стоит на чужой работе, и список длинны
 </tr>
 </table>
 
-Иконки взяты из [@exteraIcons](https://t.me/exteraIcons).
 
 Спасибо каждому. Если чей-то канал сюда не попал, а стоило — напишите в [@SovietUnionGram](https://t.me/SovietUnionGram), добавлю.
 
