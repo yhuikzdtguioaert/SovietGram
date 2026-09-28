@@ -244,6 +244,7 @@ import org.telegram.ui.Stories.recorder.DominantColors;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -18583,6 +18584,24 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
         }
         if (currentMessageObject.messageOwner.video_processing_pending) {
             timeString = formatString(R.string.ScheduledTimeApprox, timeString);
+        }
+        if (NaConfig.INSTANCE.getShowDateInBubble().Bool()
+                && currentMessageObject.realDate == 0
+                && !currentMessageObject.isRepostPreview
+                && !(currentMessageObject.isSaved && currentMessageObject.messageOwner.fwd_from != null && (currentMessageObject.messageOwner.fwd_from.date != 0 || currentMessageObject.messageOwner.fwd_from.saved_date != 0))) {
+            long bubbleDateMs = (long) messageObject.messageOwner.date * 1000;
+            Calendar bubbleDateCalendar = Calendar.getInstance();
+            bubbleDateCalendar.setTimeInMillis(System.currentTimeMillis());
+            int currentYear = bubbleDateCalendar.get(Calendar.YEAR);
+            bubbleDateCalendar.setTimeInMillis(bubbleDateMs);
+            String bubbleDatePrefix = bubbleDateCalendar.get(Calendar.YEAR) == currentYear
+                    ? LocaleController.getInstance().getChatDateShort().format(bubbleDateMs)
+                    : LocaleController.getInstance().getFormatterYear().format(bubbleDateMs);
+            if (timeString instanceof SpannableStringBuilder) {
+                ((SpannableStringBuilder) timeString).insert(0, bubbleDatePrefix + " · ");
+            } else if (timeString.length() > 0) {
+                timeString = bubbleDatePrefix + " · " + timeString;
+            }
         }
         if (NaConfig.INSTANCE.getShowMessageID().Bool() && messageObject.messageOwner != null/* && (isChat || isMegagroup || ChatObject.isChannel(currentChat))*/) {
             if (!(timeString instanceof SpannableStringBuilder)) {

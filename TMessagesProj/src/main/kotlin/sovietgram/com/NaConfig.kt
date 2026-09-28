@@ -215,6 +215,12 @@ object NaConfig {
             ConfigItem.configTypeBool,
             false
         )
+    val showDateInBubble =
+        addConfig(
+            "ShowDateInBubble",
+            ConfigItem.configTypeBool,
+            false
+        )
     val showRPCError =
         addConfig(
             "ShowRPCError",

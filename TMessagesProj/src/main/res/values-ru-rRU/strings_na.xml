@@ -17,6 +17,7 @@
     <string name="ToTheBeginning">К началу</string>
     <string name="DateOfForwardedMsg">Показывать дату пересылки сообщений</string>
     <string name="ShowMessageID">Показывать ID сообщения</string>
+    <string name="ShowDateInBubble">Показывать дату отправки в сообщениях</string>
     <string name="ShowRPCError">Показывать ошибки RPC</string>
     <string name="ShowPremiumStickersAnimation">Показывать анимацию Premium-стикеров</string>
     <string name="AppIconColorful">Красочная</string>
