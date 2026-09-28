@@ -299,4 +299,5 @@
     <string name="MediaAutoRotateGyro">Всегда</string>
     <string name="MediaAutoRotateFill">По контенту</string>
     <string name="MediaAutoRotateChanged">Автоповорот: %1$s</string>
+    <string name="DeletedMediaFileMissing">Файл медиа не найден</string>
 </resources>

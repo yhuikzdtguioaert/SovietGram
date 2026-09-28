@@ -300,4 +300,5 @@
     <string name="MediaAutoRotateGyro">Always</string>
     <string name="MediaAutoRotateFill">Fit content</string>
     <string name="MediaAutoRotateChanged">Auto-rotate: %1$s</string>
+    <string name="DeletedMediaFileMissing">Media file not found</string>
 </resources>
