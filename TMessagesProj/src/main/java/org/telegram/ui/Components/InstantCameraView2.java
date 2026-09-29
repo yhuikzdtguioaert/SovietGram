@@ -249,6 +249,7 @@ public final class InstantCameraView2 extends InstantCameraViewBase {
         buttonIconSize = dp(isNewDesign ? 24 : 28);
         switchCameraDrawable = new RLottieDrawable(
                 R.raw.roundcamera_flip,
+                "roundcamera_flip",
                 buttonIconSize,
                 buttonIconSize
         );
@@ -273,6 +274,17 @@ public final class InstantCameraView2 extends InstantCameraViewBase {
 
         textureView.setOnTouchListener(this::handleZoomTouch);
         super.setVisibility(INVISIBLE);
+    }
+
+    @Override
+    public void setUseFrontCamera(boolean useFront) {
+        RoundVideoSession.CameraFacing facing = useFront
+                ? RoundVideoSession.CameraFacing.FRONT
+                : RoundVideoSession.CameraFacing.BACK;
+        SharedSettings.roundVideoLastCamera.set(facing);
+        if (session != null) {
+            session.setCameraFacing(facing);
+        }
     }
 
     @Override
@@ -917,6 +929,7 @@ public final class InstantCameraView2 extends InstantCameraViewBase {
             if (flashOffDrawable == null) {
                 flashOffDrawable = new RLottieDrawable(
                         R.raw.roundcamera_flash_off,
+                        "roundcamera_flash_off",
                         buttonIconSize,
                         buttonIconSize
                 );
@@ -927,6 +940,7 @@ public final class InstantCameraView2 extends InstantCameraViewBase {
             if (flashOnDrawable == null) {
                 flashOnDrawable = new RLottieDrawable(
                         R.raw.roundcamera_flash_on,
+                        "roundcamera_flash_on",
                         buttonIconSize,
                         buttonIconSize
                 );

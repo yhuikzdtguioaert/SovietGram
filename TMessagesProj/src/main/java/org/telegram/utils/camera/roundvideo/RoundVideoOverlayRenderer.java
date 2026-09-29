@@ -984,7 +984,9 @@ final class RoundVideoOverlayRenderer {
         int atlasHeight = logoAtlasHeight + textSize;
 
         RLottieNative lottie = RLottieNative.createFromRawJson(
-                AndroidUtilities.readRes(R.raw.plane_logo_plain)
+                AndroidUtilities.readRes(R.raw.plane_logo_plain),
+                "round_video_plane_logo",
+                null
         );
         if (lottie == null) throw new IllegalStateException("Unable to load watermark animation");
         Bitmap frameBitmap = Bitmap.createBitmap(logoSize, logoSize, Bitmap.Config.ARGB_8888);

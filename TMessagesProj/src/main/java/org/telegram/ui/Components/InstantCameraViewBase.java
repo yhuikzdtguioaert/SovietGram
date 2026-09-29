@@ -58,6 +58,9 @@ public abstract class InstantCameraViewBase extends FrameLayout {
         SharedSettings.roundVideoCamera2Enabled.set(enabled);
     }
 
+    /** Selects the front or rear camera for this view. */
+    public abstract void setUseFrontCamera(boolean useFront);
+
     /** Returns whether subsequently created views use the Camera2 implementation. */
     public static boolean isUsingCamera2Implementation() {
         return SharedSettings.roundVideoCamera2Enabled.get();
