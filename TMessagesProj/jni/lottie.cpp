@@ -7,6 +7,7 @@
 #include <atomic>
 #include <thread>
 #include <map>
+#include <algorithm>
 #include <sys/stat.h>
 #include <utime.h>
 #include "tgnet/FileLog.h"
@@ -50,7 +51,34 @@ typedef struct LottieInfo {
     volatile uint32_t framesAvailableInCache = 0;
 };
 
-JNIEXPORT jlong Java_org_telegram_ui_Components_RLottieNative_nCreate(JNIEnv *env, jclass clazz, jstring src, jstring json, jint w, jint h, jintArray data, jboolean precache, jintArray colorReplacement, jboolean limitFps, jint fitzModifier) {
+static void applyLayerColors(JNIEnv *env, Animation *animation, jobjectArray layerNames, jintArray layerColors) {
+    if (animation == nullptr || layerNames == nullptr || layerColors == nullptr) {
+        return;
+    }
+    const jsize count = std::min(env->GetArrayLength(layerNames), env->GetArrayLength(layerColors));
+    jint *colors = env->GetIntArrayElements(layerColors, nullptr);
+    if (colors == nullptr) {
+        return;
+    }
+    for (jsize i = 0; i < count; ++i) {
+        auto layer = static_cast<jstring>(env->GetObjectArrayElement(layerNames, i));
+        if (layer != nullptr) {
+            const char *name = env->GetStringUTFChars(layer, nullptr);
+            if (name != nullptr) {
+                const jint color = colors[i];
+                animation->setValue<Property::Color>(name, Color(
+                        (color & 0xff) / 255.0f,
+                        ((color >> 8) & 0xff) / 255.0f,
+                        ((color >> 16) & 0xff) / 255.0f));
+                env->ReleaseStringUTFChars(layer, name);
+            }
+            env->DeleteLocalRef(layer);
+        }
+    }
+    env->ReleaseIntArrayElements(layerColors, colors, JNI_ABORT);
+}
+
+JNIEXPORT jlong Java_org_telegram_ui_Components_RLottieNative_nCreate(JNIEnv *env, jclass clazz, jstring src, jstring json, jint w, jint h, jintArray data, jboolean precache, jintArray colorReplacement, jboolean limitFps, jint fitzModifier, jobjectArray layerNames, jintArray layerColors) {
     auto info = new LottieInfo();
 
     std::map<int32_t, int32_t> *colors = nullptr;
@@ -107,6 +135,7 @@ JNIEXPORT jlong Java_org_telegram_ui_Components_RLottieNative_nCreate(JNIEnv *en
         delete info;
         return 0;
     }
+    applyLayerColors(env, info->animation.get(), layerNames, layerColors);
     info->frameCount = info->animation->totalFrame();
     info->fps = (int) info->animation->frameRate();
     info->limitFps = limitFps;
@@ -212,7 +241,7 @@ JNIEXPORT jdouble Java_org_telegram_ui_Components_RLottieNative_nGetDuration(JNI
     return (jdouble) duration;
 }
 
-JNIEXPORT jlong Java_org_telegram_ui_Components_RLottieNative_nCreateWithJson(JNIEnv *env, jclass clazz, jstring json, jstring name, jintArray data, jintArray colorReplacement) {
+JNIEXPORT jlong Java_org_telegram_ui_Components_RLottieNative_nCreateWithJson(JNIEnv *env, jclass clazz, jstring json, jstring name, jintArray data, jintArray colorReplacement, jobjectArray layerNames, jintArray layerColors) {
     std::map<int32_t, int32_t> *colors = nullptr;
     if (colorReplacement != nullptr) {
         jint *arr = env->GetIntArrayElements(colorReplacement, nullptr);
@@ -241,6 +270,7 @@ JNIEXPORT jlong Java_org_telegram_ui_Components_RLottieNative_nCreateWithJson(JN
         delete info;
         return 0;
     }
+    applyLayerColors(env, info->animation.get(), layerNames, layerColors);
     info->frameCount = info->animation->totalFrame();
     info->fps = (int) info->animation->frameRate();
 
