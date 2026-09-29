@@ -65,7 +65,13 @@ public final class ResLottieMeta {
 
             return result;
         } catch (IOException e) {
-            throw new RuntimeException("Unable to load " + ASSET_NAME, e);
+            // Older branded builds do not ship the generated metadata asset yet.
+            // Lottie can still parse those resources directly, so keep startup
+            // working and use the regular metadata path for every animation.
+            if (BuildVars.LOGS_ENABLED) {
+                FileLog.e("Unable to load " + ASSET_NAME + "; using runtime Lottie metadata", e);
+            }
+            return new long[0];
         } catch (RuntimeException e) {
             if (BuildVars.LOGS_ENABLED) {
                 FileLog.e("Unable to load " + ASSET_NAME, e);
