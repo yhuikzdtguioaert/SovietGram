@@ -6348,7 +6348,7 @@ public class NotificationsController extends BaseController implements Notificat
             case 2:
                 return R.drawable.sovietuniongram_notification;
             case 3:
-                return R.drawable.neko_notification;
+                return R.drawable.sovietgram_notification;
             case 4:
                 return R.drawable.sovietgram_notification;
             default:
