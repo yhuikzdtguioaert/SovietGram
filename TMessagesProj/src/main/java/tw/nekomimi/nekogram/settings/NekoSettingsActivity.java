@@ -43,18 +43,18 @@ import org.telegram.ui.LaunchActivity;
 import java.util.ArrayList;
 
 import tw.nekomimi.nekogram.helpers.AppRestartHelper;
-import tw.nekomimi.nekogram.helpers.CloudSettingsHelper;
 import tw.nekomimi.nekogram.helpers.SettingsHelper;
 import tw.nekomimi.nekogram.helpers.SettingsSearchResult;
 
 public class NekoSettingsActivity extends BaseNekoSettingsActivity {
 
     private static final int MENU_SEARCH = 1;
-    private static final int MENU_SYNC = 2;
 
     private int generalRow;
     private int translatorRow;
     private int chatRow;
+    private int bypassBlockingRow;
+    private int sovietGramExclusiveRow;
     private int categoriesEndRow;
 
     private int appRestartRow;
@@ -70,6 +70,8 @@ public class NekoSettingsActivity extends BaseNekoSettingsActivity {
         generalRow = addRow();
         translatorRow = addRow();
         chatRow = addRow();
+        bypassBlockingRow = addRow();
+        sovietGramExclusiveRow = addRow();
         categoriesEndRow = addRow();
 
         appRestartRow = addRow();
@@ -84,7 +86,6 @@ public class NekoSettingsActivity extends BaseNekoSettingsActivity {
 
         ActionBarMenu menu = actionBar.createMenu();
         menu.addItem(MENU_SEARCH, R.drawable.outline_header_search, resourcesProvider);
-        menu.addItem(MENU_SYNC, R.drawable.cloud_sync, resourcesProvider);
 
         actionBar.setActionBarMenuOnItemClick(new ActionBar.ActionBarMenuOnItemClick() {
             @Override
@@ -93,8 +94,6 @@ public class NekoSettingsActivity extends BaseNekoSettingsActivity {
                     finishFragment();
                 } else if (id == MENU_SEARCH) {
                     showSettingsSearchDialog();
-                } else if (id == MENU_SYNC) {
-                    CloudSettingsHelper.getInstance().showDialog(NekoSettingsActivity.this);
                 }
             }
         });
@@ -304,6 +303,10 @@ public class NekoSettingsActivity extends BaseNekoSettingsActivity {
             presentFragment(new NekoChatSettingsActivity());
         } else if (position == generalRow) {
             presentFragment(new NekoGeneralSettingsActivity());
+        } else if (position == bypassBlockingRow) {
+            presentFragment(new BypassBlockingActivity());
+        } else if (position == sovietGramExclusiveRow) {
+            presentFragment(new SovietGramExclusiveActivity());
         } else if (position == translatorRow) {
             presentFragment(new NekoTranslatorSettingsActivity());
         } else if (position == aboutRow) {
@@ -340,6 +343,12 @@ public class NekoSettingsActivity extends BaseNekoSettingsActivity {
                         textCell.setTextAndIcon(getString(R.string.General), R.drawable.msg_theme, true);
                     } else if (position == translatorRow) {
                         textCell.setTextAndIcon(getString(R.string.TranslatorSettings), R.drawable.ic_translate, true);
+                    } else if (position == bypassBlockingRow) {
+                        textCell.setTextAndIcon(getString(R.string.BypassBlocking), R.drawable.sovietgram_bypass_blocking, true);
+                        textCell.imageView.setColorFilter(null);
+                    } else if (position == sovietGramExclusiveRow) {
+                        textCell.setTextAndIcon(getString(R.string.SovietGramExclusive), R.drawable.sovietgram_exclusive, true);
+                        textCell.setColors(Theme.key_windowBackgroundWhiteGrayIcon, Theme.key_windowBackgroundWhiteBlackText);
                     } else if (position == appRestartRow) {
                         textCell.setTextAndIcon(getString(R.string.RestartApp), R.drawable.msg_retry_solar, true);
                     } else if (position == aboutRow) {
@@ -355,7 +364,7 @@ public class NekoSettingsActivity extends BaseNekoSettingsActivity {
         public int getItemViewType(int position) {
             if (position == categoriesEndRow || position == nSettingsEndRow) {
                 return TYPE_SHADOW;
-            } else if (position == chatRow || position == generalRow || position == translatorRow || position == appRestartRow ||
+            } else if (position == chatRow || position == generalRow || position == translatorRow || position == bypassBlockingRow || position == sovietGramExclusiveRow || position == appRestartRow ||
                     position == aboutRow) {
                 return TYPE_TEXT;
             }

@@ -1620,8 +1620,13 @@ object NaConfig {
         if (translatorMode.Int() !in 0..2) {
             translatorMode.setConfigInt(0)
         }
-        // autoUpdateChannel: 0=OFF, 1=RELEASE, 2=BETA (removed); clamp legacy BETA → RELEASE
-        if (autoUpdateChannel.Int() !in 0..1) {
+        // Only Telegram's standard icon and the SovietGram hammer-and-sickle remain.
+        // Migrate legacy Nagram/Neko icon indices to SovietGram.
+        if (notificationIcon.Int() !in 0..1) {
+            notificationIcon.setConfigInt(1)
+        }
+        // SovietGram has one update channel. Migrate every legacy value to Release.
+        if (autoUpdateChannel.Int() != 1) {
             autoUpdateChannel.setConfigInt(1)
         }
         if (!getPreferences().contains(idDcType.key) && !getPreferences().getBoolean(

@@ -19,8 +19,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import xyz.nextalone.nagram.NaConfig;
-
 public class UpdateHelper extends BaseRemoteHelper {
 
     public static final int UPDATE_OFF = 0;
@@ -57,7 +55,7 @@ public class UpdateHelper extends BaseRemoteHelper {
     @Override
     protected String getTag() {
         if (BuildConfig.DEBUG) return "updateDebug";
-        return NaConfig.INSTANCE.getAutoUpdateChannel().Int() == UPDATE_CHANNEL_RELEASE ? "updateRelease" : "updateBeta";
+        return "updateRelease";
     }
 
     @SuppressWarnings("ConstantConditions")
@@ -142,10 +140,6 @@ public class UpdateHelper extends BaseRemoteHelper {
         if (json.url != null) {
             update.url = json.url;
             update.flags |= 4;
-        }
-        if (NaConfig.INSTANCE.getAutoUpdateChannel().Int() == UPDATE_OFF && !update.can_not_skip) {
-            delegate.onTLResponse(null, null);
-            return;
         }
         if (response != null) {
             var res = (TLRPC.messages_Messages) response;

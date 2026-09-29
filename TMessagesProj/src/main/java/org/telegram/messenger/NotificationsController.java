@@ -6342,18 +6342,9 @@ public class NotificationsController extends BaseController implements Notificat
     }
 
     private int getNotificationIconResId() {
-        switch (NaConfig.INSTANCE.getNotificationIcon().Int()) {
-            case 1:
-                return R.drawable.sovietuniongramx_notification;
-            case 2:
-                return R.drawable.sovietuniongram_notification;
-            case 3:
-                return R.drawable.sovietgram_notification;
-            case 4:
-                return R.drawable.sovietgram_notification;
-            default:
-                return R.drawable.notification;
-        }
+        return NaConfig.INSTANCE.getNotificationIcon().Int() == 0
+                ? R.drawable.notification
+                : R.drawable.sovietgram_notification;
     }
 
     public void loadTopicsNotificationsExceptions(long dialogId, Consumer<HashSet<Integer>> consumer) {
