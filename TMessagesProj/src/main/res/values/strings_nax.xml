@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="XChannel">Nagram X Turbo Channel</string>
+    <string name="XChannel">SovietGram Channel</string>
     <string name="EnableSaveDeletedMessages">Save Deleted Messages</string>
     <string name="DeletedMessages">Deleted Messages</string>
     <string name="DeletedMessage">deleted</string>
@@ -330,8 +330,8 @@
     <string name="BackAnimationSpring">Spring</string>
     <string name="BackAnimationPredictive">Predictive</string>
     <string name="AddToFilter">Add to Filter</string>
-    <string name="UnifiedPushNeverReceivedNotifications">You never received notifications with UnifiedPush since Nagram X Turbo was started.</string>
-    <string name="UnifiedPushLastReceivedNotification">The last received notification with UnifiedPush was %1$d seconds ago.\n\nYou received %2$d notifications since Nagram X Turbo was started.</string>
+    <string name="UnifiedPushNeverReceivedNotifications">You never received notifications with UnifiedPush since SovietGram was started.</string>
+    <string name="UnifiedPushLastReceivedNotification">The last received notification with UnifiedPush was %1$d seconds ago.\n\nYou received %2$d notifications since SovietGram was started.</string>
     <string name="UnifiedPushCurrentEndpoint">The current UnifiedPush endpoint is: %1$s</string>
     <string name="PlayOnce">Play once</string>
     <string name="StorageSettings">Storage</string>
@@ -366,7 +366,7 @@
     <string name="ForceFontWeightFallback">Force Font Weight Fallback</string>
     <string name="SovietGram" translatable="false">SovietGram</string>
     <string name="SovietGramChannel">SovietGram Channel</string>
-    <string name="NagramXChannel">Nagram X Channel</string>
+    <string name="NagramXChannel">SovietGram Channel</string>
     <string name="ShowDeletedMessagesInChat">Show Deleted Messages in chat</string>
     <string name="ShowDeletedMessagesInChatNotice">Keep deleted messages visible in the conversation, marked as deleted.</string>
     <string name="ShowDeletedMessagesInChatList">Show Deleted Messages in chat list</string>

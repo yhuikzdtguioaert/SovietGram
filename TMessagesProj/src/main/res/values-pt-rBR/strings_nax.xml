@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="SovietGramChannel">SovietGram Channel</string>
-    <string name="XChannel">Canal do Nagram X</string>
-    <string name="NagramXChannel">Canal do Nagram X</string>
+    <string name="XChannel">Canal do SovietGram</string>
+    <string name="NagramXChannel">Canal do SovietGram</string>
     <string name="EnableSaveDeletedMessages">Salvar mensagens apagadas</string>
     <string name="DeletedMessage">apagada</string>
     <string name="EnableSaveEditsHistory">Salvar histórico de edições</string>

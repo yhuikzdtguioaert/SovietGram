@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="SovietGramChannel">SovietGram Channel</string>
-    <string name="XChannel">Kanal Nagram X</string>
-    <string name="NagramXChannel">Kanal Nagram X</string>
+    <string name="XChannel">Kanal SovietGram</string>
+    <string name="NagramXChannel">Kanal SovietGram</string>
     <string name="EnableSaveDeletedMessages">Simpan Pesan yang Dihapus</string>
     <string name="DeletedMessage">dihapus</string>
     <string name="EnableSaveEditsHistory">Simpan Riwayat Suntingan</string>

@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="SovietGramChannel">SovietGram Channel</string>
-    <string name="XChannel">Nagram X チャンネル</string>
-    <string name="NagramXChannel">Nagram X チャンネル</string>
+    <string name="XChannel">SovietGram チャンネル</string>
+    <string name="NagramXChannel">SovietGram チャンネル</string>
     <string name="EnableSaveDeletedMessages">削除済みメッセージを保存</string>
     <string name="DeletedMessage">削除済み</string>
     <string name="EnableSaveEditsHistory">編集履歴を保存</string>

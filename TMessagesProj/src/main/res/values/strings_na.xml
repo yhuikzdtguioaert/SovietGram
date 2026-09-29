@@ -40,8 +40,8 @@
     <string name="CustomEditedMessage">Custom Edited Mark</string>
     <string name="NotificationIcon">Notification Icon</string>
     <string name="Official">Official</string>
-    <string name="NagramX" translatable="false">Nagram X</string>
-    <string name="Nagram" translatable="false">Nagram</string>
+    <string name="NagramX" translatable="false">SovietGram</string>
+    <string name="Nagram" translatable="false">SovietGram</string>
     <string name="SovietGramLegacy" translatable="false">SovietGram</string>
     <string name="HalloWeen">HalloWeen</string>
     <string name="ShowOnlineStatus">Show Online Status</string>

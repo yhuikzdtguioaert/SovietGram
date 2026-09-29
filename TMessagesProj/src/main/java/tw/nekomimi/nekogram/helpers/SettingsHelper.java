@@ -19,9 +19,7 @@ import tw.nekomimi.nekogram.settings.BaseNekoXSettingsActivity;
 import tw.nekomimi.nekogram.settings.NekoAboutActivity;
 import tw.nekomimi.nekogram.settings.NekoChatSettingsActivity;
 import tw.nekomimi.nekogram.settings.NekoEmojiSettingsActivity;
-import tw.nekomimi.nekogram.settings.NekoExperimentalSettingsActivity;
 import tw.nekomimi.nekogram.settings.NekoGeneralSettingsActivity;
-import tw.nekomimi.nekogram.settings.NekoPasscodeSettingsActivity;
 import tw.nekomimi.nekogram.settings.NekoSettingsActivity;
 import tw.nekomimi.nekogram.settings.NekoTranslatorSettingsActivity;
 
@@ -42,8 +40,6 @@ public class SettingsHelper {
         BaseNekoXSettingsActivity nekox_fragment = null;
         if (segments.size() == 1) {
             fragment = new NekoSettingsActivity();
-        } else if (PasscodeHelper.getSettingsKey().equals(segments.get(1))) {
-            fragment = neko_fragment = new NekoPasscodeSettingsActivity();
         } else {
             switch (segments.get(1)) {
                 case "about":
@@ -53,10 +49,6 @@ public class SettingsHelper {
                 case "chats":
                 case "c":
                     fragment = nekox_fragment = new NekoChatSettingsActivity();
-                    break;
-                case "experimental":
-                case "e":
-                    fragment = nekox_fragment = new NekoExperimentalSettingsActivity();
                     break;
                 case "emoji":
                     fragment = neko_fragment = new NekoEmojiSettingsActivity();
@@ -113,7 +105,6 @@ public class SettingsHelper {
         ArrayList<BaseNekoXSettingsActivity> fragments = new ArrayList<>();
         fragments.add(new NekoGeneralSettingsActivity());
         fragments.add(new NekoChatSettingsActivity());
-        fragments.add(new NekoExperimentalSettingsActivity());
         fragments.add(new NekoTranslatorSettingsActivity());
 
         String n_title = getString(R.string.NekoSettings);

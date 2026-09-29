@@ -4,11 +4,6 @@
 #include <unistd.h>
 #include <string>
 
-#include <android/log.h>
-#include "breakpad/src/client/linux/handler/exception_handler.h"
-#include "breakpad/src/client/linux/handler/minidump_descriptor.h"
-
-
 thread_local static char buf[PATH_MAX + 1];
 
 extern "C" JNIEXPORT jstring Java_org_telegram_messenger_Utilities_readlink(JNIEnv *env, jclass clazz, jstring path) {
@@ -35,21 +30,10 @@ extern "C" JNIEXPORT jstring Java_org_telegram_messenger_Utilities_readlinkFd(JN
     return value;
 }
 
-bool dumpCallback(const google_breakpad::MinidumpDescriptor &descriptor,
-                  void *context,
-                  bool succeeded) {
-    __android_log_print(ANDROID_LOG_DEBUG, "tmessages",
-                        "Wrote breakpad minidump at %s succeeded=%d\n", descriptor.path(),
-                        succeeded);
-    return false;
-}
-
 extern "C"
 JNIEXPORT void JNICALL
 Java_org_telegram_messenger_Utilities_setupNativeCrashesListener(JNIEnv *env, jclass clazz,
                                                                  jstring path) {
-    const char *dumpPath = (char *) env->GetStringUTFChars(path, NULL);
-    google_breakpad::MinidumpDescriptor descriptor(dumpPath);
-    new google_breakpad::ExceptionHandler(descriptor, NULL, dumpCallback, NULL, true, -1);
-    env->ReleaseStringUTFChars(path, dumpPath);
+    // This source tree does not build Breakpad's Android handler. Keep the JNI entry point so
+    // startup can call it safely; Java's regular crash logger remains active.
 }
