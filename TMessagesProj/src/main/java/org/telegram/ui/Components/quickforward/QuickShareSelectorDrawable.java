@@ -48,7 +48,7 @@ import java.util.List;
 
 import tw.nekomimi.nekogram.NekoConfig;
 import tw.nekomimi.nekogram.ui.icons.IconsResources;
-import sovietgram.com.NaConfig;
+import xyz.nextalone.nagram.NaConfig;
 
 public class QuickShareSelectorDrawable extends Drawable implements Animator.AnimatorListener {
     public static class Sizes {

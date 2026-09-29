@@ -51,7 +51,7 @@ import java.util.regex.Pattern;
 
 import tw.nekomimi.nekogram.NekoConfig;
 import tw.nekomimi.nekogram.helpers.MessageHelper;
-import sovietgram.com.NaConfig;
+import xyz.nextalone.nagram.NaConfig;
 
 public class AndroidUtil {
 
@@ -191,7 +191,7 @@ public class AndroidUtil {
     @SuppressWarnings("ConstantValue")
     public static String getVersionText() {
         String versionName = "release".equals(BuildConfig.BUILD_TYPE) && !BuildVars.LOGS_ENABLED ? BuildConfig.VERSION_NAME.split("-")[0] : BuildConfig.VERSION_NAME;
-        return "SovietGram v" + versionName + "(" + BuildConfig.VERSION_CODE + ") " + Build.SUPPORTED_ABIS[0].toLowerCase(Locale.ROOT) + " " + BuildConfig.BUILD_TYPE + (BuildVars.LOGS_ENABLED ? " " + BuildConfig.BUILD_TIMESTAMP : "");
+        return "NagramXTurbo v" + versionName + "(" + BuildConfig.VERSION_CODE + ") " + Build.SUPPORTED_ABIS[0].toLowerCase(Locale.ROOT) + " " + BuildConfig.BUILD_TYPE + (BuildVars.LOGS_ENABLED ? " " + BuildConfig.BUILD_TIMESTAMP : "");
     }
 
     /*<!-- Controls the navigation bar interaction mode:
@@ -352,11 +352,8 @@ public class AndroidUtil {
 
     @SuppressWarnings("ConstantValue")
     public static boolean shouldEnableCrashlytics() {
-        // Upstream additionally pins this to its own applicationId so that forks
-        // never ship crashes into its Firebase project. SovietGram has its own
-        // google-services.json, so the package check is dropped here; debug
-        // builds and the user's opt-out still suppress collection.
         return !BuildConfig.DEBUG
+                && "nu.gpu.nagram".equals(BuildConfig.APPLICATION_ID)
                 && !NaConfig.INSTANCE.getDisableCrashlyticsCollection().Bool();
     }
 }

@@ -179,8 +179,8 @@ public class ChatAttachAlertAudioLayout extends ChatAttachAlert.AttachAlertLayou
                 topPanelLayout.setViewVisible(fragmentContextViewWrapper, visibility == VISIBLE);
             }
         };
-        fragmentContextView.isInsideBubble = true;
         fragmentContextViewWrapper.addView(fragmentContextView);
+        topPanelLayout.setCallFragmentContextView(fragmentContextView);
         lp = LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.TOP | Gravity.LEFT, 0, 8, 0, 4);
         lp.topMargin += AndroidUtilities.statusBarHeight + dp(48 - 21);
         frameLayout.addView(topPanelLayout, lp);
@@ -685,7 +685,7 @@ public class ChatAttachAlertAudioLayout extends ChatAttachAlert.AttachAlertLayou
     }
 
     private void showErrorBox(String error) {
-        new AlertDialog.Builder(getContext(), resourcesProvider).setTitle(LocaleController.getString(R.string.SovietGram)).setMessage(error).setPositiveButton(LocaleController.getString(R.string.OK), null).show();
+        new AlertDialog.Builder(getContext(), resourcesProvider).setTitle(LocaleController.getString(R.string.NagramX)).setMessage(error).setPositiveButton(LocaleController.getString(R.string.OK), null).show();
     }
 
     @Override

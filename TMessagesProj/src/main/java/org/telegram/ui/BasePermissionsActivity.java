@@ -4,7 +4,6 @@ import android.Manifest;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.content.res.Resources;
 import android.net.Uri;
 
 import androidx.annotation.RawRes;
@@ -24,8 +23,6 @@ import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.AlertsCreator;
 
-import tw.nekomimi.nekogram.ui.icons.IconsResources;
-
 public class BasePermissionsActivity extends FragmentActivity {
     public final static int REQUEST_CODE_GEOLOCATION = 2,
             REQUEST_CODE_EXTERNAL_STORAGE = 4,
@@ -39,15 +36,6 @@ public class BasePermissionsActivity extends FragmentActivity {
             REQUEST_CODE_MEDIA_GEO = 211;
 
     protected int currentAccount = -1;
-
-    /**
-     * Everything inflated against this activity — which is nearly the whole interface —
-     * takes its drawables from here, so this is where the selected icon pack gets its say.
-     */
-    @Override
-    public Resources getResources() {
-        return IconsResources.wrap(super.getResources());
-    }
 
     protected boolean checkPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         if (grantResults == null) {

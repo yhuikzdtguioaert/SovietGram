@@ -36,7 +36,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 
 import tw.nekomimi.nekogram.NekoConfig;
-import sovietgram.com.NaConfig;
+import xyz.nextalone.nagram.NaConfig;
 
 public class ChatsHelper extends BaseController {
     public static final int LEFT_BUTTON_NOQUOTE = 0;

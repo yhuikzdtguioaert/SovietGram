@@ -362,8 +362,6 @@ public class SessionsActivity extends BaseFragment implements NotificationCenter
                                     if (error == null && response instanceof TLRPC.TL_boolTrue) {
                                         BulletinFactory.of(SessionsActivity.this).createSimpleBulletin(R.raw.contact_check, getString(R.string.AllSessionsTerminated)).show();
                                         loadSessions(false);
-                                    } else {
-                                        showResetAuthorizationError(error);
                                     }
                                 });
 
@@ -404,8 +402,6 @@ public class SessionsActivity extends BaseFragment implements NotificationCenter
                                 if (error == null && response instanceof TLRPC.TL_boolTrue) {
                                     BulletinFactory.of(SessionsActivity.this).createSimpleBulletin(R.raw.contact_check, getString(R.string.AllSessionsTerminated)).show();
                                     loadSessions(false);
-                                } else {
-                                    showResetAuthorizationError(error);
                                 }
                             });
 
@@ -542,8 +538,6 @@ public class SessionsActivity extends BaseFragment implements NotificationCenter
                                 if (listAdapter != null) {
                                     listAdapter.notifyDataSetChanged();
                                 }
-                            } else {
-                                showResetAuthorizationError(error);
                             }
                         }));
                     } else {
@@ -596,8 +590,6 @@ public class SessionsActivity extends BaseFragment implements NotificationCenter
                                     listAdapter.notifyDataSetChanged();
                                 }
                                 loadSessions(true);
-                            } else {
-                                showResetAuthorizationError(error);
                             }
                         }));
                     }
@@ -629,28 +621,11 @@ public class SessionsActivity extends BaseFragment implements NotificationCenter
                         if (listAdapter != null) {
                             listAdapter.notifyDataSetChanged();
                         }
-                    } else {
-                        showResetAuthorizationError(error);
                     }
                 }));
             }
         });
         bottomSheet.show();
-    }
-
-    private void showResetAuthorizationError(TLRPC.TL_error error) {
-        if (getParentActivity() == null) {
-            return;
-        }
-        if (error != null && error.text != null && ("FRESH_RESET_AUTHORISATION_FORBIDDEN".equals(error.text) || error.text.startsWith("FRESH_RESET_AUTHORISATION_FORBIDDEN_"))) {
-            AlertsCreator.showSimpleAlert(
-                    this,
-                    getString(R.string.FreshResetAuthorizationForbiddenTitle),
-                    getString(R.string.FreshResetAuthorizationForbidden)
-            );
-        } else {
-            BulletinFactory.of(this).showForError(error);
-        }
     }
 
     @Override

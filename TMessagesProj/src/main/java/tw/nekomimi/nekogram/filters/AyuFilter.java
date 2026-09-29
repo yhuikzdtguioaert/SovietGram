@@ -15,6 +15,7 @@ import org.telegram.messenger.MessagesStorage;
 import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.UserObject;
 import org.telegram.tgnet.TLRPC;
+import org.telegram.tgnet.tl.TL_keyboard;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -26,7 +27,7 @@ import java.util.regex.Pattern;
 
 import tw.nekomimi.nekogram.NekoConfig;
 import tw.nekomimi.nekogram.helpers.MessageHelper;
-import sovietgram.com.NaConfig;
+import xyz.nextalone.nagram.NaConfig;
 
 public class AyuFilter {
     private static final Object cacheLock = new Object();
@@ -106,17 +107,53 @@ public class AyuFilter {
         if (selectedObject == null) {
             return null;
         }
-        if (selectedObject.type == MessageObject.TYPE_EMOJIS || selectedObject.type == MessageObject.TYPE_ANIMATED_STICKER || selectedObject.type == MessageObject.TYPE_STICKER) {
+        CharSequence messageText = null;
+        if (selectedObject.type != MessageObject.TYPE_EMOJIS && selectedObject.type != MessageObject.TYPE_ANIMATED_STICKER && selectedObject.type != MessageObject.TYPE_STICKER) {
+            messageText = MessageHelper.getMessagePlainTextFull(selectedObject, selectedObjectGroup);
+            if (TextUtils.isEmpty(messageText) || Emoji.fullyConsistsOfEmojis(messageText)) {
+                messageText = null;
+            }
+            if (selectedObject.translated || selectedObject.isRestrictedMessage) {
+                messageText = null;
+            }
+        }
+        CharSequence buttonsText = getInlineKeyboardText(selectedObject.messageOwner);
+        if (TextUtils.isEmpty(messageText)) {
+            return buttonsText;
+        }
+        if (TextUtils.isEmpty(buttonsText)) {
+            return messageText;
+        }
+        return new StringBuilder(messageText).append('\n').append(buttonsText);
+    }
+
+    private static CharSequence getInlineKeyboardText(TLRPC.Message message) {
+        if (message == null || message.reply_markup == null) {
             return null;
         }
-        CharSequence messageText = MessageHelper.getMessagePlainTextFull(selectedObject, selectedObjectGroup);
-        if (TextUtils.isEmpty(messageText) || Emoji.fullyConsistsOfEmojis(messageText)) {
-            messageText = null;
+        ArrayList<TL_keyboard.KeyboardButtonProto> buttons = new ArrayList<>();
+        if (message.reply_markup instanceof TLRPC.TL_replyInlineMarkup) {
+            for (TL_keyboard.KeyboardInlineButtonRow row : ((TLRPC.TL_replyInlineMarkup) message.reply_markup).rows) {
+                buttons.addAll(row.buttons);
+            }
+        } else if (message.reply_markup instanceof TLRPC.TL_replyKeyboardMarkup) {
+            for (TL_keyboard.KeyboardButtonRow row : ((TLRPC.TL_replyKeyboardMarkup) message.reply_markup).rows) {
+                buttons.addAll(row.buttons);
+            }
         }
-        if (selectedObject.translated || selectedObject.isRestrictedMessage) {
-            messageText = null;
+        StringBuilder builder = null;
+        for (TL_keyboard.KeyboardButtonProto button : buttons) {
+            if (button == null || TextUtils.isEmpty(button.getText())) {
+                continue;
+            }
+            if (builder == null) {
+                builder = new StringBuilder();
+            } else {
+                builder.append('\n');
+            }
+            builder.append(button.getText());
         }
-        return messageText;
+        return builder;
     }
 
     public static void rebuildCache() {

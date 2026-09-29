@@ -98,6 +98,7 @@ import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.tgnet.tl.TL_stories;
 import org.telegram.ui.ActionBar.ActionBar;
+import org.telegram.ui.Stories.recorder.HintView2;
 import org.telegram.ui.ActionBar.ActionBarMenuSubItem;
 import org.telegram.ui.ActionBar.ActionBarPopupWindow;
 import org.telegram.ui.ActionBar.AdjustPanLayoutHelper;
@@ -134,7 +135,6 @@ import org.telegram.ui.MessageStatisticActivity;
 import org.telegram.ui.PhotoViewer;
 import org.telegram.ui.PremiumPreviewFragment;
 import org.telegram.ui.Stories.DarkThemeResourceProvider;
-import org.telegram.ui.Stories.recorder.HintView2;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -146,7 +146,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import tw.nekomimi.nekogram.NekoConfig;
 import tw.nekomimi.nekogram.helpers.MessageHelper;
-import sovietgram.com.NaConfig;
+import xyz.nextalone.nagram.NaConfig;
 import xyz.nextalone.nagram.helper.ProtectedForward;
 import xyz.nextalone.nagram.helper.ForwardTextEdit;
 import org.telegram.ui.Components.FilterTabsView;
@@ -1012,9 +1012,6 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
                         setGridViewsTranslationY(0);
                         searchGridView.setTranslationY(0);
                         updateBottomOverlay();
-                        if (toggleForwardCommentPositionButton != null) {
-                            alignForwardRowButtonsToField();
-                        }
                     }
 
                     @Override
@@ -1023,7 +1020,7 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
                         super.onPanTranslationUpdate(y, progress, keyboardVisible);
                         for (int i = 0; i < containerView.getChildCount(); i++) {
                             final View child = containerView.getChildAt(i);
-                            if (child != pickerBottom && child != bulletinContainer && child != shadow[1] && child != sharesCountLayout && child != frameLayout2 && child != timestampFrameLayout && child != writeButtonContainer && child != gridContainer && child != toggleForwardCommentPositionButton) {
+                            if (child != pickerBottom && child != bulletinContainer && child != shadow[1] && child != sharesCountLayout && child != frameLayout2 && child != timestampFrameLayout && child != writeButtonContainer && child != gridContainer && child != forwardTextCopyNotice && child != forwardTextEditButton && child != toggleForwardCommentPositionButton) {
                                 child.setTranslationY(y);
                             }
                         }
@@ -1131,8 +1128,9 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
                 }
                 int availableHeight = totalHeight - getPaddingTop();
 
-                int size = Math.max(searchAdapter.getItemCount(), listAdapter.getItemCount() - 1);
-                int contentSize = dp(103) + dp(48) + Math.max(2, (int) Math.ceil(size / 4.0f)) * dp(103) + backgroundPaddingTop;
+                int size = Math.max(searchAdapter.getItemCount(), maxDialogsCount > 0 ? maxDialogsCount : listAdapter.getItemCount() - 1);
+                int filterTabsHeight = (filterTabsView != null && filterTabsView.getVisibility() == View.VISIBLE) ? dp(44) : 0;
+                int contentSize = dp(103) + dp(48) + filterTabsHeight + Math.max(2, (int) Math.ceil(size / 4.0f)) * dp(103) + backgroundPaddingTop;
                 if (topicsGridView.getVisibility() != View.GONE) {
                     int topicsSize = dp(103) + dp(48) + Math.max(2, (int) Math.ceil((shareTopicsAdapter.getItemCount() - 1) / 4.0f)) * dp(103) + backgroundPaddingTop;
                     if (topicsSize > contentSize) {
@@ -1712,7 +1710,8 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
 
             @Override
             protected boolean allowSelectChildAtPosition(float x, float y) {
-                return y >= dp(darkTheme && linkToCopy[1] != null ? 111 : 58) + systemInsets.top;
+                int filterTabsHeight = (filterTabsView != null && filterTabsView.getVisibility() == View.VISIBLE) ? dp(44) : 0;
+                return y >= dp(darkTheme && linkToCopy[1] != null ? 111 : 58) + filterTabsHeight + systemInsets.top;
             }
 
             @Override
@@ -1743,6 +1742,9 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
             @Override
             public int getSpanSize(int position) {
                 if (position == 0) {
+                    return layoutManager.getSpanCount();
+                }
+                if (position == 1 && filterTabsView != null && filterTabsView.getVisibility() == View.VISIBLE) {
                     return layoutManager.getSpanCount();
                 }
                 return 1;
@@ -2473,7 +2475,10 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
         writeButton.setCirclePadding(dp(1), dp(6));
         writeButton.newCounterPos = true;
         writeButtonContainer.addView(writeButton, LayoutHelper.createFrameMatchParent());
-        writeButton.setOnClickListener(v -> sendInternal(true));
+        writeButton.setOnClickListener(v -> {
+            showSendersName = !NaConfig.INSTANCE.getForwardHideSenderName().Bool();
+            sendInternal(isForwardNotifyEffective());
+        });
         writeButton.setOnLongClickListener(v -> onSendLongClick(writeButton));
 
         if (sendingMessageObjects != null && !sendingMessageObjects.isEmpty()) {
@@ -2490,13 +2495,7 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
             toggleForwardCommentPositionButton.setAlpha(0.0f);
             toggleForwardCommentPositionButton.setScaleX(0.6f);
             toggleForwardCommentPositionButton.setScaleY(0.6f);
-            containerView.addView(toggleForwardCommentPositionButton, LayoutHelper.createFrame(48, 48, Gravity.RIGHT | Gravity.BOTTOM, 0, 0, 78, 0));
-            toggleForwardCommentPositionButton.addOnLayoutChangeListener((v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
-                if (top != oldTop || bottom != oldBottom) {
-                    alignForwardRowButtonsToField();
-                    v.post(this::alignForwardRowButtonsToField);
-                }
-            });
+            containerView.addView(toggleForwardCommentPositionButton, LayoutHelper.createFrame(FORWARD_ROW_BUTTON_SIZE_DP, FORWARD_ROW_BUTTON_SIZE_DP, Gravity.RIGHT | Gravity.BOTTOM, 0, 0, FORWARD_TOGGLE_BUTTON_RIGHT_MARGIN_DP, 0));
             updateForwardCommentPositionButtonIcon(NekoConfig.sendCommentAfterForward.Bool());
 
             forwardTextEditableMessage = ForwardTextEdit.getEditableMessage(sendingMessageObjects);
@@ -3090,7 +3089,7 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
             }
             sendPopupLayout1.addView(showSendersNameView, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 48));
             showSendersNameView.setTextAndIcon(false ? LocaleController.getString(R.string.ShowSenderNames) : LocaleController.getString(R.string.ShowSendersName), 0);
-            showSendersNameView.setChecked(showSendersName = true);
+            showSendersNameView.setChecked(showSendersName = !NaConfig.INSTANCE.getForwardHideSenderName().Bool());
 
             ActionBarMenuSubItem hideSendersNameView = new ActionBarMenuSubItem(getContext(), true, false, true, resourcesProvider);
             if (darkTheme) {
@@ -3140,12 +3139,62 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
         });
         sendPopupLayout2.setShownFromBottom(false);
 
-        ActionBarMenuSubItem sendWithoutSound = new ActionBarMenuSubItem(getContext(), true, true, resourcesProvider);
+        boolean sendWithoutSoundNax = !isForwardNotifyEffective();
+
+        // 1. Schedule Message
+        ActionBarMenuSubItem scheduleMessageButton = new ActionBarMenuSubItem(getContext(), true, false, resourcesProvider);
+        if (darkTheme) {
+            scheduleMessageButton.setTextColor(getThemedColor(Theme.key_voipgroup_nameText));
+            scheduleMessageButton.setIconColor(getThemedColor(Theme.key_windowBackgroundWhiteHintText));
+        }
+        long scheduleDialogId = selectedDialogs.size() > 0 ? selectedDialogs.keyAt(0) : 0;
+        boolean isSelfChat = selectedDialogs.size() == 1 && scheduleDialogId == UserConfig.getInstance(currentAccount).clientUserId;
+        scheduleMessageButton.setTextAndIcon(LocaleController.getString(isSelfChat ? R.string.SetReminder : R.string.ScheduleMessage), R.drawable.msg_calendar2);
+        scheduleMessageButton.setMinimumWidth(dp(196));
+        sendPopupLayout2.addView(scheduleMessageButton, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 48));
+        scheduleMessageButton.setOnClickListener(v -> {
+            if (sendPopupWindow != null && sendPopupWindow.isShowing()) {
+                sendPopupWindow.dismiss();
+            }
+            AlertsCreator.createScheduleDatePickerDialog(parentActivity, scheduleDialogId, isForwardNotifyEffective(), (notify, scheduleDate, scheduleRepeatPeriod) -> {
+                sendInternal(notify, scheduleDate, scheduleRepeatPeriod);
+            }, resourcesProvider);
+        });
+
+        // 2. Send When Online (only for single user, not self, not bot, with meaningful status)
+        boolean showSendWhenOnline = selectedDialogs.size() == 1 && scheduleDialogId > 0 && !isSelfChat;
+        if (showSendWhenOnline) {
+            TLRPC.User user = MessagesController.getInstance(currentAccount).getUser(scheduleDialogId);
+            showSendWhenOnline = user != null && !user.bot &&
+                    !(user.status instanceof TLRPC.TL_userStatusEmpty) &&
+                    !(user.status instanceof TLRPC.TL_userStatusOnline) &&
+                    !(user.status instanceof TLRPC.TL_userStatusRecently) &&
+                    !(user.status instanceof TLRPC.TL_userStatusLastMonth) &&
+                    !(user.status instanceof TLRPC.TL_userStatusLastWeek);
+        }
+        if (showSendWhenOnline) {
+            ActionBarMenuSubItem sendWhenOnlineButton = new ActionBarMenuSubItem(getContext(), false, false, resourcesProvider);
+            if (darkTheme) {
+                sendWhenOnlineButton.setTextColor(getThemedColor(Theme.key_voipgroup_nameText));
+                sendWhenOnlineButton.setIconColor(getThemedColor(Theme.key_windowBackgroundWhiteHintText));
+            }
+            sendWhenOnlineButton.setTextAndIcon(LocaleController.getString(R.string.SendWhenOnline), R.drawable.msg_online);
+            sendWhenOnlineButton.setMinimumWidth(dp(196));
+            sendPopupLayout2.addView(sendWhenOnlineButton, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 48));
+            sendWhenOnlineButton.setOnClickListener(v -> {
+                if (sendPopupWindow != null && sendPopupWindow.isShowing()) {
+                    sendPopupWindow.dismiss();
+                }
+                sendInternal(true, 0x7FFFFFFE, 0);
+            });
+        }
+
+        // 3. Send Without Sound
+        ActionBarMenuSubItem sendWithoutSound = new ActionBarMenuSubItem(getContext(), false, false, resourcesProvider);
         if (darkTheme) {
             sendWithoutSound.setTextColor(getThemedColor(Theme.key_voipgroup_nameText));
             sendWithoutSound.setIconColor(getThemedColor(Theme.key_windowBackgroundWhiteHintText));
         }
-        boolean sendWithoutSoundNax = NaConfig.INSTANCE.getSilentMessageByDefault().Bool();
         sendWithoutSound.setTextAndIcon(sendWithoutSoundNax ? getString(R.string.SendWithSound) : getString(R.string.SendWithoutSound), sendWithoutSoundNax ? R.drawable.input_notify_on : R.drawable.input_notify_off);
         sendWithoutSound.setMinimumWidth(dp(196));
         sendPopupLayout2.addView(sendWithoutSound, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 48));
@@ -3155,7 +3204,9 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
             }
             sendInternal(sendWithoutSoundNax);
         });
-        ActionBarMenuSubItem sendMessage = new ActionBarMenuSubItem(getContext(), true, true, resourcesProvider);
+
+        // 4. Send Message
+        ActionBarMenuSubItem sendMessage = new ActionBarMenuSubItem(getContext(), false, true, resourcesProvider);
         if (darkTheme) {
             sendMessage.setTextColor(getThemedColor(Theme.key_voipgroup_nameText));
             sendMessage.setIconColor(getThemedColor(Theme.key_windowBackgroundWhiteHintText));
@@ -3167,7 +3218,7 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
             if (sendPopupWindow != null && sendPopupWindow.isShowing()) {
                 sendPopupWindow.dismiss();
             }
-            sendInternal(true);
+            sendInternal(isForwardNotifyEffective());
         });
         sendPopupLayout2.setupRadialSelectors(getThemedColor(Theme.key_dialogButtonSelector));
 
@@ -3406,20 +3457,23 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
                         replyTopMsg.isTopicMainMessage = true;
                     }
                     int result = 0;
+                    boolean forwardHideSender = !showSendersName;
+                    boolean forwardHideCaption = NaConfig.INSTANCE.getForwardHideCaption().Bool();
+                    boolean forwardNotify = withSound;
                     if (NekoConfig.sendCommentAfterForward.Bool()) {
                         // send fwd message before comment.
-                        result = SendMessagesHelper.getInstance(currentAccount).sendMessage(sendingMessageObjects, key, !showSendersName,false, withSound, 0, replyTopMsg, video_timestamp, price == null ? 0 : price);
+                        result = SendMessagesHelper.getInstance(currentAccount).sendMessage(sendingMessageObjects, key, forwardHideSender, forwardHideCaption, forwardNotify, scheduleDate, scheduleRepeatPeriod, replyTopMsg, video_timestamp, price == null ? 0 : price, monoForumPeerId, null);
                     }
                     // send comment message
                     if (frameLayout2.getTag() != null && commentTextView.length() > 0) {
-                        SendMessagesHelper.SendMessageParams params = SendMessagesHelper.SendMessageParams.of(text[0] == null ? null : text[0].toString(), key, replyTopMsg, replyTopMsg, null, true, entities, null, null, withSound, 0, 0, null, false);
+                        SendMessagesHelper.SendMessageParams params = SendMessagesHelper.SendMessageParams.of(text[0] == null ? null : text[0].toString(), key, replyTopMsg, replyTopMsg, null, true, entities, null, null, forwardNotify, scheduleDate, scheduleRepeatPeriod, null, false);
                         params.payStars = price == null ? 0 : price;
                         params.monoForumPeer = monoForumPeerId;
                         SendMessagesHelper.getInstance(currentAccount).sendMessage(params);
                     }
                     if (!NekoConfig.sendCommentAfterForward.Bool()) {
                         // send fwd message after comment.
-                        result = SendMessagesHelper.getInstance(currentAccount).sendMessage(sendingMessageObjects, key, !showSendersName,false, withSound, 0, 0, replyTopMsg, video_timestamp, price == null ? 0 : price, monoForumPeerId, null);
+                        result = SendMessagesHelper.getInstance(currentAccount).sendMessage(sendingMessageObjects, key, forwardHideSender, forwardHideCaption, forwardNotify, scheduleDate, scheduleRepeatPeriod, replyTopMsg, video_timestamp, price == null ? 0 : price, monoForumPeerId, null);
                     }
                     if (result != 0) {
                         removeKeys.add(key);
@@ -3462,15 +3516,15 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
                         SendMessagesHelper.SendMessageParams params;
                         if (storyItem == null) {
                             if (frameLayout2.getTag() != null && commentTextView.length() > 0) {
-                                params = SendMessagesHelper.SendMessageParams.of(text[0] == null ? null : text[0].toString(), key, replyTopMsg, replyTopMsg, null, true, entities, null, null, withSound, 0, 0, null, false);
+                                params = SendMessagesHelper.SendMessageParams.of(text[0] == null ? null : text[0].toString(), key, replyTopMsg, replyTopMsg, null, true, entities, null, null, withSound, scheduleDate, scheduleRepeatPeriod, null, false);
                             } else {
-                                params = SendMessagesHelper.SendMessageParams.of(sendingText[num], key, replyTopMsg, replyTopMsg, null, true, null, null, null, withSound, 0, 0, null, false);
+                                params = SendMessagesHelper.SendMessageParams.of(sendingText[num], key, replyTopMsg, replyTopMsg, null, true, null, null, null, withSound, scheduleDate, scheduleRepeatPeriod, null, false);
                             }
                         } else {
                             if (frameLayout2.getTag() != null && commentTextView.length() > 0 && text[0] != null) {
-                                SendMessagesHelper.getInstance(currentAccount).sendMessage(SendMessagesHelper.SendMessageParams.of(text[0].toString(), key, null, replyTopMsg, null, true, null, null, null, withSound, 0, 0, null, false));
+                                SendMessagesHelper.getInstance(currentAccount).sendMessage(SendMessagesHelper.SendMessageParams.of(text[0].toString(), key, null, replyTopMsg, null, true, null, null, null, withSound, scheduleDate, scheduleRepeatPeriod, null, false));
                             }
-                            params = SendMessagesHelper.SendMessageParams.of(null, key, replyTopMsg, replyTopMsg, null, true, null, null, null, withSound, 0, 0, null, false);
+                            params = SendMessagesHelper.SendMessageParams.of(null, key, replyTopMsg, replyTopMsg, null, true, null, null, null, withSound, scheduleDate, scheduleRepeatPeriod, null, false);
                             params.sendingStory = storyItem;
                         }
                         params.payStars = price == null ? 0 : price;
@@ -3488,20 +3542,20 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
                         MessageObject replyTopMsg = topic != null && !isMonoForum ? new MessageObject(currentAccount, topic.topicStartMessage, false, false) : null;
                         // send fwd message before comment.
                         if (NekoConfig.sendCommentAfterForward.Bool()) {
-                            SendMessagesHelper.SendMessageParams params2 = SendMessagesHelper.SendMessageParams.of(sendingText[num], key, replyTopMsg, replyTopMsg, null, true, null, null, null, withSound, 0, 0, null, false);
+                            SendMessagesHelper.SendMessageParams params2 = SendMessagesHelper.SendMessageParams.of(sendingText[num], key, replyTopMsg, replyTopMsg, null, true, null, null, null, withSound, scheduleDate, scheduleRepeatPeriod, null, false);
                             params2.payStars = price == null ? 0 : price;
                             SendMessagesHelper.getInstance(currentAccount).sendMessage(params2);
                         }
                         // send comment message
                         if (frameLayout2.getTag() != null && commentTextView.length() > 0) {
-                            SendMessagesHelper.SendMessageParams params = SendMessagesHelper.SendMessageParams.of(text[0] == null ? null : text[0].toString(), key, replyTopMsg, replyTopMsg, null, true, entities, null, null, withSound, 0, 0, null, false);
+                            SendMessagesHelper.SendMessageParams params = SendMessagesHelper.SendMessageParams.of(text[0] == null ? null : text[0].toString(), key, replyTopMsg, replyTopMsg, null, true, entities, null, null, withSound, scheduleDate, scheduleRepeatPeriod, null, false);
                             params.payStars = price == null ? 0 : price;
                             params.monoForumPeer = monoForumPeerId;
                             SendMessagesHelper.getInstance(currentAccount).sendMessage(params);
                         }
                         // send fwd message after comment.
                         if (!NekoConfig.sendCommentAfterForward.Bool()) {
-                            SendMessagesHelper.SendMessageParams params2 = SendMessagesHelper.SendMessageParams.of(sendingText[num], key, replyTopMsg, replyTopMsg, null, true, null, null, null, withSound, 0, 0, null, false);
+                            SendMessagesHelper.SendMessageParams params2 = SendMessagesHelper.SendMessageParams.of(sendingText[num], key, replyTopMsg, replyTopMsg, null, true, null, null, null, withSound, scheduleDate, scheduleRepeatPeriod, null, false);
                             params2.payStars = price == null ? 0 : price;
                             params2.monoForumPeer = monoForumPeerId;SendMessagesHelper.getInstance(currentAccount).sendMessage(params2);
                         }
@@ -3872,6 +3926,19 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
                 dialogs.add(dialog);
                 dialogsMap.put(dialog.id, dialog);
             }
+
+            // Get filter by currentFilterId
+            MessagesController.DialogFilter currentFilter = null;
+            if (currentFilterId > 0) {
+                ArrayList<MessagesController.DialogFilter> filters = MessagesController.getInstance(currentAccount).getDialogFilters();
+                for (MessagesController.DialogFilter filter : filters) {
+                    if (filter.localId == currentFilterId) {
+                        currentFilter = filter;
+                        break;
+                    }
+                }
+            }
+
             ArrayList<TLRPC.Dialog> archivedDialogs = new ArrayList<>();
             ArrayList<TLRPC.Dialog> allDialogs = MessagesController.getInstance(currentAccount).getAllDialogs();
             for (int a = 0; a < allDialogs.size(); a++) {
@@ -3883,6 +3950,10 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
                     continue;
                 }
                 if (!DialogObject.isEncryptedDialog(dialog.id)) {
+                    // Filter by folder
+                    if (currentFilter != null && !currentFilter.includesDialog(AccountInstance.getInstance(currentAccount), dialog.id)) {
+                        continue;
+                    }
                     if (DialogObject.isUserDialog(dialog.id)) {
                         if (dialog.folder_id == 1) {
                             archivedDialogs.add(dialog);
@@ -3918,20 +3989,26 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
                         break;
                 }
             }
+            maxDialogsCount = Math.max(maxDialogsCount, dialogs.size());
             notifyDataSetChanged();
         }
 
         @Override
         public int getItemCount() {
             int count = dialogs.size();
-            if (count != 0) {
-                count++;
+            count++; // placeholder
+            if (filterTabsView != null && filterTabsView.getVisibility() == View.VISIBLE) {
+                count++; // filterTabs
             }
             return count;
         }
 
         public TLRPC.Dialog getItem(int position) {
-            position--;
+            int offset = 1; // placeholder
+            if (filterTabsView != null && filterTabsView.getVisibility() == View.VISIBLE) {
+                offset = 2; // placeholder + filterTabs
+            }
+            position -= offset;
             if (position < 0 || position >= dialogs.size()) {
                 return null;
             }
@@ -3940,7 +4017,7 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
 
         @Override
         public boolean isEnabled(RecyclerView.ViewHolder holder) {
-            if (holder.getItemViewType() == 1) {
+            if (holder.getItemViewType() == 1 || holder.getItemViewType() == 2) {
                 return false;
             }
             return true;
@@ -3971,7 +4048,9 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
                 case 1:
                 default: {
                     view = new View(context);
-                    view.setLayoutParams(new RecyclerView.LayoutParams(RecyclerView.LayoutParams.MATCH_PARENT, dp(darkTheme && linkToCopy[1] != null ? 109 : 56)));
+                    // Placeholder for space above chats
+                    int baseHeight = darkTheme && linkToCopy[1] != null ? 109 : 56;
+                    view.setLayoutParams(new RecyclerView.LayoutParams(RecyclerView.LayoutParams.MATCH_PARENT, dp(baseHeight)));
                     break;
                 }
             }
@@ -3993,9 +4072,12 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
         @Override
         public int getItemViewType(int position) {
             if (position == 0) {
-                return 1;
+                return 1; // placeholder
             }
-            return 0;
+            if (position == 1 && filterTabsView != null && filterTabsView.getVisibility() == View.VISIBLE) {
+                return 2; // filterTabs
+            }
+            return 0; // chat cell
         }
     }
 

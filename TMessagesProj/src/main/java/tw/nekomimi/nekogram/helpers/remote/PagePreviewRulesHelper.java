@@ -15,7 +15,7 @@ import java.util.HashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import sovietgram.com.NaConfig;
+import xyz.nextalone.nagram.NaConfig;
 
 public class PagePreviewRulesHelper extends BaseRemoteHelper {
     private static final String PAGE_PREVIEW_TAG = "pagepreview";

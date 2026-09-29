@@ -26,7 +26,7 @@ import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.messenger.Emoji;
 
 import tw.nekomimi.nekogram.ui.icons.IconsResources;
-import sovietgram.com.NaConfig;
+import xyz.nextalone.nagram.NaConfig;
 
 public class BookmarksChatCell extends FrameLayout {
 

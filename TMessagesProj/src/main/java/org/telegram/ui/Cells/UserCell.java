@@ -63,7 +63,6 @@ import org.telegram.ui.Stories.StoriesListPlaceProvider;
 import org.telegram.ui.Stories.StoriesUtilities;
 
 import tw.nekomimi.nekogram.NekoConfig;
-import tw.nekomimi.nekogram.helpers.SovietGramProfileSync;
 
 public class UserCell extends FrameLayout implements NotificationCenter.NotificationCenterDelegate, Theme.Colorable {
 
@@ -539,12 +538,6 @@ public class UserCell extends FrameLayout implements NotificationCenter.Notifica
         isCommunity = false;
         if (currentObject instanceof TLRPC.User) {
             currentUser = (TLRPC.User) currentObject;
-            // This row draws a premium star straight off the user object, so a peer's fake premium only
-            // shows here once their profile has been pulled — which nothing did for a members or contacts
-            // list. Coalesced and TTL-cached; see SovietGramProfileSync.sighted.
-            if (currentUser.id > 0 && !currentUser.self && !currentUser.bot) {
-                SovietGramProfileSync.sighted(currentAccount, currentUser.id);
-            }
             if (currentUser.photo != null) {
                 photo = currentUser.photo.photo_small;
             }

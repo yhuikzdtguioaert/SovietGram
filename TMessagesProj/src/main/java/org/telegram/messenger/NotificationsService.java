@@ -18,56 +18,43 @@ import android.content.SharedPreferences;
 import android.content.pm.ServiceInfo;
 import android.os.Build;
 import android.os.IBinder;
+import android.util.Log;
 
 import androidx.core.app.NotificationCompat;
 
-public class NotificationsService extends Service {
+import xyz.nextalone.nagram.NaConfig;
 
-    private static final String CHANNEL_ID = "sovietgram_native_push_hidden_v3";
-    private static final int NOTIFICATION_ID = 12580;
+public class NotificationsService extends Service {
 
     @Override
     public void onCreate() {
         super.onCreate();
-        NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            notificationManager.deleteNotificationChannel("sovietgram_native_push_v2");
-            notificationManager.deleteNotificationChannel("push_service_channel");
-            NotificationChannel channel = new NotificationChannel(
-                    CHANNEL_ID,
-                    LocaleController.getString(R.string.SovietGramPushService),
-                    NotificationManager.IMPORTANCE_NONE);
-            channel.setDescription(LocaleController.getString(R.string.SovietGramPushService));
-            channel.setShowBadge(false);
-            channel.enableLights(false);
-            channel.enableVibration(false);
-            channel.setSound(null, null);
-            notificationManager.createNotificationChannel(channel);
-        }
-        Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setShowWhen(false)
-                .setOngoing(true)
-                .setOnlyAlertOnce(true)
-                .setSilent(true)
-                .setCategory(NotificationCompat.CATEGORY_SERVICE)
-                .setPriority(NotificationCompat.PRIORITY_MIN)
-                .setVisibility(NotificationCompat.VISIBILITY_SECRET)
-                .setSmallIcon(R.drawable.sovietgram_notification)
-                .setContentTitle(LocaleController.getString(R.string.SovietGram))
-                .setContentText(LocaleController.getString(R.string.SovietGramPushService))
-                .build();
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_REMOTE_MESSAGING);
-            } else {
-                startForeground(NOTIFICATION_ID, notification);
-            }
-        } catch (Throwable e) {
-            FileLog.e("Failed to enter native push foreground mode", e);
-        }
-        // Android gives a foreground service only a few seconds to publish its notification.
-        // Telegram database/network initialization may be slower after boot, so do it afterwards.
         ApplicationLoader.postInitApplication();
+        if (NaConfig.INSTANCE.getPushServiceTypeInAppDialog().Bool()) {
+            String CHANNEL_ID = "push_service_channel";
+            NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, LocaleController.getString(R.string.NagramXPushService), NotificationManager.IMPORTANCE_DEFAULT);
+            notificationManager.createNotificationChannel(channel);
+//            Intent explainIntent = new Intent("android.intent.action.VIEW");
+//            explainIntent.setData(Uri.parse("https://github.com/Telegram-FOSS-Team/Telegram-FOSS/blob/master/Notifications.md"));
+//            PendingIntent explainPendingIntent = PendingIntent.getActivity(this, 0, explainIntent, 0);
+            Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
+//                    .setContentIntent(explainPendingIntent)
+                    .setShowWhen(false)
+                    .setOngoing(true)
+                    .setSmallIcon(R.drawable.neko_notification)
+                    .setContentText(LocaleController.getString(R.string.NagramXPushService))
+                    .build();
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    startForeground(9999, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_REMOTE_MESSAGING);
+                } else {
+                    startForeground(9999, notification);
+                }
+            } catch (Throwable e) {
+                Log.e("TFOSS", "Failed to start push service");
+            }
+        }
     }
 
     @Override

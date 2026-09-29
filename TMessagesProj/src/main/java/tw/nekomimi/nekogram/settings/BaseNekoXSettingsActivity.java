@@ -49,10 +49,8 @@ import tw.nekomimi.nekogram.config.CellGroup;
 import tw.nekomimi.nekogram.config.ConfigItem;
 import tw.nekomimi.nekogram.config.cell.AbstractConfigCell;
 import tw.nekomimi.nekogram.config.cell.ConfigCellCheckBox;
-import tw.nekomimi.nekogram.config.cell.ConfigCellColor;
 import tw.nekomimi.nekogram.config.cell.ConfigCellCustom;
 import tw.nekomimi.nekogram.config.cell.ConfigCellSelectBox;
-import tw.nekomimi.nekogram.config.cell.ConfigCellSlider;
 import tw.nekomimi.nekogram.config.cell.ConfigCellTextCheck;
 import tw.nekomimi.nekogram.config.cell.ConfigCellTextCheck2;
 import tw.nekomimi.nekogram.config.cell.ConfigCellTextCheckIcon;
@@ -271,7 +269,6 @@ public class BaseNekoXSettingsActivity extends BaseFragment {
             case ConfigCellTextCheck2 c -> c.onClick();
             case ConfigCellTextCheckIcon c -> c.onClick();
             case ConfigCellSelectBox c -> c.onClick(view);
-            case ConfigCellColor c -> c.onClick(view.getContext());
             case ConfigCellTextInput c -> c.onClick();
             case ConfigCellTextInput2 c -> c.onClick();
             case ConfigCellTextDetail c -> c.onClick(view, position);
@@ -499,37 +496,16 @@ public class BaseNekoXSettingsActivity extends BaseFragment {
         }
 
         protected View createDefaultViewByType(int viewType) {
-            View view = null;
-            switch (viewType) {
-                case CellGroup.ITEM_TYPE_DIVIDER:
-                    view = new ShadowSectionCell(mContext);
-                    break;
-                case CellGroup.ITEM_TYPE_TEXT_SETTINGS_CELL:
-                    view = new TextSettingsCell(mContext);
-                    break;
-                case CellGroup.ITEM_TYPE_TEXT_CHECK:
-                    view = new TextCheckCell(mContext);
-                    break;
-                case CellGroup.ITEM_TYPE_HEADER:
-                    view = new HeaderCell(mContext);
-                    break;
-                case CellGroup.ITEM_TYPE_TEXT_DETAIL:
-                    view = new TextDetailSettingsCell(mContext);
-                    break;
-                case CellGroup.ITEM_TYPE_TEXT:
-                    view = new TextInfoPrivacyCell(mContext);
-                    break;
-                case CellGroup.ITEM_TYPE_TEXT_CHECK_ICON:
-                    view = new TextCell(mContext);
-                    break;
-                case CellGroup.ITEM_TYPE_SLIDER:
-                    view = ConfigCellSlider.createView(mContext);
-                    break;
-                case CellGroup.ITEM_TYPE_COLOR:
-                    view = ConfigCellColor.createView(mContext);
-                    break;
-            }
-            return view;
+            return switch (viewType) {
+                case CellGroup.ITEM_TYPE_DIVIDER -> new ShadowSectionCell(mContext);
+                case CellGroup.ITEM_TYPE_TEXT_SETTINGS_CELL -> new TextSettingsCell(mContext);
+                case CellGroup.ITEM_TYPE_TEXT_CHECK -> new TextCheckCell(mContext);
+                case CellGroup.ITEM_TYPE_HEADER -> new HeaderCell(mContext);
+                case CellGroup.ITEM_TYPE_TEXT_DETAIL -> new TextDetailSettingsCell(mContext);
+                case CellGroup.ITEM_TYPE_TEXT -> new TextInfoPrivacyCell(mContext);
+                case CellGroup.ITEM_TYPE_TEXT_CHECK_ICON -> new TextCell(mContext);
+                default -> null;
+            };
         }
     }
 

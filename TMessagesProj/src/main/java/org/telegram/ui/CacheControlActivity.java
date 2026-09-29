@@ -137,7 +137,7 @@ import java.util.Objects;
 
 import tw.nekomimi.nekogram.helpers.LocalNameHelper;
 import tw.nekomimi.nekogram.helpers.remote.EmojiHelper;
-import sovietgram.com.helper.BookmarksHelper;
+import xyz.nextalone.nagram.helper.BookmarksHelper;
 
 public class CacheControlActivity extends BaseFragment implements NotificationCenter.NotificationCenterDelegate {
 

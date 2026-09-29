@@ -9,12 +9,14 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.os.Process;
 
+import androidx.core.content.IntentCompat;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 
 public final class AppRestartHelper extends Activity {
-    private static final String KEY_RESTART_INTENTS = "sovietuniongramx_restart_intents";
-    private static final String KEY_MAIN_PROCESS_PID = "sovietuniongramx_main_process_pid";
+    private static final String KEY_RESTART_INTENTS = "nagramx_restart_intents";
+    private static final String KEY_MAIN_PROCESS_PID = "nagramx_main_process_pid";
 
     public static void triggerRebirth(Context context, Intent... nextIntents) {
         nextIntents[0].addFlags(FLAG_ACTIVITY_NEW_TASK | FLAG_ACTIVITY_CLEAR_TASK);
@@ -29,7 +31,7 @@ public final class AppRestartHelper extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         Process.killProcess(getIntent().getIntExtra(KEY_MAIN_PROCESS_PID, -1));
-        ArrayList<Intent> intents = getIntent().getParcelableArrayListExtra(KEY_RESTART_INTENTS);
+        ArrayList<Intent> intents = IntentCompat.getParcelableArrayListExtra(getIntent(), KEY_RESTART_INTENTS, Intent.class);
         if (intents != null) {
             startActivities(intents.toArray(new Intent[0]));
             finish();
@@ -37,4 +39,3 @@ public final class AppRestartHelper extends Activity {
         }
     }
 }
-

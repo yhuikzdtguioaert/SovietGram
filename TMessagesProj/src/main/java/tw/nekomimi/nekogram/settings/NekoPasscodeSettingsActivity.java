@@ -2,6 +2,7 @@ package tw.nekomimi.nekogram.settings;
 
 import static org.telegram.messenger.LocaleController.getString;
 
+import android.annotation.SuppressLint;
 import android.app.Dialog;
 import android.content.Context;
 import android.text.SpannableStringBuilder;
@@ -38,7 +39,7 @@ import java.util.Locale;
 import tw.nekomimi.nekogram.helpers.PasscodeHelper;
 import tw.nekomimi.nekogram.ui.cells.AccountCell;
 import tw.nekomimi.nekogram.ui.cells.HeaderCell;
-import sovietgram.com.NaConfig;
+import xyz.nextalone.nagram.NaConfig;
 
 public class NekoPasscodeSettingsActivity extends BaseNekoSettingsActivity {
 
@@ -237,7 +238,7 @@ public class NekoPasscodeSettingsActivity extends BaseNekoSettingsActivity {
         }
 
         @Override
-        public void onBindViewHolder(RecyclerView.ViewHolder holder, int position) {
+        public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, @SuppressLint("RecyclerView") int position) {
             switch (holder.getItemViewType()) {
                 case 1: {
                     if (position == clearPasscodes2Row) {

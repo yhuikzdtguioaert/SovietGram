@@ -68,7 +68,7 @@ import java.util.Iterator;
 import java.util.Timer;
 
 import tw.nekomimi.nekogram.settings.NekoTranslatorSettingsActivity;
-import sovietgram.com.NaConfig;
+import xyz.nextalone.nagram.NaConfig;
 
 public class LanguageSelectActivity extends BaseFragment implements NotificationCenter.NotificationCenterDelegate {
 

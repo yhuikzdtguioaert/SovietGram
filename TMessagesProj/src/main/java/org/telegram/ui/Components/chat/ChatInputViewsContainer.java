@@ -29,46 +29,6 @@ public class ChatInputViewsContainer extends FrameLayout {
 
     public static final int INPUT_BUBBLE_BOTTOM = 9;
 
-    /**
-     * Legacy (pre-12.2.0) mode: the input is a full-width bar glued to the bottom edge
-     * rather than a floating island. Only the gap under the island and the blurred
-     * bubble go away — every height/inset calculation keeps running unchanged, which is
-     * what lets the ~30 geometry call sites in ChatActivity stay arithmetically valid.
-     */
-    private boolean flatInput;
-
-    public void setFlatInput(boolean flatInput) {
-        if (this.flatInput != flatInput) {
-            this.flatInput = flatInput;
-            applyInputBubbleShape();
-            requestLayout();
-            invalidate();
-        }
-    }
-
-    /**
-     * The same blurred drawable backs both looks — flat mode only drops the rounded
-     * corners and the 7dp side padding so it reads as a full-width bar. Keeping the
-     * drawable alive (rather than skipping the draw) is what stops the flat input from
-     * sitting on bare wallpaper.
-     */
-    private void applyInputBubbleShape() {
-        if (blurredBackgroundDrawable == null) {
-            return;
-        }
-        blurredBackgroundDrawable.setPadding(flatInput ? 0 : dp(7));
-        blurredBackgroundDrawable.setRadius(flatInput ? 0 : dp(INPUT_BUBBLE_RADIUS));
-    }
-
-    /** Gap between the bottom system inset and the input; zero when flat. */
-    public int getInputBubbleBottomGap() {
-        return flatInput ? 0 : dp(INPUT_BUBBLE_BOTTOM);
-    }
-
-    public boolean isFlatInput() {
-        return flatInput;
-    }
-
     private WindowInsetsProvider windowInsetsProvider;
 
     private final View fadeView;
@@ -118,7 +78,8 @@ public class ChatInputViewsContainer extends FrameLayout {
     private BlurredBackgroundDrawable underKeyboardBackgroundDrawable;
     public void setInputIslandBubbleDrawable(BlurredBackgroundDrawable drawable) {
         blurredBackgroundDrawable = drawable;
-        applyInputBubbleShape();
+        blurredBackgroundDrawable.setPadding(dp(7));
+        blurredBackgroundDrawable.setRadius(dp(INPUT_BUBBLE_RADIUS));
     }
 
     public void setUnderKeyboardBackgroundDrawable(BlurredBackgroundDrawable drawable) {
@@ -173,7 +134,7 @@ public class ChatInputViewsContainer extends FrameLayout {
     private void checkBlurredHeight(boolean force) {
         checkViewsPositions();
 
-        final int blurredHeight = inputBubbleHeightRound + getInputBubbleBottomGap() + Math.round(maxBottomInset);
+        final int blurredHeight = inputBubbleHeightRound + dp(INPUT_BUBBLE_BOTTOM) + Math.round(maxBottomInset);
         if (currentBlurredHeight != blurredHeight || force) {
             currentBlurredHeight = blurredHeight;
 
@@ -221,7 +182,7 @@ public class ChatInputViewsContainer extends FrameLayout {
     }
 
     private void checkViewsPositions() {
-        inputIslandBubbleContainer.setTranslationY(-maxBottomInset - getInputBubbleBottomGap());
+        inputIslandBubbleContainer.setTranslationY(-maxBottomInset - dp(INPUT_BUBBLE_BOTTOM));
         inAppKeyboardBubbleContainer.setTranslationY(inAppKeyboardBubbleContainer.getMeasuredHeight() - imeBottomInset);
     }
 
@@ -270,7 +231,7 @@ public class ChatInputViewsContainer extends FrameLayout {
     }
 
     public float getInputBubbleBottom() {
-        return getMeasuredHeight() - maxBottomInset - getInputBubbleBottomGap();
+        return getMeasuredHeight() - maxBottomInset - dp(INPUT_BUBBLE_BOTTOM);
     }
 
     @Override
@@ -298,36 +259,14 @@ public class ChatInputViewsContainer extends FrameLayout {
 
         final int blurTop = getMeasuredHeight() - currentBlurredHeight;
 
-        if (flatInput) {
-            // Full-width bar pinned to the bottom edge: it has to run under the
-            // navigation bar too, which the island deliberately floats above.
-            //
-            // The side offsets still apply. In a channel the round buttons (search,
-            // gift, send-to-channel) sit beside this bar, and the bar has to stop
-            // before them the way the island does — otherwise it slides underneath
-            // and the icons end up drawn on top of the unmute button. Where a button
-            // is present the gutter matches the island's, which the blurred drawable
-            // gets from its 7dp padding in island mode but not here (padding is 0).
-            final int flatLeft = Math.round(inputBubbleOffsetLeft);
-            final int flatRight = Math.round(inputBubbleOffsetRight);
-            tmpRect.set(
-                flatLeft > 0 ? flatLeft + dp(7) : 0,
-                0,
-                getMeasuredWidth() - (flatRight > 0 ? flatRight + dp(7) : 0),
-                inputBubbleHeightRound
-            );
-            tmpRect.offset(0, blurTop + (int) bubbleInputTranlationY);
-            tmpRect.bottom = Math.max(tmpRect.bottom, getMeasuredHeight());
-        } else {
-            tmpRect.set(
-                Math.round(inputBubbleOffsetLeft),
-                0,
-                getMeasuredWidth() - Math.round(inputBubbleOffsetRight),
-                inputBubbleHeightRound
-            );
-            tmpRect.inset(0, -dp(7));
-            tmpRect.offset(0, blurTop + (int) bubbleInputTranlationY);
-        }
+        tmpRect.set(
+            Math.round(inputBubbleOffsetLeft),
+            0,
+            getMeasuredWidth() - Math.round(inputBubbleOffsetRight),
+            inputBubbleHeightRound
+        );
+        tmpRect.inset(0, -dp(7));
+        tmpRect.offset(0, blurTop + (int) bubbleInputTranlationY);
 
         blurredBackgroundDrawable.setBounds(tmpRect);
         if (drawInputBackground)

@@ -22,7 +22,6 @@ import org.telegram.tgnet.tl.TL_account;
 import java.util.Arrays;
 
 import tw.nekomimi.nekogram.NekoConfig;
-import tw.nekomimi.nekogram.helpers.SovietGramAccountScope;
 
 public class UserConfig extends BaseController {
 
@@ -587,9 +586,7 @@ public class UserConfig extends BaseController {
         if (user == null) {
             return false;
         }
-        // Per account: the fake premium flag belongs to the account it was switched on in, so this must
-        // not answer with another account's fake. See SovietGramAccountScope.
-        return user.premium || SovietGramAccountScope.bool(currentAccount, NekoConfig.localPremium);
+        return user.premium || NekoConfig.localPremium.Bool();
     }
 
     public Long getEmojiStatus() {

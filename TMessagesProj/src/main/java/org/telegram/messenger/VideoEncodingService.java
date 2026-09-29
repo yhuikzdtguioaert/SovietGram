@@ -58,16 +58,11 @@ public class VideoEncodingService extends Service implements NotificationCenter.
         return null;
     }
 
-    /**
-     * Android 15 puts a time budget on a dataSync foreground service and kills the whole process
-     * when it runs out without the service standing down. Encoding a long video can reach it.
-     */
     @Override
     public void onTimeout(int startId, int fgsType) {
         stopForeground(STOP_FOREGROUND_REMOVE);
         stopSelf(startId);
     }
-
 
     public void onDestroy() {
         super.onDestroy();
@@ -143,7 +138,7 @@ public class VideoEncodingService extends Service implements NotificationCenter.
             builder.setSmallIcon(android.R.drawable.stat_sys_upload);
             builder.setWhen(System.currentTimeMillis());
             builder.setChannelId(NotificationsController.OTHER_NOTIFICATIONS_CHANNEL);
-            builder.setContentTitle(LocaleController.getString(R.string.SovietGram));
+            builder.setContentTitle(LocaleController.getString(R.string.NagramX));
         }
         setCurrentMessage(videoConvertMessage);
         try {
