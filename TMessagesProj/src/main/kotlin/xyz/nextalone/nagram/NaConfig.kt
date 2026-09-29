@@ -603,6 +603,18 @@ object NaConfig {
             ConfigItem.configTypeBool,
             true
         )
+    val showDeletedMessagesInChat =
+        addConfig(
+            "ShowDeletedMessagesInChat",
+            ConfigItem.configTypeBool,
+            true
+        )
+    val showDeletedMessagesInChatList =
+        addConfig(
+            "ShowDeletedMessagesInChatList",
+            ConfigItem.configTypeBool,
+            true
+        )
     val saveLocalLastSeen =
         addConfig(
             "SaveLocalLastSeen",
@@ -1388,6 +1400,12 @@ object NaConfig {
             "ActionButtonStyle",
             ConfigItem.configTypeInt,
             0
+        )
+    val showDateInBubble =
+        addConfig(
+            "ShowDateInBubble",
+            ConfigItem.configTypeBool,
+            false
         )
     val forwardProtectedMode =
         addConfig(

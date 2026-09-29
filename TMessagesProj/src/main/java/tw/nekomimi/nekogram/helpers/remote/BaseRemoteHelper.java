@@ -44,6 +44,10 @@ public abstract class BaseRemoteHelper {
 
     abstract protected String getTag();
 
+    protected int getMessagesLimit() {
+        return 10;
+    }
+
     protected void onLoadSuccess(ArrayList<JSONObject> responses, Delegate delegate) {
         var tag = getTag();
         var json = responses.size() > 0 ? responses.get(0) : null;
@@ -89,7 +93,7 @@ public abstract class BaseRemoteHelper {
     private void load(boolean forceRefreshAccessHash, Delegate delegate) {
         var tag = "#" + getTag();
         TLRPC.TL_messages_search req = new TLRPC.TL_messages_search();
-        req.limit = 10;
+        req.limit = getMessagesLimit();
         req.offset_id = 0;
         req.filter = new TLRPC.TL_inputMessagesFilterEmpty();
         req.q = tag;

@@ -8854,6 +8854,19 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         }
     }
 
+    public void rebuildAllFragmentsForDesign() {
+        ArrayList<INavigationLayout> layouts = new ArrayList<>();
+        if (actionBarLayout != null) layouts.add(actionBarLayout);
+        if (rightActionBarLayout != null && !layouts.contains(rightActionBarLayout)) layouts.add(rightActionBarLayout);
+        if (layersActionBarLayout != null && !layouts.contains(layersActionBarLayout)) layouts.add(layersActionBarLayout);
+        for (INavigationLayout sheetLayout : new ArrayList<>(sheetFragmentsStack)) {
+            if (sheetLayout != null && !layouts.contains(sheetLayout)) layouts.add(sheetLayout);
+        }
+        for (INavigationLayout layout : layouts) {
+            layout.rebuildAllFragmentViews(true, true);
+        }
+    }
+
     @Override
     public void onRebuildAllFragments(INavigationLayout layout, boolean last) {
         if (AndroidUtilities.isTablet()) {

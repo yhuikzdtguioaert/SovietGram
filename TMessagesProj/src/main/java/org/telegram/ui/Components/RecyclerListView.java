@@ -3293,6 +3293,15 @@ public class RecyclerListView extends RecyclerView implements IBlur3Capture {
             topPadding
         );
     }
+    public void setSections(int padding, float roundRadius, boolean topPadding, Utilities.Callback5<Canvas, RectF, Float, Float, Float> drawSectionBackground) {
+        setSections(
+            view -> !(view instanceof TextInfoPrivacyCell || view instanceof ShadowSectionCell || view instanceof FiltersSetupActivity.HintInnerCell || view instanceof GraySectionCell || view instanceof CollapseTextCell) && !Objects.equals(view.getTag(), TAG_NOT_SECTION),
+            padding,
+            roundRadius,
+            drawSectionBackground,
+            topPadding
+        );
+    }
     private static Pair<Utilities.CallbackReturn<View, Boolean>, Utilities.CallbackReturn<Integer, Boolean>> cachedIsViewTypeShadow(RecyclerListView listView, Utilities.CallbackReturn<View, Boolean> isSectionView) {
         SparseIntArray cache = new SparseIntArray();
         return new Pair<>(

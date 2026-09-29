@@ -18,6 +18,9 @@ import java.util.Objects;
 
 public class BuildVars {
 
+    /** SovietGram ships only the complete feature set; the separate Turbo Base build is excluded. */
+    public static final boolean TURBO_BASE = false;
+
     public static boolean DEBUG_VERSION = BuildConfig.BUILD_TYPE.equals("debug");
     public static boolean LOGS_ENABLED = false;
     public static boolean DEBUG_PRIVATE_VERSION = false;
@@ -42,6 +45,7 @@ public class BuildVars {
 
     // works only on official app ids, disable on your forks
     public static boolean SUPPORTS_PASSKEYS = Build.VERSION.SDK_INT >= 34;
+    public static boolean USE_LEGACY_SYSTEM_INSETS = false;
 
     static {
         APP_ID = BuildConfig.APP_ID;

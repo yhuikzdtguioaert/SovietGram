@@ -477,9 +477,7 @@ public class CloudSettingsHelper {
             super.onInitializeAccessibilityNodeInfo(info);
             info.setClassName("android.widget.CheckBox");
             info.setCheckable(true);
-            AccessibilityNodeInfoCompat.wrap(info).setChecked(checkBox.isChecked()
-                    ? AccessibilityNodeInfoCompat.CHECKED_STATE_TRUE
-                    : AccessibilityNodeInfoCompat.CHECKED_STATE_FALSE);
+            AccessibilityNodeInfoCompat.wrap(info).setChecked(checkBox.isChecked());
             StringBuilder sb = new StringBuilder();
             sb.append(textView.getText());
             if (!TextUtils.isEmpty(valueTextView.getText())) {

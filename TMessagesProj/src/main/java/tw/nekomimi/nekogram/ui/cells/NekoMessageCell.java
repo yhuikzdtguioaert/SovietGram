@@ -200,7 +200,7 @@ public class NekoMessageCell extends ChatMessageCell {
     }
 
     @Override
-    protected void onDetachedFromWindow() {
+    public void onDetachedFromWindow() {
         super.onDetachedFromWindow();
 
         if (longPressRunnable != null) {

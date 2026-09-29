@@ -1143,7 +1143,7 @@ public class ChatActionCell extends BaseCell implements DownloadController.FileD
     }
 
     @Override
-    protected void onDetachedFromWindow() {
+    public void onDetachedFromWindow() {
         super.onDetachedFromWindow();
         attachedToWindow = false;
         DownloadController.getInstance(currentAccount).removeLoadingFileObserver(this);
@@ -1179,7 +1179,7 @@ public class ChatActionCell extends BaseCell implements DownloadController.FileD
     }
 
     @Override
-    protected void onAttachedToWindow() {
+    public void onAttachedToWindow() {
         super.onAttachedToWindow();
         attachedToWindow = true;
         imageReceiver.onAttachedToWindow();

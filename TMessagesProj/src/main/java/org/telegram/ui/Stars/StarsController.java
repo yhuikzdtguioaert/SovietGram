@@ -30,6 +30,7 @@ import org.telegram.SQLite.SQLiteDatabase;
 import org.telegram.SQLite.SQLitePreparedStatement;
 import org.telegram.messenger.AccountInstance;
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.AppGlobalConfig;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.BillingController;
 import org.telegram.messenger.BirthdayController;
@@ -85,11 +86,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-
-import tw.nekomimi.nekogram.NekoConfig;
-import tw.nekomimi.nekogram.helpers.DeletedGiftsHelper;
-import tw.nekomimi.nekogram.helpers.SovietGramAccountScope;
-import tw.nekomimi.nekogram.helpers.SovietGramProfileGifts;
 
 public class StarsController {
 
@@ -174,12 +170,6 @@ public class StarsController {
     }
 
     public TL_stars.StarsAmount getBalance(boolean withMinus, Runnable loaded, boolean force) {
-        if (fakeBalance() != null) {
-            if (loaded != null) {
-                loaded.run();
-            }
-            return fakeBalance();
-        }
         if ((!balanceLoaded || System.currentTimeMillis() - lastBalanceLoaded > 1000 * 60) && !balanceLoading || force) {
             balanceLoading = true;
             TL_stars.TL_payments_getStarsStatus req = new TL_stars.TL_payments_getStarsStatus();
@@ -284,42 +274,7 @@ public class StarsController {
     }
 
     public boolean balanceAvailable() {
-        return fakeBalance() != null || balanceLoaded;
-    }
-
-    /**
-     * SovietGram "Server Stars" / "Server TON": swaps the reported balance for a locally
-     * configured number. Nothing is sent to the server — every purchase still fails server
-     * side, this is display only.
-     *
-     * @return the faked amount, or null when the feature is off (callers then use the real balance)
-     */
-    private TL_stars.StarsAmount fakeBalance() {
-        // Read per account, not off the config item: the fake balance belongs to the account it was
-        // configured on, and only one account's settings are live at a time. A plain read here would
-        // show the current account's balance on every account at once. See SovietGramAccountScope.
-        if (ton) {
-            if (!SovietGramAccountScope.bool(currentAccount, NekoConfig.serverTon)) {
-                return null;
-            }
-            long nanotons;
-            try {
-                nanotons = (long) (Double.parseDouble(SovietGramAccountScope.str(currentAccount, NekoConfig.serverTonAmount).trim()) * 1_000_000_000L);
-            } catch (Exception e) {
-                nanotons = 0;
-            }
-            return AmountUtils.Amount.fromNano(Math.max(0, nanotons), AmountUtils.Currency.TON).toTl();
-        }
-        if (!SovietGramAccountScope.bool(currentAccount, NekoConfig.fakeStars)) {
-            return null;
-        }
-        long amount;
-        try {
-            amount = Long.parseLong(SovietGramAccountScope.str(currentAccount, NekoConfig.fakeStarsAmount).trim());
-        } catch (Exception e) {
-            amount = 0;
-        }
-        return TL_stars.StarsAmount.ofStars(Math.max(0, amount));
+        return balanceLoaded;
     }
 
     private boolean optionsLoading, optionsLoaded;
@@ -789,6 +744,18 @@ public class StarsController {
         }, 0).show();
     }
 
+    private boolean isInvoiceBillingDisabled(TLRPC.InputPeer purposePeer) {
+        return AppGlobalConfig.getInstance(currentAccount).starsSpendTopUpInvoiceDisabled.get() && purposePeer != null;
+    }
+
+    public boolean canBuy(TLRPC.InputPeer purposePeer) {
+        if (purposePeer != null && isInvoiceBillingDisabled(purposePeer)) {
+            return BillingController.getInstance().isReady();
+        }
+
+        return true;
+    }
+
     public void buy(
         Activity activity,
         TL_stars.TL_starsTopupOption option,
@@ -809,7 +776,8 @@ public class StarsController {
             return;
         }
 
-        if (BuildVars.useInvoiceBilling() || !BillingController.getInstance().isReady()) {
+        final boolean isInvoiceBillingDisabled = isInvoiceBillingDisabled(purposePeer);
+        if ((BuildVars.useInvoiceBilling() || !BillingController.getInstance().isReady()) && !isInvoiceBillingDisabled) {
             final TLRPC.TL_inputStorePaymentStarsTopup purpose = new TLRPC.TL_inputStorePaymentStarsTopup();
             purpose.stars = option.stars;
             purpose.amount = option.amount;
@@ -873,6 +841,13 @@ public class StarsController {
                 }
             }));
 
+            return;
+        }
+
+        if (!BillingController.getInstance().isReady()) {
+            if (whenDone != null) {
+                whenDone.run(false, "INVOICE DISABLED");
+            }
             return;
         }
 
@@ -1857,7 +1832,6 @@ public class StarsController {
 
         public MessageId message;
         public MessageObject messageObject;
-        public long random_id;
         public ChatActivity chatActivity;
         public Bulletin bulletin;
         public Bulletin.TwoLineAnimatedLottieLayout bulletinLayout;
@@ -1909,7 +1883,6 @@ public class StarsController {
         ) {
             this.message = message;
             this.messageObject = messageObject;
-            this.random_id = Utilities.random.nextLong() & 0xFFFFFFFFL | (currentTime << 32);
             this.chatActivity = chatActivity;
 
             final Context context = getContext(chatActivity);
@@ -2083,7 +2056,7 @@ public class StarsController {
             final TLRPC.TL_messages_sendPaidReaction req = new TLRPC.TL_messages_sendPaidReaction();
             req.peer = messagesController.getInputPeer(message.did);
             req.msg_id = message.mid;
-            req.random_id = random_id;
+            req.random_id = Utilities.random.nextLong() & 0xFFFFFFFFL | ((long) connectionsManager.getCurrentTime() << 32L);
             req.count = (int) amount;
             req.flags |= 1;
             final long privacyDialogId = getPeerId();
@@ -2274,7 +2247,6 @@ public class StarsController {
                 giftsCacheLoaded = true;
                 gifts.clear();
                 gifts.addAll(giftsCached);
-                DeletedGiftsHelper.inject(currentAccount, gifts);
                 birthdaySortedGifts.clear();
                 birthdaySortedGifts.addAll(gifts);
                 Collections.sort(birthdaySortedGifts, Comparator.comparingInt((TL_stars.StarGift a) -> (a.sold_out ? 1 : 0)).thenComparingInt((TL_stars.StarGift a) -> (a.birthday ? -1 : 0)));
@@ -2299,9 +2271,6 @@ public class StarsController {
                     MessagesStorage.getInstance(currentAccount).putUsersAndChats(res.users, res.chats, true, true);
                     gifts.clear();
                     gifts.addAll(res.gifts);
-                    // Gifts Telegram removed from the catalogue, added back in memory only: the cache
-                    // below is written from res.gifts, so the request hash keeps matching the server.
-                    DeletedGiftsHelper.inject(currentAccount, gifts);
                     birthdaySortedGifts.clear();
                     birthdaySortedGifts.addAll(gifts);
                     Collections.sort(birthdaySortedGifts, Comparator.comparingInt((TL_stars.StarGift a) -> (a.sold_out ? 1 : 0)).thenComparingInt((TL_stars.StarGift a) -> (a.birthday ? -1 : 0)));
@@ -2387,20 +2356,16 @@ public class StarsController {
         });
     }
     private void saveStarGiftsCached(ArrayList<TL_stars.StarGift> gifts, int hash, long time) {
-        // Some callers pass the in-memory list, which carries the removed gifts DeletedGiftsHelper
-        // added back. Those must not reach the cache: the hash stored next to it is the server's, so
-        // persisting fabricated rows would make the next NotModified answer restore them as real.
-        final ArrayList<TL_stars.StarGift> toSave = DeletedGiftsHelper.withoutInjected(gifts);
         final MessagesStorage storage = MessagesStorage.getInstance(currentAccount);
         storage.getStorageQueue().postRunnable(() -> {
             final SQLiteDatabase db = storage.getDatabase();
             SQLitePreparedStatement state = null;
             try {
                 db.executeFast("DELETE FROM star_gifts2").stepThis().dispose();
-                if (toSave != null) {
+                if (gifts != null) {
                     state = db.executeFast("REPLACE INTO star_gifts2 VALUES(?, ?, ?, ?, ?)");
-                    for (int i = 0; i < toSave.size(); ++i) {
-                        final TL_stars.StarGift gift = toSave.get(i);
+                    for (int i = 0; i < gifts.size(); ++i) {
+                        final TL_stars.StarGift gift = gifts.get(i);
                         state.requery();
                         state.bindLong(1, gift.id);
                         NativeByteBuffer data = new NativeByteBuffer(gift.getObjectSize());
@@ -2830,7 +2795,12 @@ public class StarsController {
         }));
     }
 
+    @Deprecated
     public void getResellingGiftForm(TL_stars.StarGift gift, long dialogId, Utilities.Callback<TLRPC.TL_payments_paymentFormStarGift> whenDone) {
+        getResellingGiftForm(gift, dialogId, null, true, whenDone);
+    }
+
+    public void getResellingGiftForm(TL_stars.StarGift gift, long dialogId, TLRPC.TL_textWithEntities message, boolean hideMyName, Utilities.Callback<TLRPC.TL_payments_paymentFormStarGift> whenDone) {
         final Context context = LaunchActivity.instance != null ? LaunchActivity.instance : ApplicationLoader.applicationContext;
         final Theme.ResourcesProvider resourcesProvider = getResourceProvider();
 
@@ -2856,6 +2826,8 @@ public class StarsController {
         inputInvoice.slug = gift.slug;
         inputInvoice.to_id = MessagesController.getInstance(currentAccount).getInputPeer(dialogId);
         inputInvoice.ton = ton;
+        inputInvoice.message = message;
+        inputInvoice.show_name = !hideMyName;
 
         final TLRPC.TL_payments_getPaymentForm req = new TLRPC.TL_payments_getPaymentForm();
         final JSONObject themeParams = BotWebViewSheet.makeThemeParams(resourcesProvider);
@@ -2886,7 +2858,12 @@ public class StarsController {
         return stars;
     }
 
+    @Deprecated
     public void buyResellingGift(TLRPC.TL_payments_paymentFormStarGift form, TL_stars.StarGift gift, long dialogId, Utilities.Callback2<Boolean, String> whenDone) {
+        buyResellingGift(form, gift, dialogId, null, true, whenDone);
+    }
+
+    public void buyResellingGift(TLRPC.TL_payments_paymentFormStarGift form, TL_stars.StarGift gift, long dialogId, TLRPC.TL_textWithEntities message, boolean hideMyName, Utilities.Callback2<Boolean, String> whenDone) {
         final Context context = LaunchActivity.instance != null ? LaunchActivity.instance : ApplicationLoader.applicationContext;
         final Theme.ResourcesProvider resourcesProvider = getResourceProvider();
 
@@ -2914,6 +2891,8 @@ public class StarsController {
         inputInvoice.slug = gift.slug;
         inputInvoice.to_id = MessagesController.getInstance(currentAccount).getInputPeer(dialogId);
         inputInvoice.ton = ton;
+        inputInvoice.message = message;
+        inputInvoice.show_name = !hideMyName;
 
         final TLRPC.TL_payments_getPaymentForm req = new TLRPC.TL_payments_getPaymentForm();
         final JSONObject themeParams = BotWebViewSheet.makeThemeParams(resourcesProvider);
@@ -3609,7 +3588,6 @@ public class StarsController {
         public ArrayList<TL_stars.SavedStarGift> gifts = new ArrayList<>();
         public int currentRequestId = -1;
         public int totalCount;
-        private int stateVersion;
 
         public int getTotalCount() {
             return totalCount;
@@ -3632,7 +3610,6 @@ public class StarsController {
         public boolean shown;
 
         public void invalidate(boolean load) {
-            stateVersion++;
             if (currentRequestId != -1) {
                 ConnectionsManager.getInstance(currentAccount).cancelRequest(currentRequestId, true);
                 currentRequestId = -1;
@@ -3653,7 +3630,6 @@ public class StarsController {
             if (loading || endReached) return;
 
             boolean first = lastOffset == null;
-            final int version = stateVersion;
             loading = true;
             final TLObject request;
             if (craftingGiftId != 0) {
@@ -3688,6 +3664,7 @@ public class StarsController {
             final int[] reqId = new int[1];
             reqId[0] = currentRequestId = ConnectionsManager.getInstance(currentAccount).sendRequest(request, (res, err) -> AndroidUtilities.runOnUIThread(() -> {
                 if (reqId[0] != currentRequestId) return;
+                loading = false;
                 currentRequestId = -1;
                 if (res instanceof TL_stars.TL_payments_savedStarGifts) {
                     final TL_stars.TL_payments_savedStarGifts rez = (TL_stars.TL_payments_savedStarGifts) res;
@@ -3705,49 +3682,11 @@ public class StarsController {
                 } else {
                     endReached = true;
                 }
-                finishLoad(first, version);
+                NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.starUserGiftsLoaded, dialogId, GiftsList.this);
             }));
         }
 
-        /** Merge durable SovietGram NFT assets into the native profile list on its first page. */
-        private void finishLoad(boolean first, int version) {
-            if (!first || isCollection || craftingGiftId != 0) {
-                loading = false;
-                notifyUpdate();
-                return;
-            }
-            SovietGramProfileGifts.load(
-                    currentAccount,
-                    dialogId,
-                    isInclude_displayed(),
-                    isInclude_hidden(),
-                    serverGifts -> {
-                        if (version != stateVersion) return;
-                        final HashSet<Long> knownServerIds = new HashSet<>();
-                        for (TL_stars.SavedStarGift gift : gifts) {
-                            if (SovietGramProfileGifts.isServerGift(gift)) {
-                                knownServerIds.add(gift.saved_id);
-                            }
-                        }
-                        int added = 0;
-                        for (TL_stars.SavedStarGift gift : serverGifts) {
-                            if (knownServerIds.add(gift.saved_id)) {
-                                gifts.add(gift);
-                                added++;
-                            }
-                        }
-                        totalCount += added;
-                        if (sort_by_date && added > 0) {
-                            Collections.sort(gifts, (a, b) -> Integer.compare(b.date, a.date));
-                        }
-                        loading = false;
-                        notifyUpdate();
-                    }
-            );
-        }
-
         public void cancel() {
-            stateVersion++;
             if (currentRequestId != -1) {
                 ConnectionsManager.getInstance(currentAccount).cancelRequest(currentRequestId, true);
                 currentRequestId = -1;

@@ -327,4 +327,15 @@
     <string name="RoundVideoCompositionEnabled">Round video styling</string>
     <string name="RoundVideoCompositionInfo">Disable styling to record a plain square without outside-circle blur, dimming or Telegram overlays.</string>
     <string name="HideVideoSeekOverlay">Hide video seek preview</string>
+    <string name="NagramXPushService">Push Service</string>
+    <string name="FontApplyTitle">Apply Font</string>
+    <string name="FontApplyButton">Apply</string>
+    <string name="SwipeAllMediaAbout">The position counter shows only loaded items, not the total.</string>
+    <string name="SeamlessVideoHandoffAbout">Open videos in the viewer at the chat preview position, and resume the chat preview where you left the viewer.</string>
+    <string name="EditFolders">Edit folders</string>
+    <string name="FoldersSecretAll">Secret chats can\'t be added to a folder.</string>
+    <string name="FoldersSecretMixed">Secret chats can\'t be added to a folder. Adding only regular chats.</string>
+    <string name="FontReset">Reset All Fonts</string>
+    <string name="FontResetConfirm">Reset all custom fonts to default?</string>
+    <string name="FoldersReset">Reset</string>
 </resources>
