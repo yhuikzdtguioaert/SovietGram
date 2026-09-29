@@ -51,6 +51,8 @@ import org.telegram.messenger.R;
 import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.SvgHelper;
 import org.telegram.messenger.Utilities;
+import org.telegram.proxy.ProxySettings;
+import org.telegram.proxy.WebProxyTransport;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.ui.ActionBar.ActionBar;
 import org.telegram.ui.ActionBar.ActionBarMenuItem;
@@ -77,6 +79,7 @@ public class ProxySettingsActivity extends BaseFragment {
 
     private final static int TYPE_SOCKS5 = 0;
     private final static int TYPE_MTPROTO = 1;
+    private final static int TYPE_WEB = 2;
 
     private final static int FIELD_IP = 0;
     private final static int FIELD_PORT = 1;
@@ -94,7 +97,7 @@ public class ProxySettingsActivity extends BaseFragment {
     private TextSettingsCell shareCell;
     private TextSettingsCell pasteCell;
     private ActionBarMenuItem doneItem;
-    private RadioCell[] typeCell = new RadioCell[2];
+    private RadioCell[] typeCell = new RadioCell[3];
     private int currentType = -1;
 
     private int pasteType = -1;
@@ -212,7 +215,7 @@ public class ProxySettingsActivity extends BaseFragment {
                         return;
                     }
                     currentProxyInfo.address = inputFields[FIELD_IP].getText().toString();
-                    currentProxyInfo.port = Utilities.parseInt(inputFields[FIELD_PORT].getText().toString());
+                    currentProxyInfo.port = currentType == TYPE_WEB ? 0 : Utilities.parseInt(inputFields[FIELD_PORT].getText().toString());
                     if (currentType == 0) {
                         currentProxyInfo.secret = "";
                         currentProxyInfo.username = inputFields[FIELD_USER].getText().toString();
@@ -221,6 +224,9 @@ public class ProxySettingsActivity extends BaseFragment {
                         currentProxyInfo.secret = inputFields[FIELD_SECRET].getText().toString();
                         currentProxyInfo.username = "";
                         currentProxyInfo.password = "";
+                    }
+                    if (currentType == TYPE_WEB) {
+                        currentProxyInfo.address = WebProxyTransport.normalizeHost(currentProxyInfo.address);
                     }
 
                     SharedPreferences preferences = MessagesController.getGlobalMainSettings();
@@ -241,6 +247,7 @@ public class ProxySettingsActivity extends BaseFragment {
                         editor.putString("proxy_user", currentProxyInfo.username);
                         editor.putInt("proxy_port", currentProxyInfo.port);
                         editor.putString("proxy_secret", currentProxyInfo.secret);
+                        editor.putInt("proxy_type", currentType);
                         ConnectionsManager.setProxySettings(enabled, currentProxyInfo.address, currentProxyInfo.port, currentProxyInfo.username, currentProxyInfo.password, currentProxyInfo.secret);
                     }
                     editor.commit();
@@ -272,14 +279,16 @@ public class ProxySettingsActivity extends BaseFragment {
 
         final View.OnClickListener typeCellClickListener = view -> setProxyType((Integer) view.getTag(), true);
 
-        for (int a = 0; a < 2; a++) {
+        for (int a = 0; a < 3; a++) {
             typeCell[a] = new RadioCell(context);
             typeCell[a].setBackground(Theme.getSelectorDrawable(true));
             typeCell[a].setTag(a);
             if (a == 0) {
                 typeCell[a].setText(LocaleController.getString(R.string.UseProxySocks5), a == currentType, true);
-            } else {
+            } else if (a == TYPE_MTPROTO) {
                 typeCell[a].setText(LocaleController.getString(R.string.UseProxyTelegram), a == currentType, false);
+            } else {
+                typeCell[a].setText(LocaleController.getString(R.string.UseProxyWeb), a == currentType, false);
             }
             linearLayout2.addView(typeCell[a], LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 50));
             typeCell[a].setOnClickListener(typeCellClickListener);
@@ -461,6 +470,9 @@ public class ProxySettingsActivity extends BaseFragment {
                     if (pasteType == TYPE_MTPROTO && (i == FIELD_USER || i == FIELD_PASSWORD)) {
                         continue;
                     }
+                    if (pasteType == TYPE_WEB && (i == FIELD_PORT || i == FIELD_USER || i == FIELD_PASSWORD)) {
+                        continue;
+                    }
                     if (pasteFields[i] != null) {
                         try {
                             inputFields[i].setText(URLDecoder.decode(pasteFields[i], "UTF-8"));
@@ -479,6 +491,9 @@ public class ProxySettingsActivity extends BaseFragment {
                             continue;
                         }
                         if (pasteType == TYPE_MTPROTO && i != FIELD_USER && i != FIELD_PASSWORD) {
+                            continue;
+                        }
+                        if (pasteType == TYPE_WEB && i != FIELD_PORT && i != FIELD_USER && i != FIELD_PASSWORD) {
                             continue;
                         }
                         inputFields[i].setText(null);
@@ -561,7 +576,7 @@ public class ProxySettingsActivity extends BaseFragment {
         checkShareDone(false);
 
         currentType = -1;
-        setProxyType(TextUtils.isEmpty(currentProxyInfo.secret) ? 0 : 1, false);
+        setProxyType(currentProxyInfo.isWebProxy() ? TYPE_WEB : TextUtils.isEmpty(currentProxyInfo.secret) ? TYPE_SOCKS5 : TYPE_MTPROTO, false);
 
         pasteType = -1;
         pasteString = null;
@@ -605,6 +620,26 @@ public class ProxySettingsActivity extends BaseFragment {
             }
 
             if (params == null) {
+                final String[] webProxyStrings = {"t.me/webproxy?", "tg://webproxy?"};
+                for (String proxyString : webProxyStrings) {
+                    final int index = clipText.indexOf(proxyString);
+                    if (index >= 0) {
+                        pasteType = TYPE_WEB;
+                        try {
+                            ProxySettings settings = ProxySettings.fromUri(Uri.parse(clipText.substring(index)));
+                            if (settings != null) {
+                                pasteFields[FIELD_IP] = settings.getAddress();
+                                pasteFields[FIELD_SECRET] = settings.getSecret();
+                            }
+                        } catch (Exception ignore) {
+                        }
+                        params = new String[0];
+                        break;
+                    }
+                }
+            }
+
+            if (params == null) {
                 final String[] proxyStrings = {"t.me/proxy?", "tg://proxy?"};
                 for (int i = 0; i < proxyStrings.length; i++) {
                     final int index = clipText.indexOf(proxyStrings[i]);
@@ -638,7 +673,7 @@ public class ProxySettingsActivity extends BaseFragment {
                             }
                             break;
                         case "secret":
-                            if (pasteType == TYPE_MTPROTO) {
+                            if (pasteType == TYPE_MTPROTO || pasteType == TYPE_WEB) {
                                 pasteFields[FIELD_SECRET] = pair[1];
                             }
                             break;
@@ -692,7 +727,11 @@ public class ProxySettingsActivity extends BaseFragment {
         if (shareCell == null || doneItem == null || inputFields[FIELD_IP] == null || inputFields[FIELD_PORT] == null) {
             return;
         }
-        setShareDoneEnabled(inputFields[FIELD_IP].length() != 0 && Utilities.parseInt(inputFields[FIELD_PORT].getText().toString()) != 0, animated);
+        boolean enabled = currentType == TYPE_WEB
+                ? !TextUtils.isEmpty(WebProxyTransport.normalizeHost(inputFields[FIELD_IP].getText().toString()))
+                    && WebProxyTransport.isValidSecret(inputFields[FIELD_SECRET].getText().toString())
+                : inputFields[FIELD_IP].length() != 0 && Utilities.parseInt(inputFields[FIELD_PORT].getText().toString()) != 0;
+        setShareDoneEnabled(enabled, animated);
     }
 
     private void setProxyType(int type, boolean animated) {
@@ -752,9 +791,22 @@ public class ProxySettingsActivity extends BaseFragment {
                 ((View) inputFields[FIELD_SECRET].getParent()).setVisibility(View.VISIBLE);
                 ((View) inputFields[FIELD_PASSWORD].getParent()).setVisibility(View.GONE);
                 ((View) inputFields[FIELD_USER].getParent()).setVisibility(View.GONE);
+                ((View) inputFields[FIELD_PORT].getParent()).setVisibility(View.VISIBLE);
+                shareCell.setVisibility(View.VISIBLE);
+            } else if (currentType == TYPE_WEB) {
+                bottomCells[0].setVisibility(View.GONE);
+                bottomCells[1].setVisibility(View.VISIBLE);
+                bottomCells[1].setText(LocaleController.getString(R.string.UseProxyWebInfo));
+                ((View) inputFields[FIELD_SECRET].getParent()).setVisibility(View.VISIBLE);
+                ((View) inputFields[FIELD_PASSWORD].getParent()).setVisibility(View.GONE);
+                ((View) inputFields[FIELD_USER].getParent()).setVisibility(View.GONE);
+                ((View) inputFields[FIELD_PORT].getParent()).setVisibility(View.GONE);
+                inputFields[FIELD_PORT].setText("0");
+                shareCell.setVisibility(View.GONE);
             }
             typeCell[0].setChecked(currentType == 0, animated);
             typeCell[1].setChecked(currentType == 1, animated);
+            typeCell[2].setChecked(currentType == TYPE_WEB, animated);
         }
     }
 

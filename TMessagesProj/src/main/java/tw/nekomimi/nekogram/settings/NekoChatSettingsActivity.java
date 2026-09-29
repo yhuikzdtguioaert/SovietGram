@@ -75,6 +75,7 @@ import tw.nekomimi.nekogram.config.cell.ConfigCellTextCheckIcon;
 import tw.nekomimi.nekogram.config.cell.ConfigCellTextInput;
 import tw.nekomimi.nekogram.helpers.ChatsHelper;
 import tw.nekomimi.nekogram.helpers.TranscribeHelper;
+import tw.nekomimi.nekogram.helpers.TypefaceHelper;
 import tw.nekomimi.nekogram.helpers.remote.EmojiHelper;
 import tw.nekomimi.nekogram.ui.PopupBuilder;
 import tw.nekomimi.nekogram.ui.cells.EmojiSetCell;
@@ -204,6 +205,7 @@ public class NekoChatSettingsActivity extends BaseNekoXSettingsActivity implemen
             getString(R.string.CameraInVideoMessagesRear),
             getString(R.string.CameraInVideoMessagesAsk)
     }, null));
+    private final AbstractConfigCell roundVideoSettingsRow = cellGroup.appendCell(new ConfigCellCustom("RoundVideoSettings", CellGroup.ITEM_TYPE_TEXT_SETTINGS_CELL, true));
     private final AbstractConfigCell dividerCamera = cellGroup.appendCell(new ConfigCellDivider());
 
     // Media
@@ -222,6 +224,7 @@ public class NekoChatSettingsActivity extends BaseNekoXSettingsActivity implemen
     }, null));
     private final AbstractConfigCell showMediaRotateButtonRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getShowMediaRotateButton()));
     private final AbstractConfigCell scrollToCurrentPhotoRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getScrollToCurrentPhoto(), getString(R.string.ScrollToCurrentPhotoAbout)));
+    private final AbstractConfigCell hideVideoSeekOverlayRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.hideVideoSeekOverlay));
     private final AbstractConfigCell photoViewerHdrRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.photoViewerHdr, getString(R.string.PhotoViewerHdrAbout)));
     private final AbstractConfigCell disablePreviewVideoSoundShortcutRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getDisablePreviewVideoSoundShortcut(), getString(R.string.DisablePreviewVideoSoundShortcutNotice)));
     private final AbstractConfigCell dontAutoPlayNextVoiceRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getDontAutoPlayNextVoice()));
@@ -234,6 +237,15 @@ public class NekoChatSettingsActivity extends BaseNekoXSettingsActivity implemen
     private final AbstractConfigCell hideGroupStickerRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.hideGroupSticker));
     private final AbstractConfigCell maxRecentStickerCountRow = cellGroup.appendCell(new ConfigCellCustom("maxRecentStickerCount", CellGroup.ITEM_TYPE_TEXT_SETTINGS_CELL, true));
     private final AbstractConfigCell dividerSticker = cellGroup.appendCell(new ConfigCellDivider());
+
+    // Custom fonts
+    private final AbstractConfigCell headerFonts = cellGroup.appendCell(new ConfigCellHeader(getString(R.string.FontsSettings)));
+    private final AbstractConfigCell regularFontRow = cellGroup.appendCell(new ConfigCellCustom("CustomFontRegular", CellGroup.ITEM_TYPE_TEXT_SETTINGS_CELL, true));
+    private final AbstractConfigCell boldFontRow = cellGroup.appendCell(new ConfigCellCustom("CustomFontBold", CellGroup.ITEM_TYPE_TEXT_SETTINGS_CELL, true));
+    private final AbstractConfigCell italicFontRow = cellGroup.appendCell(new ConfigCellCustom("CustomFontItalic", CellGroup.ITEM_TYPE_TEXT_SETTINGS_CELL, true));
+    private final AbstractConfigCell monoFontRow = cellGroup.appendCell(new ConfigCellCustom("CustomFontMono", CellGroup.ITEM_TYPE_TEXT_SETTINGS_CELL, true));
+    private final AbstractConfigCell forceFontWeightFallbackRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.forceFontWeightFallback));
+    private final AbstractConfigCell dividerFonts = cellGroup.appendCell(new ConfigCellDivider());
 
     // Transcribe
     private final AbstractConfigCell headerTranscribe = cellGroup.appendCell(new ConfigCellHeader(getString(R.string.PremiumPreviewVoiceToText)));
@@ -666,7 +678,17 @@ public class NekoChatSettingsActivity extends BaseNekoXSettingsActivity implemen
 
     @Override
     protected void onCustomCellClick(View view, int position, float x, float y) {
-        if (position == cellGroup.rows.indexOf(maxRecentStickerCountRow)) {
+        if (position == cellGroup.rows.indexOf(roundVideoSettingsRow)) {
+            presentFragment(new org.telegram.ui.RoundVideoSettingsActivity());
+        } else if (position == cellGroup.rows.indexOf(regularFontRow)) {
+            presentFragment(new FontPickerActivity(TypefaceHelper.FONT_CATEGORY_REGULAR));
+        } else if (position == cellGroup.rows.indexOf(boldFontRow)) {
+            presentFragment(new FontPickerActivity(TypefaceHelper.FONT_CATEGORY_BOLD));
+        } else if (position == cellGroup.rows.indexOf(italicFontRow)) {
+            presentFragment(new FontPickerActivity(TypefaceHelper.FONT_CATEGORY_ITALIC));
+        } else if (position == cellGroup.rows.indexOf(monoFontRow)) {
+            presentFragment(new FontPickerActivity(TypefaceHelper.FONT_CATEGORY_MONO));
+        } else if (position == cellGroup.rows.indexOf(maxRecentStickerCountRow)) {
             final int[] counts = {20, 30, 40, 50, 80, 100, 120, 150, 180, 200};
             List<String> types = Arrays.stream(counts)
                     .filter(i -> i <= getMessagesController().maxRecentStickersCount)
@@ -1062,6 +1084,16 @@ public class NekoChatSettingsActivity extends BaseNekoXSettingsActivity implemen
                     textCell.setTextAndValue(getString(R.string.LlmProviderGeminiKey), "", true);
                 } else if (position == cellGroup.rows.indexOf(transcribeProviderOpenAiRow)) {
                     textCell.setTextAndValue(getString(R.string.TranscribeProviderOpenAI), "", true);
+                } else if (position == cellGroup.rows.indexOf(regularFontRow)) {
+                    textCell.setTextAndValue(getString(R.string.FontCategoryRegular), TypefaceHelper.getCustomFontName(TypefaceHelper.FONT_CATEGORY_REGULAR), true);
+                } else if (position == cellGroup.rows.indexOf(boldFontRow)) {
+                    textCell.setTextAndValue(getString(R.string.FontCategoryBold), TypefaceHelper.getCustomFontName(TypefaceHelper.FONT_CATEGORY_BOLD), true);
+                } else if (position == cellGroup.rows.indexOf(italicFontRow)) {
+                    textCell.setTextAndValue(getString(R.string.FontCategoryItalic), TypefaceHelper.getCustomFontName(TypefaceHelper.FONT_CATEGORY_ITALIC), true);
+                } else if (position == cellGroup.rows.indexOf(monoFontRow)) {
+                    textCell.setTextAndValue(getString(R.string.FontCategoryMono), TypefaceHelper.getCustomFontName(TypefaceHelper.FONT_CATEGORY_MONO), true);
+                } else if (position == cellGroup.rows.indexOf(roundVideoSettingsRow)) {
+                    textCell.setTextAndValue(getString(R.string.RoundVideoSettings), "", true);
                 }
             } else if (holder.itemView instanceof EmojiSetCell v1) {
                 v1.setData(EmojiHelper.getInstance().getCurrentEmojiPackInfo(), false, true);

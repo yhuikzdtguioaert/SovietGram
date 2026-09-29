@@ -35,6 +35,7 @@ import org.json.JSONObject;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.SerializedData;
 import org.telegram.tgnet.TLRPC;
+import org.telegram.proxy.ProxySettings;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.Components.AudioPlayerAlert;
@@ -420,33 +421,29 @@ public class SharedConfig {
             }
         }
 
+        public boolean isWebProxy() {
+            return port == 0 && !TextUtils.isEmpty(secret);
+        }
+
+        public ProxySettings toProxySettings() {
+            return ProxySettings.builder()
+                    .setType(isWebProxy() ? ProxySettings.Type.WEB : TextUtils.isEmpty(secret) ? ProxySettings.Type.SOCKS5 : ProxySettings.Type.MTPROTO)
+                    .setAddress(address)
+                    .setPort(port)
+                    .setUser(username)
+                    .setPassword(password)
+                    .setSecret(secret)
+                    .build();
+        }
+
         public String getLink() {
-            StringBuilder url = new StringBuilder(!TextUtils.isEmpty(secret) ? "https://t.me/proxy?" : "https://t.me/socks?");
-            try {
-                url.append("server=").append(URLEncoder.encode(address, "UTF-8")).append("&").append("port=").append(port);
-                if (!TextUtils.isEmpty(username)) {
-                    url.append("&user=").append(URLEncoder.encode(username, "UTF-8"));
-                }
-                if (!TextUtils.isEmpty(password)) {
-                    url.append("&pass=").append(URLEncoder.encode(password, "UTF-8"));
-                }
-                if (!TextUtils.isEmpty(secret)) {
-                    url.append("&secret=").append(URLEncoder.encode(secret, "UTF-8"));
-                }
-            } catch (UnsupportedEncodingException ignored) {}
-            return url.toString();
+            return toProxySettings().getLink();
         }
 
         public static ProxyInfo fromUrl(String url) {
-            Uri lnk = Uri.parse(url);
-            if (lnk == null) throw new IllegalArgumentException(url);
-            return new ProxyInfo(
-                    lnk.getQueryParameter("server"),
-                    Utilities.parseInt(lnk.getQueryParameter("port")),
-                    lnk.getQueryParameter("user"),
-                    lnk.getQueryParameter("pass"),
-                    lnk.getQueryParameter("secret")
-            );
+            ProxySettings settings = ProxySettings.fromUri(Uri.parse(url));
+            if (settings == null || !settings.isValid()) throw new IllegalArgumentException(url);
+            return new ProxyInfo(settings.getAddress(), settings.getPort(), settings.getUser(), settings.getPassword(), settings.getSecret());
         }
     }
 
@@ -1520,7 +1517,7 @@ public class SharedConfig {
 
                         proxyList.add(0, info);
                         if (currentProxy == null && !TextUtils.isEmpty(proxyAddress)) {
-                            if (proxyAddress.equals(info.address) && proxyPort == info.port && proxyUsername.equals(info.username) && proxyPassword.equals(info.password)) {
+                            if (proxyAddress.equals(info.address) && proxyPort == info.port && proxyUsername.equals(info.username) && proxyPassword.equals(info.password) && proxySecret.equals(info.secret)) {
                                 currentProxy = info;
                             }
                         }
@@ -1538,7 +1535,7 @@ public class SharedConfig {
                             data.readString(false));
                     proxyList.add(0, info);
                     if (currentProxy == null && !TextUtils.isEmpty(proxyAddress)) {
-                        if (proxyAddress.equals(info.address) && proxyPort == info.port && proxyUsername.equals(info.username) && proxyPassword.equals(info.password)) {
+                        if (proxyAddress.equals(info.address) && proxyPort == info.port && proxyUsername.equals(info.username) && proxyPassword.equals(info.password) && proxySecret.equals(info.secret)) {
                             currentProxy = info;
                         }
                     }

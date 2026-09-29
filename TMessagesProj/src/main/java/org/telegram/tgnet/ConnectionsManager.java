@@ -41,6 +41,9 @@ import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.StatsController;
 import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.Utilities;
+import org.telegram.proxy.WebProxyTransport;
+import org.telegram.proxy.ProxySettings;
+import org.telegram.proxy.WebProxyConnectionTester;
 import org.telegram.ui.Components.VideoPlayer;
 import org.telegram.ui.LoginActivity;
 
@@ -666,7 +669,13 @@ public class ConnectionsManager extends BaseController {
         int proxyPort = preferences.getInt("proxy_port", 1080);
 
         if (preferences.getBoolean("proxy_enabled", false) && !TextUtils.isEmpty(proxyAddress)) {
-            native_setProxySettings(currentAccount, proxyAddress, proxyPort, proxyUsername, proxyPassword, proxySecret);
+            if (proxyPort == 0 && !TextUtils.isEmpty(proxySecret)) {
+                int localPort = WebProxyTransport.start(proxyAddress, proxySecret);
+                native_setProxySettings(currentAccount, "127.0.0.1", localPort != 0 ? localPort : 9, "", "", proxySecret);
+            } else {
+                WebProxyTransport.stop();
+                native_setProxySettings(currentAccount, proxyAddress, proxyPort, proxyUsername, proxyPassword, proxySecret);
+            }
         }
         String installer = "";
         try {
@@ -776,6 +785,23 @@ public class ConnectionsManager extends BaseController {
             secret = "";
         }
         return native_checkProxy(currentAccount, address, port, username, password, secret, requestTimeDelegate);
+    }
+
+    public long checkProxy(ProxySettings settings, RequestTimeDelegate requestTimeDelegate) {
+        if (settings == null || !settings.isValid() || requestTimeDelegate == null) {
+            if (requestTimeDelegate != null) {
+                requestTimeDelegate.run(-1);
+            }
+            return 0;
+        }
+        if (settings.getType() == ProxySettings.Type.WEB) {
+            WebProxyConnectionTester.getInstance().checkProxy(settings, requestTimeDelegate,
+                    (proxySettings, localPort, delegate) -> native_checkProxy(currentAccount,
+                            "127.0.0.1", localPort, "", "", proxySettings.getSecret(), delegate));
+            return 0;
+        }
+        return native_checkProxy(currentAccount, settings.getAddress(), settings.getPort(),
+                settings.getUser(), settings.getPassword(), settings.getSecret(), requestTimeDelegate);
     }
 
     public void setAppPaused(final boolean value, final boolean byScreenState) {
@@ -1003,6 +1029,16 @@ public class ConnectionsManager extends BaseController {
             secret = "";
         }
 
+        boolean webProxy = enabled && port == 0 && !TextUtils.isEmpty(secret);
+        if (webProxy) {
+            int localPort = WebProxyTransport.start(address, secret);
+            address = "127.0.0.1";
+            port = localPort != 0 ? localPort : 9;
+            username = "";
+            password = "";
+        } else {
+            WebProxyTransport.stop();
+        }
         for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {
             if (enabled && !TextUtils.isEmpty(address)) {
                 native_setProxySettings(a, address, port, username, password, secret);

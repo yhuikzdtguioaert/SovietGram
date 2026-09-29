@@ -113,6 +113,12 @@ public class VideoTimelineView extends View {
         return progressRight;
     }
 
+    public void setTrimProgress(float left, float right) {
+        progressLeft = Math.max(0f, Math.min(1f, left));
+        progressRight = Math.max(progressLeft, Math.min(1f, right));
+        invalidate();
+    }
+
     public void setMinProgressDiff(float value) {
         minProgressDiff = value;
     }

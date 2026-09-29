@@ -689,4 +689,11 @@
     <string name="IosButtonPlacement">Расположение кнопок как в iOS</string>
     <string name="IosInputAppearance">Поле ввода как в iOS</string>
     <string name="CompactInputSize">Компактное поле ввода</string>
+    <string name="UseProxyWeb">WEB-прокси</string>
+    <string name="UseProxyWebInfo">WEB-прокси работает через HTTPS-страницу во встроенном WebView. Укажите имя хоста без схемы и пути и 16-байтовый секрет MTProxy. Для работы требуется актуальный Android System WebView; режим пока рассчитан на тестирование при открытом приложении.</string>
+    <string name="SaveDeletedCategoryPrivateChats">Сохранять удалённые сообщения в личных чатах</string>
+    <string name="SaveDeletedCategoryPublicChannels">Сохранять удалённые сообщения в публичных каналах</string>
+    <string name="SaveDeletedCategoryPrivateChannels">Сохранять удалённые сообщения в частных каналах</string>
+    <string name="SaveDeletedCategoryPublicGroups">Сохранять удалённые сообщения в публичных группах</string>
+    <string name="SaveDeletedCategoryPrivateGroups">Сохранять удалённые сообщения в частных группах</string>
 </resources>

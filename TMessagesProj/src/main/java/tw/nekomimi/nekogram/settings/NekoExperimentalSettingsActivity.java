@@ -134,6 +134,11 @@ public class NekoExperimentalSettingsActivity extends BaseNekoXSettingsActivity 
     private final AbstractConfigCell enableSaveDeletedMessagesRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getEnableSaveDeletedMessages()));
     private final AbstractConfigCell enableSaveEditsHistoryRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getEnableSaveEditsHistory()));
     private final AbstractConfigCell messageSavingSaveMediaRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getMessageSavingSaveMedia(), getString(R.string.MessageSavingSaveMediaHint)));
+    private final AbstractConfigCell saveDeletedPrivateChatsRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getSaveDeletedInPrivateChats(), null, getString(R.string.SaveDeletedCategoryPrivateChats)));
+    private final AbstractConfigCell saveDeletedPublicChannelsRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getSaveDeletedInPublicChannels(), null, getString(R.string.SaveDeletedCategoryPublicChannels)));
+    private final AbstractConfigCell saveDeletedPrivateChannelsRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getSaveDeletedInPrivateChannels(), null, getString(R.string.SaveDeletedCategoryPrivateChannels)));
+    private final AbstractConfigCell saveDeletedPublicGroupsRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getSaveDeletedInPublicGroups(), null, getString(R.string.SaveDeletedCategoryPublicGroups)));
+    private final AbstractConfigCell saveDeletedPrivateGroupsRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getSaveDeletedInPrivateGroups(), null, getString(R.string.SaveDeletedCategoryPrivateGroups)));
     private final AbstractConfigCell showDeletedMessagesInChatRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getShowDeletedMessagesInChat(), getString(R.string.ShowDeletedMessagesInChatNotice)));
     private final AbstractConfigCell showDeletedMessagesInChatListRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getShowDeletedMessagesInChatList()));
     private final AbstractConfigCell saveDeletedMessageForBotsUserRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getSaveDeletedMessageForBotUser()));
@@ -242,6 +247,16 @@ public class NekoExperimentalSettingsActivity extends BaseNekoXSettingsActivity 
                     NaConfig.INSTANCE.getShowDeletedMessagesInChat().setConfigBool(true);
                 }
                 checkSaveDeletedRows();
+            } else if (key.equals(NaConfig.INSTANCE.getSaveDeletedInPrivateChats().getKey())) {
+                if (!Boolean.TRUE.equals(newValue)) NaConfig.INSTANCE.getSaveMediaInPrivateChats().setConfigBool(false);
+            } else if (key.equals(NaConfig.INSTANCE.getSaveDeletedInPublicChannels().getKey())) {
+                if (!Boolean.TRUE.equals(newValue)) NaConfig.INSTANCE.getSaveMediaInPublicChannels().setConfigBool(false);
+            } else if (key.equals(NaConfig.INSTANCE.getSaveDeletedInPrivateChannels().getKey())) {
+                if (!Boolean.TRUE.equals(newValue)) NaConfig.INSTANCE.getSaveMediaInPrivateChannels().setConfigBool(false);
+            } else if (key.equals(NaConfig.INSTANCE.getSaveDeletedInPublicGroups().getKey())) {
+                if (!Boolean.TRUE.equals(newValue)) NaConfig.INSTANCE.getSaveMediaInPublicGroups().setConfigBool(false);
+            } else if (key.equals(NaConfig.INSTANCE.getSaveDeletedInPrivateGroups().getKey())) {
+                if (!Boolean.TRUE.equals(newValue)) NaConfig.INSTANCE.getSaveMediaInPrivateGroups().setConfigBool(false);
             } else if (key.equals(NaConfig.INSTANCE.getDisableStories().getKey())) {
                 checkStoriesRows();
                 tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
@@ -526,6 +541,11 @@ public class NekoExperimentalSettingsActivity extends BaseNekoXSettingsActivity 
             NaConfig.INSTANCE.getSaveMediaInPrivateChannels().setConfigBool(cells[2].isChecked());
             NaConfig.INSTANCE.getSaveMediaInPublicGroups().setConfigBool(cells[3].isChecked());
             NaConfig.INSTANCE.getSaveMediaInPrivateGroups().setConfigBool(cells[4].isChecked());
+            if (cells[0].isChecked()) NaConfig.INSTANCE.getSaveDeletedInPrivateChats().setConfigBool(true);
+            if (cells[1].isChecked()) NaConfig.INSTANCE.getSaveDeletedInPublicChannels().setConfigBool(true);
+            if (cells[2].isChecked()) NaConfig.INSTANCE.getSaveDeletedInPrivateChannels().setConfigBool(true);
+            if (cells[3].isChecked()) NaConfig.INSTANCE.getSaveDeletedInPublicGroups().setConfigBool(true);
+            if (cells[4].isChecked()) NaConfig.INSTANCE.getSaveDeletedInPrivateGroups().setConfigBool(true);
 
             builder.getDismissRunnable().run();
         });
@@ -566,6 +586,11 @@ public class NekoExperimentalSettingsActivity extends BaseNekoXSettingsActivity 
         final boolean isSaveEnabled = NaConfig.INSTANCE.getEnableSaveDeletedMessages().Bool();
         final List<AbstractConfigCell> allManagedRows = Arrays.asList(
                 messageSavingSaveMediaRow,
+                saveDeletedPrivateChatsRow,
+                saveDeletedPublicChannelsRow,
+                saveDeletedPrivateChannelsRow,
+                saveDeletedPublicGroupsRow,
+                saveDeletedPrivateGroupsRow,
                 showDeletedMessagesInChatRow,
                 showDeletedMessagesInChatListRow,
                 saveDeletedMessageForBotsUserRow,
@@ -599,6 +624,11 @@ public class NekoExperimentalSettingsActivity extends BaseNekoXSettingsActivity 
         if (isSaveEnabled) {
             final List<AbstractConfigCell> rowsToAdd = new ArrayList<>();
             rowsToAdd.add(messageSavingSaveMediaRow);
+            rowsToAdd.add(saveDeletedPrivateChatsRow);
+            rowsToAdd.add(saveDeletedPublicChannelsRow);
+            rowsToAdd.add(saveDeletedPrivateChannelsRow);
+            rowsToAdd.add(saveDeletedPublicGroupsRow);
+            rowsToAdd.add(saveDeletedPrivateGroupsRow);
             rowsToAdd.add(showDeletedMessagesInChatRow);
             rowsToAdd.add(showDeletedMessagesInChatListRow);
             rowsToAdd.add(saveDeletedMessageForBotsUserRow);

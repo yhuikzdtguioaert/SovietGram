@@ -239,6 +239,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import ru.noties.jlatexmath.JLatexMathDrawable;
 
 import tw.nekomimi.nekogram.NekoConfig;
+import tw.nekomimi.nekogram.helpers.TypefaceHelper;
 import tw.nekomimi.nekogram.parts.ArticleTransKt;
 import sovietgram.com.NaConfig;
 
@@ -2689,7 +2690,7 @@ public class ArticleViewer extends IArticleViewer implements NotificationCenter.
 
         public void updatePaintFonts(int selectedFont) {
             ApplicationLoader.applicationContext.getSharedPreferences("articles", Activity.MODE_PRIVATE).edit().putInt("font_type", selectedFont).commit();
-            Typeface typefaceNormal = selectedFont == 0 ? Typeface.DEFAULT : Typeface.SERIF;
+            Typeface typefaceNormal = selectedFont == 0 ? TypefaceHelper.resolveCustomFont(TypefaceHelper.FONT_CATEGORY_REGULAR, Typeface.DEFAULT) : Typeface.SERIF;
             Typeface typefaceItalic = selectedFont == 0 ? AndroidUtilities.getTypeface("fonts/ritalic.ttf") : Typeface.create("serif", Typeface.ITALIC);
             Typeface typefaceBold = selectedFont == 0 ? AndroidUtilities.bold() : Typeface.create("serif", Typeface.BOLD);
             Typeface typefaceBoldItalic = selectedFont == 0 ? AndroidUtilities.getTypeface("fonts/rmediumitalic.ttf") : Typeface.create("serif", Typeface.BOLD_ITALIC);

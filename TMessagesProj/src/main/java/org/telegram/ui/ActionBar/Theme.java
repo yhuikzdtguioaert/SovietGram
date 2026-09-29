@@ -159,6 +159,10 @@ import sovietgram.com.NaConfig;
 
 public class Theme {
 
+    public static void resetThemePaintsFonts() {
+        NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.reloadInterface);
+    }
+
     public static final String DEFAULT_BACKGROUND_SLUG = "d";
     public static final String THEME_BACKGROUND_SLUG = "t";
     public static final String COLOR_BACKGROUND_SLUG = "c";

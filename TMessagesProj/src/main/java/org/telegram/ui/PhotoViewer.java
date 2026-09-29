@@ -3029,6 +3029,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
 
         default void onPreOpen() {}
         default void onPreClose() {}
+        default void onViewedPhotoClosed(MessageObject message) {}
         default void onEditModeChanged(boolean isEditMode) {}
         default boolean onDeletePhoto(int index) {
             return true;
@@ -10177,6 +10178,9 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
     }
 
     private void showVideoSeekPreviewPosition(boolean show) {
+        if (show && NekoConfig.hideVideoSeekOverlay.Bool()) {
+            return;
+        }
         if (show && videoPreviewFrame.getTag() != null || !show && videoPreviewFrame.getTag() == null) {
             return;
         }
@@ -19642,6 +19646,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
         groupedPhotosListView.clear();
         if (placeProvider != null) {
             placeProvider.onClose();
+            placeProvider.onViewedPhotoClosed(currentMessageObject);
         }
         placeProvider = null;
         selectedPhotosAdapter.notifyDataSetChanged();

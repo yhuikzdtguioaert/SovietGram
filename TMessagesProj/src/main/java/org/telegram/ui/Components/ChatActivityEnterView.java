@@ -673,6 +673,7 @@ public class ChatActivityEnterView extends FrameLayout implements
     private RLottieImageView recordDeleteImageView;
     protected RecordedAudioPlayerView audioTimelineView;
     private long millisecondsRecorded;
+    private boolean roundVideoUiFrameClockActive;
     @Nullable
     private SlideTextView slideText;
     @Nullable
@@ -11785,6 +11786,28 @@ public class ChatActivityEnterView extends FrameLayout implements
             return;
         }
         messageEditText.setSelection(start, messageEditText.length());
+    }
+
+    public void setVideoTimelineTrim(float start, float end) {
+        if (videoTimelineView != null) {
+            videoTimelineView.setTrimProgress(start, end);
+        }
+    }
+
+    /** Keeps the recording timer in step with frames from the round-video recorder. */
+    public void setRoundVideoUiFrameClockActive(boolean active) {
+        roundVideoUiFrameClockActive = active;
+    }
+
+    /** Updates the displayed round-video duration using the recorder's monotonic timestamp. */
+    public void onRoundVideoUiFrame(long durationMs) {
+        if (!roundVideoUiFrameClockActive) {
+            return;
+        }
+        millisecondsRecorded = Math.max(0L, durationMs);
+        if (recordTimerView != null) {
+            recordTimerView.start(millisecondsRecorded);
+        }
     }
 
     public int getCursorPosition() {

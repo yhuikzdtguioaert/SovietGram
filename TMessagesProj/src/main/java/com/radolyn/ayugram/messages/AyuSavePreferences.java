@@ -14,6 +14,8 @@ import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.Utilities;
+import org.telegram.messenger.ChatObject;
+import org.telegram.messenger.DialogObject;
 import org.telegram.tgnet.TLRPC;
 
 import tw.nekomimi.nekogram.NekoConfig;
@@ -81,6 +83,10 @@ public class AyuSavePreferences {
             return false;
         }
 
+        if (!isTextSavingEnabledForDialog(accountId, dialogId)) {
+            return false;
+        }
+
         if (userId != 0) {
             if (getSaveDeletedExclusion(userId)) {
                 return false;
@@ -97,6 +103,26 @@ public class AyuSavePreferences {
         }
 
         return !user.bot || NaConfig.INSTANCE.getSaveDeletedMessageForBot().Bool();
+    }
+
+    private static boolean isTextSavingEnabledForDialog(int accountId, long dialogId) {
+        if (DialogObject.isUserDialog(dialogId)) {
+            return NaConfig.INSTANCE.getSaveDeletedInPrivateChats().Bool();
+        }
+        TLRPC.Chat chat = MessagesController.getInstance(accountId).getChat(Math.abs(dialogId));
+        if (chat == null) {
+            // Chat metadata may not be cached while a delete update is being handled.
+            return true;
+        }
+        boolean isPublic = ChatObject.isPublic(chat);
+        if (ChatObject.isChannelAndNotMegaGroup(chat)) {
+            return isPublic
+                    ? NaConfig.INSTANCE.getSaveDeletedInPublicChannels().Bool()
+                    : NaConfig.INSTANCE.getSaveDeletedInPrivateChannels().Bool();
+        }
+        return isPublic
+                ? NaConfig.INSTANCE.getSaveDeletedInPublicGroups().Bool()
+                : NaConfig.INSTANCE.getSaveDeletedInPrivateGroups().Bool();
     }
 
     public static void setSaveDeletedExclusion(long chatId, boolean value) {

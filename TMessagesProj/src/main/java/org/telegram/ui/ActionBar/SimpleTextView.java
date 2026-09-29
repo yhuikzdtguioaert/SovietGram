@@ -147,6 +147,10 @@ public class SimpleTextView extends View implements Drawable.Callback {
     public SimpleTextView(Context context) {
         super(context);
         textPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
+        android.graphics.Typeface customRegular = tw.nekomimi.nekogram.helpers.TypefaceHelper.getCustomFontForCategory(tw.nekomimi.nekogram.helpers.TypefaceHelper.FONT_CATEGORY_REGULAR);
+        if (customRegular != null) {
+            textPaint.setTypeface(customRegular);
+        }
         setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_YES);
     }
 

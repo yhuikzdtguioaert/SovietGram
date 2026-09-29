@@ -120,6 +120,7 @@ import java.util.Stack;
 import java.util.concurrent.atomic.AtomicReference;
 
 import ru.noties.jlatexmath.JLatexMathDrawable;
+import tw.nekomimi.nekogram.helpers.TypefaceHelper;
 
 public class RichMessageLayout {
 
@@ -240,6 +241,9 @@ public class RichMessageLayout {
         density = AndroidUtilities.density;
         textPaint.setTextSize(dp(SharedConfig.fontSize));
         numTextPaint.setTextSize(dp(SharedConfig.fontSize));
+        Typeface bodyTypeface = TypefaceHelper.resolveCustomFont(TypefaceHelper.FONT_CATEGORY_REGULAR, Typeface.DEFAULT);
+        textPaint.setTypeface(bodyTypeface);
+        numTextPaint.setTypeface(bodyTypeface);
         isPart = false;
         hasNameOffset = false;
 
@@ -1919,16 +1923,16 @@ public class RichMessageLayout {
         public Typeface getTypeface() {
             final int block = flags & TEXT_FLAG_BLOCKS;
             if (block == TEXT_FLAG_BLOCK_CODE) {
-                return Typeface.MONOSPACE;
+                return TypefaceHelper.resolveCustomFont(TypefaceHelper.FONT_CATEGORY_MONO, Typeface.MONOSPACE);
             } else if (block == TEXT_FLAG_BLOCK_QUOTE_CAPTION) {
                 return AndroidUtilities.bold();
             } else if (block >= 1 && block <= 6) {
                 if (hasFlag(flags, TEXT_FLAG_ITALIC)) {
-                    return AndroidUtilities.getTypeface("fonts/mw_bolditalic.ttf");
+                    return AndroidUtilities.getTypeface(AndroidUtilities.TYPEFACE_MERRIWEATHER_BOLD_ITALIC);
                 }
                 return AndroidUtilities.getTypeface("fonts/mw_bold.ttf");
             } else if (hasFlag(flags, TEXT_FLAG_MONO)) {
-                return Typeface.MONOSPACE;
+                return TypefaceHelper.resolveCustomFont(TypefaceHelper.FONT_CATEGORY_MONO, Typeface.MONOSPACE);
             }
             final boolean bold = hasFlag(flags, TEXT_FLAG_BOLD);
             final boolean italic = hasFlag(flags, TEXT_FLAG_ITALIC) || block == TEXT_FLAG_BLOCK_PULLQUOTE;

@@ -181,7 +181,7 @@ public class ProxyListActivity extends BaseFragment implements NotificationCente
         }
 
         public void setProxy(SharedConfig.ProxyInfo proxyInfo) {
-            textView.setText(proxyInfo.address + ":" + proxyInfo.port);
+            textView.setText(proxyInfo.isWebProxy() ? proxyInfo.address + " (WEB)" : proxyInfo.address + ":" + proxyInfo.port);
             currentInfo = proxyInfo;
         }
 
@@ -798,7 +798,7 @@ public class ProxyListActivity extends BaseFragment implements NotificationCente
                 continue;
             }
             proxyInfo.checking = true;
-            proxyInfo.proxyCheckPingId = ConnectionsManager.getInstance(currentAccount).checkProxy(proxyInfo.address, proxyInfo.port, proxyInfo.username, proxyInfo.password, proxyInfo.secret, time -> AndroidUtilities.runOnUIThread(() -> {
+            proxyInfo.proxyCheckPingId = ConnectionsManager.getInstance(currentAccount).checkProxy(proxyInfo.toProxySettings(), time -> AndroidUtilities.runOnUIThread(() -> {
                 proxyInfo.availableCheckTime = SystemClock.elapsedRealtime();
                 proxyInfo.checking = false;
                 if (time == -1) {

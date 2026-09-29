@@ -95,6 +95,10 @@ public class FragmentSearchField extends FrameLayout implements FactorAnimator.T
             }
         };
         editText.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 15);
+        android.graphics.Typeface customRegular = tw.nekomimi.nekogram.helpers.TypefaceHelper.getCustomFontForCategory(tw.nekomimi.nekogram.helpers.TypefaceHelper.FONT_CATEGORY_REGULAR);
+        if (customRegular != null) {
+            editText.setTypeface(customRegular);
+        }
         editText.setCursorWidth(1.5f);
         editText.setInputType(editText.getInputType() | InputType.TYPE_TEXT_VARIATION_FILTER);
         editText.setSingleLine(true);

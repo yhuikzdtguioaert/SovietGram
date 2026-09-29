@@ -159,44 +159,14 @@ public class Emoji {
                             emojiSize
                     );
                 } else {
-                    bitmap = loadBitmap("emoji/" + String.format(Locale.US, "%d_%d.png", page, page2));
                     try {
-                        if (emojiAlphaMasks == null) {
-                            emojiAlphaMasks = loadEmojiAlphaMasks();
-                        }
-
-                        int maskIndex = -1;
-                        if (emojiAlphaMasks != null) {
-                            maskIndex = emojiAlphaMasks.get(page * 4096 + page2, -1);
-                        }
-
-                        if (bitmap != null && maskIndex != -1) {
-                            final Bitmap alphaBitmap = loadBitmap("emoji/masks/" + String.format(Locale.US, "%d.png", maskIndex));
-                            if (alphaBitmap != null) {
-                                final int w = bitmap.getWidth();
-                                final int h = bitmap.getHeight();
-
-                                final int[] rgbPixels = new int[w * h];
-                                final int[] alphaPixels = new int[w * h];
-
-                                bitmap.getPixels(rgbPixels, 0, w, 0, 0, w, h);
-                                alphaBitmap.getPixels(alphaPixels, 0, w, 0, 0, w, h);
-                                alphaBitmap.recycle();
-
-                                for (int i = 0; i < rgbPixels.length; i++) {
-                                    int c = rgbPixels[i];
-                                    c = (c & 0x00FFFFFF) | ((alphaPixels[i] & 0xFF) << 24);
-
-                                    rgbPixels[i] = c;
-                                }
-
-                                bitmap.recycle();
-                                bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
-                                bitmap.setPixels(rgbPixels, 0, w, 0, 0, w, h);
-                            }
-                        }
+                        bitmap = EmojiPack.getInstance().getEmoji(page, page2);
                     } catch (Exception e) {
                         FileLog.e(e);
+                        bitmap = null;
+                    }
+                    if (bitmap == null) {
+                        bitmap = loadBitmap("emoji/" + String.format(Locale.US, "%d_%d.png", page, page2));
                     }
                 }
                 if (bitmap != null) {

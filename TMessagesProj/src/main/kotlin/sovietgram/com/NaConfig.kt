@@ -665,6 +665,13 @@ object NaConfig {
             ConfigItem.configTypeBool,
             false
         )
+    // Keep text saving configurable per chat category, matching the media category filters below.
+    // Defaults preserve the previous behavior for existing installs.
+    val saveDeletedInPrivateChats = addConfig("SaveDeletedInPrivateChats", ConfigItem.configTypeBool, true)
+    val saveDeletedInPublicChannels = addConfig("SaveDeletedInPublicChannels", ConfigItem.configTypeBool, true)
+    val saveDeletedInPrivateChannels = addConfig("SaveDeletedInPrivateChannels", ConfigItem.configTypeBool, true)
+    val saveDeletedInPublicGroups = addConfig("SaveDeletedInPublicGroups", ConfigItem.configTypeBool, true)
+    val saveDeletedInPrivateGroups = addConfig("SaveDeletedInPrivateGroups", ConfigItem.configTypeBool, true)
     val showDeletedMessagesInChat =
         addConfig(
             "ShowDeletedMessagesInChat",

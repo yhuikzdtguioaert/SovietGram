@@ -3,6 +3,7 @@ package org.telegram.ui.iv;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.graphics.Typeface;
 import android.os.Build;
 import android.text.Editable;
 import android.text.InputFilter;
@@ -28,6 +29,7 @@ import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.EditTextCaption;
 import org.telegram.ui.Components.LinkPath;
 import org.telegram.ui.Components.TextStyleSpan;
+import tw.nekomimi.nekogram.helpers.TypefaceHelper;
 
 public class RichEditText extends EditTextCaption {
 
@@ -124,6 +126,7 @@ public class RichEditText extends EditTextCaption {
     public RichEditText(Context context, Theme.ResourcesProvider resourcesProvider) {
         super(context, resourcesProvider);
         this.resourcesProvider = resourcesProvider;
+        setTypeface(TypefaceHelper.resolveCustomFont(TypefaceHelper.FONT_CATEGORY_REGULAR, Typeface.DEFAULT));
 
         setBackground(null);
         setCursorWidth(1.5f);
