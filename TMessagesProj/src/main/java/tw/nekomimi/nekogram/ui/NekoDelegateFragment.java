@@ -45,6 +45,7 @@ import org.telegram.messenger.TranslateController;
 import org.telegram.messenger.browser.Browser;
 import org.telegram.messenger.utils.RectFMergeBounding;
 import org.telegram.tgnet.TLRPC;
+import org.telegram.tgnet.tl.TL_keyboard;
 import org.telegram.ui.ActionBar.ActionBar;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.BottomSheet;
@@ -479,15 +480,15 @@ public abstract class NekoDelegateFragment extends BaseFragment implements Notif
     }
 
     @Override
-    public void didPressBotButton(ChatMessageCell cell, TLRPC.KeyboardButton button) {
+    public void didPressBotButton(ChatMessageCell cell, TL_keyboard.KeyboardButtonProto button) {
         if (button == null || getParentActivity() == null) return;
         try {
-            if (button instanceof TLRPC.TL_keyboardButtonUrl) {
+            if (button instanceof TL_keyboard.TL_keyboardButtonUrl) {
                 String url = button.url;
                 if (!TextUtils.isEmpty(url)) {
                     Browser.openUrl(getParentActivity(), url);
                 }
-            } else if (button instanceof TLRPC.TL_keyboardButtonSwitchInline) {
+            } else if (button instanceof TL_keyboard.TL_keyboardButtonSwitchInline) {
                 // show toast since we can't switch
                 BulletinFactory.of(this).createSimpleBulletin(R.raw.error, getString(R.string.ErrorOccurred)).show();
             } else {
@@ -499,7 +500,7 @@ public abstract class NekoDelegateFragment extends BaseFragment implements Notif
     }
 
     @Override
-    public boolean didLongPressBotButton(ChatMessageCell cell, TLRPC.KeyboardButton button) {
+    public boolean didLongPressBotButton(ChatMessageCell cell, TL_keyboard.KeyboardButtonProto button) {
         if (button == null || getParentActivity() == null) return false;
         try {
             if (!TextUtils.isEmpty(button.url)) {

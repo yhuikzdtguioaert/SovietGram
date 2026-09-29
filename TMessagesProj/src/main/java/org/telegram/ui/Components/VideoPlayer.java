@@ -109,7 +109,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
-import sovietgram.com.NaConfig;
+import xyz.nextalone.nagram.NaConfig;
 
 @SuppressLint("NewApi")
 public class VideoPlayer implements Player.Listener, VideoListener, AnalyticsListener, NotificationCenter.NotificationCenterDelegate {
@@ -130,8 +130,12 @@ public class VideoPlayer implements Player.Listener, VideoListener, AnalyticsLis
         void onError(VideoPlayer player, Exception e);
         void onVideoSizeChanged(int width, int height, int unappliedRotationDegrees, float pixelWidthHeightRatio);
         void onRenderedFirstFrame();
-        void onSurfaceTextureUpdated(SurfaceTexture surfaceTexture);
-        boolean onSurfaceDestroyed(SurfaceTexture surfaceTexture);
+        default void onSurfaceTextureUpdated(SurfaceTexture surfaceTexture) {
+
+        }
+        default boolean onSurfaceDestroyed(SurfaceTexture surfaceTexture) {
+            return false;
+        }
         default void onRenderedFirstFrame(EventTime eventTime) {
 
         }
@@ -228,11 +232,6 @@ public class VideoPlayer implements Player.Listener, VideoListener, AnalyticsLis
         this.looper = looper;
     }
 
-    private EGLContext eglParentContext;
-    public void setEGLContext(EGLContext ctx) {
-        eglParentContext = ctx;
-    }
-
     private int getPlayerExtensionRendererMode() {
         return switch (NaConfig.INSTANCE.getPlayerDecoder().Int()) {
             case 0 -> DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF;
@@ -279,9 +278,6 @@ public class VideoPlayer implements Player.Listener, VideoListener, AnalyticsLis
                     .setLoadControl(loadControl);
             if (looper != null) {
                 builder.setLooper(looper);
-            }
-            if (eglParentContext != null) {
-                builder.eglContext = eglParentContext;
             }
             player = builder.build();
 
@@ -998,6 +994,10 @@ public class VideoPlayer implements Player.Listener, VideoListener, AnalyticsLis
     }
 
     public static VideoUri getQualityForPlayer(ArrayList<Quality> qualities) {
+        final Quality defaultQuality = getDefaultSavedQuality(qualities);
+        if (defaultQuality != null) {
+            return defaultQuality.getDownloadUri();
+        }
         for (final Quality q : qualities) {
             for (final VideoUri v : q.uris) {
                 if (v.original && v.isCached())
@@ -1390,6 +1390,7 @@ public class VideoPlayer implements Player.Listener, VideoListener, AnalyticsLis
     }
 
     public void releasePlayer(boolean async) {
+        abandonManualAudioFocus();
         activePlayers.remove(playerId);
         if (player != null) {
             player.release();
@@ -1498,6 +1499,7 @@ public class VideoPlayer implements Player.Listener, VideoListener, AnalyticsLis
         if (audioPlayer != null) {
             audioPlayer.setPlayWhenReady(true);
         }
+        requestManualAudioFocus();
     }
 
     public void pause() {
@@ -1508,6 +1510,7 @@ public class VideoPlayer implements Player.Listener, VideoListener, AnalyticsLis
         if (audioPlayer != null) {
             audioPlayer.setPlayWhenReady(false);
         }
+        abandonManualAudioFocus();
 
         if (audioVisualizerDelegate != null) {
             audioUpdateHandler.removeCallbacksAndMessages(null);
@@ -1549,6 +1552,11 @@ public class VideoPlayer implements Player.Listener, VideoListener, AnalyticsLis
         }
         if (audioPlayer != null) {
             audioPlayer.setPlayWhenReady(playWhenReady);
+        }
+        if (playWhenReady) {
+            requestManualAudioFocus();
+        } else {
+            abandonManualAudioFocus();
         }
     }
 
@@ -1676,6 +1684,44 @@ public class VideoPlayer implements Player.Listener, VideoListener, AnalyticsLis
 
 
     private boolean handleAudioFocus = false;
+    private boolean applyAudioFocus;
+    private boolean manualAudioFocus;
+    private final AudioManager.OnAudioFocusChangeListener audioFocusChangeListener = focusChange -> { };
+
+    public void setApplyAudioFocus(boolean apply) {
+        applyAudioFocus = apply;
+        if (!apply) {
+            abandonManualAudioFocus();
+        }
+    }
+
+    private void abandonManualAudioFocus() {
+        if (manualAudioFocus) {
+            AudioManager am = (AudioManager) ApplicationLoader.applicationContext.getSystemService(Context.AUDIO_SERVICE);
+            if (am != null) {
+                am.abandonAudioFocus(audioFocusChangeListener);
+            }
+            manualAudioFocus = false;
+        }
+    }
+
+    private void requestManualAudioFocus() {
+        if (applyAudioFocus && !manualAudioFocus) {
+            AudioManager am = (AudioManager) ApplicationLoader.applicationContext.getSystemService(Context.AUDIO_SERVICE);
+            int focusType = SharedConfig.pauseMusicOnMedia ? AudioManager.AUDIOFOCUS_GAIN_TRANSIENT : AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK;
+            if (am != null && am.requestAudioFocus(audioFocusChangeListener, AudioManager.STREAM_MUSIC, focusType) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+                manualAudioFocus = true;
+            }
+        }
+    }
+
+    public void refreshAudioFocus() {
+        if (applyAudioFocus && isPlaying()) {
+            abandonManualAudioFocus();
+            requestManualAudioFocus();
+        }
+    }
+
     public void handleAudioFocus(boolean handleAudioFocus) {
         this.handleAudioFocus = handleAudioFocus;
         if (player != null) {
@@ -2006,7 +2052,7 @@ public class VideoPlayer implements Player.Listener, VideoListener, AnalyticsLis
             hdrInfo = new StoryEntry.HDRInfo();
         }
         try {
-            MediaFormat mediaFormat = ((MediaCodecRenderer) player.getRenderer(0)).codecOutputMediaFormat;
+            MediaFormat mediaFormat = ((MediaCodecRenderer) player.getRenderer(0)).getCodecOutputMediaFormat();
             ByteBuffer byteBuffer = mediaFormat.getByteBuffer(MediaFormat.KEY_HDR_STATIC_INFO);
             byteBuffer.order(ByteOrder.LITTLE_ENDIAN);
             if (byteBuffer.get() == 0) {

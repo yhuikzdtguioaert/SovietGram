@@ -9,6 +9,7 @@
 package org.telegram.ui.Components;
 
 import static org.telegram.messenger.AndroidUtilities.dp;
+import static org.telegram.messenger.AndroidUtilities.dpf2;
 import static org.telegram.messenger.AndroidUtilities.lerp;
 import static org.telegram.messenger.LocaleController.formatPluralString;
 import static org.telegram.messenger.LocaleController.getString;
@@ -145,6 +146,8 @@ import org.telegram.ui.Components.blur3.RenderNodeWithHash;
 import org.telegram.ui.Components.blur3.capture.IBlur3Capture;
 import org.telegram.ui.Components.blur3.capture.IBlur3Hash;
 import org.telegram.ui.Components.blur3.drawable.BlurredBackgroundDrawable;
+import org.telegram.ui.Components.blur3.drawable.color.BlurredBackgroundProvider;
+import org.telegram.ui.Components.blur3.drawable.color.BlurredBackgroundProviderBuilder;
 import org.telegram.ui.Components.blur3.drawable.color.impl.BlurredBackgroundProviderImpl;
 import org.telegram.ui.Components.blur3.source.BlurredBackgroundSourceColor;
 import org.telegram.ui.Components.blur3.source.BlurredBackgroundSourceRenderNode;
@@ -185,14 +188,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import kotlin.Unit;
 import tw.nekomimi.nekogram.NekoConfig;
 import tw.nekomimi.nekogram.helpers.ChatsHelper;
-import tw.nekomimi.nekogram.helpers.RoundVideoHelper;
 import tw.nekomimi.nekogram.llm.LlmConfig;
 import tw.nekomimi.nekogram.translate.Translator;
 import tw.nekomimi.nekogram.translate.TranslatorKt;
-import tw.nekomimi.nekogram.ui.MemeLibrarySheet;
 import tw.nekomimi.nekogram.utils.AlertUtil;
 import tw.nekomimi.nekogram.utils.AndroidUtil;
-import sovietgram.com.NaConfig;
+import xyz.nextalone.nagram.NaConfig;
 
 import java.util.Objects;
 
@@ -216,8 +217,6 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
     public static final int LAYOUT_TYPE_EMOJI = 14;
     public static final int LAYOUT_TYPE_LINK = 15;
     public static final int LAYOUT_TYPE_RICH = 16;
-    /** SovietGram: the local meme stash. Opens its own sheet rather than an attach layout. */
-    public static final int LAYOUT_TYPE_MEMES = 17;
 
     private static final int ANIMATOR_ID_CAPTION_ABOVE = 0;
     private static final int ANIMATOR_ID_CAPTION_VISIBLE = 1;
@@ -339,7 +338,7 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
 
                     @Override
                     public void onWebAppSetActionBarColor(int colorKey, int color, boolean isOverrideColor) {
-                        int from = ((ColorDrawable) actionBar.getBackground()).getColor();
+                        int from = iBlur3SourceColor.getColor();
                         int to = color;
 
                         BotWebViewMenuContainer.ActionBarColorsAnimating actionBarColorsAnimating = new BotWebViewMenuContainer.ActionBarColorsAnimating();
@@ -351,9 +350,21 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
                         ValueAnimator animator = ValueAnimator.ofFloat(0, 1).setDuration(200);
                         animator.setInterpolator(CubicBezierInterpolator.DEFAULT);
                         animator.addUpdateListener(animation -> {
-                            float progress = (float) animation.getAnimatedValue();
-                            // actionBar.setBackgroundColor(ColorUtils.blendARGB(from, to, progress));
-                            webViewLayout.setCustomActionBarBackground(ColorUtils.blendARGB(from, to, progress));
+                            final float progress = (float) animation.getAnimatedValue();
+                            final int bgColor = ColorUtils.blendARGB(from, to, progress);
+
+                            overridenWebviewBackgroundColor = bgColor;
+                            hasOverridenWebviewBackgroundColor = true;
+                            if (actionBar != null) {
+                                actionBar.updateColors();
+                                actionBar.invalidate();
+                            }
+
+                            iBlur3SourceColor.setColor(bgColor);
+                            if (fadeView != null) {
+                                fadeView.invalidate();
+                            }
+                            webViewLayout.setCustomActionBarBackground(bgColor);
                             currentAttachLayout.invalidate();
                             sizeNotifierFrameLayout.invalidate();
                             actionBarColorsAnimating.updateActionBar(actionBar, progress);
@@ -2228,6 +2239,7 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
                 }
             }
         };
+        actionBar.alwaysApplyColorFilterToBackButton();
         actionBar.setForcedMenuWidth(dp(46));
         // actionBar.setBackgroundColor(getThemedColor(Theme.key_dialogBackground));
         actionBar.setBackButtonDrawable(new BackDrawable(false));
@@ -2822,7 +2834,7 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
                         showLayout(restrictedLayout);
                     } else {
                         if (locationLayout == null) {
-                            layouts[5] = locationLayout = new ChatAttachAlertLocationLayout(this, getContext(), resourcesProvider, !isPollAttach);
+                            layouts[5] = locationLayout = new ChatAttachAlertLocationLayout(this, getContext(), resourcesProvider, !isPollAttach && !restrictEphemeralMessageTypes);
                             if (locationActivityDelegate != null) {
                                 locationLayout.setDelegate(locationActivityDelegate);
                             } else {
@@ -2876,13 +2888,6 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
                         layouts[10] = richLayout = new ChatAttachAlertRichLayout(this, getContext(), currentAccount, resourcesProvider);
                     }
                     showLayout(richLayout);
-                } else if (num == LAYOUT_TYPE_MEMES) {
-                    // Its own sheet rather than an attach layout: layouts[] is full, and the stash
-                    // has nothing to hand back to the caption bar anyway.
-                    dismiss();
-                    if (baseFragment instanceof ChatActivity) {
-                        MemeLibrarySheet.show(baseFragment, ((ChatActivity) baseFragment).getDialogId());
-                    }
                 } else if (view.getTag() instanceof Integer) {
                     delegate.didPressedButton((Integer) view.getTag(), true, true, 0, 0, 0, isCaptionAbove(), false, 0);
                 }
@@ -4097,7 +4102,6 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
                         }
                 );
             }
-            addSendAsRoundOption(options, chatActivity);
             options.setupSelectors();
             messageSendPreview.setItemOptions(options);
 
@@ -4118,7 +4122,6 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
 
         textPaint.setTextSize(dp(12));
         textPaint.setTypeface(AndroidUtilities.bold());
-
 
         selectedCountView = new View(context) {
             @Override
@@ -4158,9 +4161,36 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
         passcodeView = new PasscodeView(context);
         containerView.addView(passcodeView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
 
-        actionBar.setupGlass(iBlur3FactoryLiquidGlass, BlurredBackgroundProviderImpl.attachMenuActionBar(resourcesProvider));
+        BlurredBackgroundProvider colorProvider = new BlurredBackgroundProviderBuilder(resourcesProvider)
+            .setBackgroundColor((r, isDark) -> {
+                final float alpha = LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS) ? 0.85f : 0.76f;
+                final int colorBg = Theme.getColor(isDark ? Theme.key_windowBackgroundGray : Theme.key_dialogBackgroundGray, r);
+                final int colorTarget = Theme.getColor(Theme.key_windowBackgroundWhite, r);
+                if (hasOverridenWebviewBackgroundColor) {
+                    return //overridenWebviewBackgroundColor;
+                             ColorUtils.blendARGB(colorTarget, overridenWebviewBackgroundColor, 0.75f);
+                }
+
+                return BlurredBackgroundProviderImpl.solveSrcColor(colorBg, colorTarget, alpha);
+            })
+            .setStrokeColorTop((r, isDark) -> hasOverridenWebviewBackgroundColor ? 0 : isDark ? 0x28FFFFFF : 0xFFFFFFFF)
+            .setStrokeColorBottom((r, isDark) -> hasOverridenWebviewBackgroundColor ? 0 : isDark ? 0x14FFFFFF : 0xFFFFFFFF)
+            .setShadowColor((r, isDark) -> {
+                if (hasOverridenWebviewBackgroundColor) {
+                    return AndroidUtilities.computePerceivedBrightness(overridenWebviewBackgroundColor) > 0.72f ? 0x20000000 : 0x40FFFFFF;
+                }
+                return isDark ? 0 : 0x20000000;
+            })
+            .setShadowLayer(dpf2(10 / 3f), 0, dpf2(2 / 3f))
+            .setStrokeWidth(dpf2(1), dpf2(2 / 3f))
+            .build();
+
+        actionBar.setupGlass(iBlur3FactoryLiquidGlass, colorProvider);
         animatorCurrentVisibleLayout.replace((long) LAYOUT_TYPE_PHOTO, false);
     }
+
+    private boolean hasOverridenWebviewBackgroundColor;
+    private int overridenWebviewBackgroundColor;
 
     private int getEmojiPadding() {
         if (currentAttachLayout == pollLayout && pollLayout.emojiView != null) {
@@ -4202,61 +4232,6 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
             }
         }
         return hasCaption;
-    }
-
-    /**
-     * SovietGram: "Send as round video" in the send options, next to the schedule and silent entries.
-     * <p>
-     * Only offered when everything picked is a video — a round message holds exactly one video, so a
-     * mixed selection has nothing sensible to do here. Each entry goes out as its own round message.
-     */
-    private void addSendAsRoundOption(ItemOptions options, ChatActivity chatActivity) {
-        if (options == null || chatActivity == null) {
-            return;
-        }
-        final ArrayList<MediaController.PhotoEntry> entries = getSelectedVideoEntries();
-        if (entries.isEmpty()) {
-            return;
-        }
-        options.add(R.drawable.input_video, getString(R.string.SendAsRoundVideo), () -> {
-            RoundVideoHelper.send(chatActivity, entries, true, 0);
-            if (messageSendPreview != null) {
-                messageSendPreview.dismiss(true);
-                messageSendPreview = null;
-            }
-            dismiss(true);
-        });
-    }
-
-    /** The current selection, but only if every item in it can go out as a round message. */
-    private ArrayList<MediaController.PhotoEntry> getSelectedVideoEntries() {
-        final ArrayList<MediaController.PhotoEntry> result = new ArrayList<>();
-        // The preview layout reorders and regroups what the photo layout picked, so when it is open
-        // it is the one holding the entries the user actually sees.
-        if (currentAttachLayout == photoPreviewLayout && photoPreviewLayout != null) {
-            final ArrayList<MediaController.PhotoEntry> photos = photoPreviewLayout.getPhotos();
-            if (photos != null) {
-                result.addAll(photos);
-            }
-        } else if (currentAttachLayout == photoLayout && photoLayout != null) {
-            final HashMap<Object, Object> selected = photoLayout.getSelectedPhotos();
-            final ArrayList<Object> order = photoLayout.getSelectedPhotosOrder();
-            for (int i = 0; i < order.size(); ++i) {
-                final Object object = selected.get(order.get(i));
-                if (object instanceof MediaController.PhotoEntry) {
-                    result.add((MediaController.PhotoEntry) object);
-                } else {
-                    // A search result or a document — not a local file, so nothing to make round.
-                    return new ArrayList<>();
-                }
-            }
-        }
-        for (int i = 0; i < result.size(); ++i) {
-            if (!RoundVideoHelper.canSend(result.get(i))) {
-                return new ArrayList<>();
-            }
-        }
-        return result;
     }
 
     private void checkUi_attachButtonsVisibility() {
@@ -4525,6 +4500,12 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
             AndroidUtilities.setNavigationBarColor(this, navBarColor, false);
             AndroidUtilities.setLightNavigationBar(this, AndroidUtilities.computePerceivedBrightness(navBarColor) > 0.721);
         }
+        if (hasOverridenWebviewBackgroundColor) {
+            hasOverridenWebviewBackgroundColor = false;
+            actionBar.updateColors();
+            actionBar.invalidate();
+            onCurrentLayoutAnimatorChanged();
+        }
     }
 
     public static final int EDITMEDIA_TYPE_ANY = -1;
@@ -4629,7 +4610,7 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
                 return;
             }
             if (locationLayout == null) {
-                layouts[5] = locationLayout = new ChatAttachAlertLocationLayout(this, getContext(), resourcesProvider, !isPollAttach);
+                layouts[5] = locationLayout = new ChatAttachAlertLocationLayout(this, getContext(), resourcesProvider, !isPollAttach && !restrictEphemeralMessageTypes);
                 if (locationActivityDelegate != null) {
                     locationLayout.setDelegate(locationActivityDelegate);
                 } else if (baseFragment instanceof ChatActivity) {
@@ -4900,8 +4881,15 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
         }
 
         if (actionBar != null) {
+            if (hasOverridenWebviewBackgroundColor && !(layout instanceof ChatAttachAlertBotWebViewLayout)) {
+                hasOverridenWebviewBackgroundColor = false;
+                actionBar.updateColors();
+                actionBar.invalidate();
+                onCurrentLayoutAnimatorChanged();
+            }
+
             final int menuWidth;
-            if (newId == LAYOUT_TYPE_PHOTO || newId == LAYOUT_TYPE_LOCATION) {
+            if (newId == LAYOUT_TYPE_PHOTO || newId == LAYOUT_TYPE_LOCATION || layout instanceof ChatAttachAlertBotWebViewLayout) {
                 menuWidth = dp(46);
             } else if (newId == LAYOUT_TYPE_DOCUMENTS) {
                 menuWidth = dp(84);
@@ -4914,6 +4902,10 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
 
 
     private void onCurrentLayoutAnimatorChanged(ReplaceAnimator<?> animator) {
+        onCurrentLayoutAnimatorChanged();
+    }
+
+    private void onCurrentLayoutAnimatorChanged() {
         if (shadowDrawable == null || containerView == null) {
             return;
         }
@@ -6200,7 +6192,7 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
         ChatAttachAlert.AttachAlertLayout layoutToSet;
         if (isStoryLocationPicker || isBizLocationPicker || isLocationPicker) {
             if (locationLayout == null) {
-                layouts[5] = locationLayout = new ChatAttachAlertLocationLayout(this, getContext(), resourcesProvider, !isPollAttach && !isLocationPicker);
+                layouts[5] = locationLayout = new ChatAttachAlertLocationLayout(this, getContext(), resourcesProvider, !isPollAttach && !isLocationPicker && !restrictEphemeralMessageTypes);
                 if (locationActivityDelegate != null) {
                     locationLayout.setDelegate(locationActivityDelegate);
                 } else {
@@ -6651,7 +6643,6 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
         private List<TLRPC.TL_attachMenuBot> attachMenuBots = new ArrayList<>();
 
         private int documentButton;
-        private int memesButton;
         private int musicButton;
         private int pollButton;
         private int todoButton;
@@ -6703,9 +6694,6 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
                         attachButton.setTextAndIcon(4, getString(R.string.ChatDocument), GlassTabView.TabAnimation.FILES);
                         attachButton.setTag(4);
                         err = !checkPhotoAndDocumentsPermission(mContext);
-                    } else if (position == memesButton) {
-                        attachButton.setTextAndIcon(LAYOUT_TYPE_MEMES, getString(R.string.MemeLibrary), GlassTabView.TabAnimation.GALLERY);
-                        attachButton.setTag(LAYOUT_TYPE_MEMES);
                     } else if (position == locationButton) {
                         attachButton.setTextAndIcon(6, getString(R.string.ChatLocation), GlassTabView.TabAnimation.LOCATION);
                         attachButton.setTag(6);
@@ -6787,7 +6775,6 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
             buttonsCount = 0;
             galleryButton = -1;
             documentButton = -1;
-            memesButton = -1;
             musicButton = -1;
             pollButton = -1;
             todoButton = -1;
@@ -6864,9 +6851,6 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
                         attachBotsEndRow = buttonsCount;
                     }
                 }
-                // SovietGram: the meme stash sits right after the attach-menu bots, so it lands
-                // immediately behind "Кошелёк" for anyone who has that bot installed.
-                memesButton = buttonsCount++;
                 documentButton = buttonsCount++;
 
                 if (plainTextEnabled) {
