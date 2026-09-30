@@ -294,7 +294,7 @@ public final class CustomProfileHeaderLayout {
     private static void keepStatusClearOfAvatar(View root, @Nullable View avatar,
                                                 @Nullable View status, float[] wantedX,
                                                 float[] wantedY, float amount) {
-        if (avatar == null || status == null || amount < 0.95f
+        if (avatar == null || status == null || amount <= 0.01f
                 || avatar.getWidth() == 0 || status.getWidth() == 0) {
             return;
         }
@@ -320,7 +320,9 @@ public final class CustomProfileHeaderLayout {
             return;
         }
         final float gap = AndroidUtilities.dpf2(8);
-        wantedX[CustomProfileAnchors.STATUS] += avatarRight + gap - statusLeft;
+        // Transform.apply multiplies the target offset by amount. Compensate here so the
+        // collision clears continuously during a gesture instead of snapping near its end.
+        wantedX[CustomProfileAnchors.STATUS] += (avatarRight + gap - statusLeft) / amount;
     }
 
     /**
