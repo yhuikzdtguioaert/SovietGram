@@ -376,7 +376,8 @@ public final class SovietGramApiClient {
     }
 
     private static String mediaSlot(@Nullable String slot) {
-        if ("banner".equals(slot) || "background".equals(slot)) {
+        if ("banner".equals(slot) || "background".equals(slot)
+                || "font".equals(slot) || "frame".equals(slot)) {
             return slot;
         }
         return SLOT_OTHER;
