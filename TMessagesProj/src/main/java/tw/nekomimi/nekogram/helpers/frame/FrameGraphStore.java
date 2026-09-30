@@ -5,6 +5,7 @@ import androidx.annotation.Nullable;
 import tw.nekomimi.nekogram.NekoConfig;
 import tw.nekomimi.nekogram.helpers.CustomProfileFrame;
 import tw.nekomimi.nekogram.helpers.CustomProfileHelper;
+import tw.nekomimi.nekogram.helpers.FrameProjects;
 
 /**
  * Where the frame being authored lives between sessions.
@@ -67,12 +68,14 @@ public final class FrameGraphStore {
         final FrameSpec spec = FrameGraphBuild.spec(graph);
         NekoConfig.customProfileFrameGraph.setConfigString(graph.encode());
         NekoConfig.customProfileFrameSpec.setConfigString(spec.encode());
+        FrameProjects.onFrameChanged(graph.encode(), spec.encode());
         changed();
     }
 
     /** Installs a frame written elsewhere, and lays out a graph for it. */
     public static void apply(@Nullable FrameSpec spec) {
         final FrameSpec wanted = spec == null ? FrameSpec.EMPTY : spec;
+        FrameProjects.detach();
         NekoConfig.customProfileFrameSpec.setConfigString(wanted.encode());
         NekoConfig.customProfileFrameGraph.setConfigString(
                 FrameGraphBuild.of(wanted).encode());
@@ -81,6 +84,7 @@ public final class FrameGraphStore {
 
     /** Takes the frame off. */
     public static void clear() {
+        FrameProjects.detach();
         NekoConfig.customProfileFrameSpec.setConfigString("");
         NekoConfig.customProfileFrameGraph.setConfigString("");
         changed();

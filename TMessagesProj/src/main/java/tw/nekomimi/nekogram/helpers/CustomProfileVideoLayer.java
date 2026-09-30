@@ -158,7 +158,11 @@ public final class CustomProfileVideoLayer {
                 CustomProfileHelper.cfgInt(NekoConfig.customProfileBannerFadeAngle),
                 CustomProfileHelper.cfgInt(NekoConfig.customProfileBannerFadeRadius),
                 CustomProfileHelper.cfgInt(NekoConfig.customProfileBannerFadeCenterX),
-                CustomProfileHelper.cfgInt(NekoConfig.customProfileBannerFadeCenterY));
+                CustomProfileHelper.cfgInt(NekoConfig.customProfileBannerFadeCenterY),
+                CustomProfileHelper.cfgBool(NekoConfig.customProfileBannerBlend)
+                        ? CustomProfileHelper.cfgInt(NekoConfig.customProfileBannerBlendRadius) : 0,
+                CustomProfileHelper.cfgBool(NekoConfig.customProfileBannerSound)
+                        ? CustomProfileHelper.cfgInt(NekoConfig.customProfileBannerSoundVolume) : 0);
         bannerAttached = true;
     }
 
@@ -182,7 +186,10 @@ public final class CustomProfileVideoLayer {
                 CustomProfileHelper.cfgInt(NekoConfig.customProfileBackgroundFadeAngle),
                 CustomProfileHelper.cfgInt(NekoConfig.customProfileBackgroundFadeRadius),
                 CustomProfileHelper.cfgInt(NekoConfig.customProfileBackgroundFadeCenterX),
-                CustomProfileHelper.cfgInt(NekoConfig.customProfileBackgroundFadeCenterY));
+                CustomProfileHelper.cfgInt(NekoConfig.customProfileBackgroundFadeCenterY), 0,
+                CustomProfileHelper.cfgBool(NekoConfig.customProfileBackgroundSound)
+                        && !(bannerAttached && CustomProfileHelper.cfgBool(NekoConfig.customProfileBannerSound))
+                        ? CustomProfileHelper.cfgInt(NekoConfig.customProfileBackgroundSoundVolume) : 0);
         backgroundAttached = true;
     }
 
@@ -279,6 +286,8 @@ public final class CustomProfileVideoLayer {
         private int fadeRadius = 100;
         private int fadeCenterX = 50;
         private int fadeCenterY = 50;
+        private int blendRadius;
+        private int soundVolume;
         private int videoWidth;
         private int videoHeight;
 
@@ -301,16 +310,27 @@ public final class CustomProfileVideoLayer {
         }
 
         void bind(String newPath, @Nullable Bitmap newPoster, int newFallbackColor,
-                  int alpha, int dimStrength, int mode, int angle, int radius, int centerX, int centerY) {
+                  int alpha, int dimStrength, int mode, int angle, int radius, int centerX, int centerY,
+                  int blend, int volume) {
             alphaPercent = alpha;
             dimPercent = dimStrength;
             final boolean fadeChanged = mode != fadeMode || angle != fadeAngle || radius != fadeRadius
-                    || centerX != fadeCenterX || centerY != fadeCenterY;
+                    || centerX != fadeCenterX || centerY != fadeCenterY || blend != blendRadius;
             fadeMode = mode;
             fadeAngle = angle;
             fadeRadius = radius;
             fadeCenterX = centerX;
             fadeCenterY = centerY;
+            blendRadius = blend;
+            soundVolume = CustomProfileGfx.clamp(volume, 0, 65);
+            if (player != null) {
+                final float level = soundVolume / 100f;
+                try {
+                    player.setVolume(level, level);
+                } catch (IllegalStateException ignore) {
+                    // A surface teardown can release the player during this layout pass.
+                }
+            }
             if (fadeChanged) {
                 invalidate();
             }
@@ -384,9 +404,8 @@ public final class CustomProfileVideoLayer {
                 created.setDataSource(path);
                 created.setSurface(surface);
                 created.setLooping(true);
-                // Muted, always: a profile that starts making noise when it is opened is not something
-                // a look gets to decide. The reference carries per-look volume keys; we drop them.
-                created.setVolume(0f, 0f);
+                final float level = soundVolume / 100f;
+                created.setVolume(level, level);
                 created.setOnVideoSizeChangedListener((mp, width, height) -> {
                     videoWidth = width;
                     videoHeight = height;
@@ -453,7 +472,7 @@ public final class CustomProfileVideoLayer {
         public void draw(Canvas canvas) {
             final Shader fade = CustomProfileGfx.fadeShader(fadeMode, fadeAngle, fadeRadius,
                     fadeCenterX, fadeCenterY, getWidth(), getHeight());
-            if (fade == null) {
+            if (fade == null && blendRadius <= 0) {
                 super.draw(canvas);
                 return;
             }
@@ -461,8 +480,18 @@ public final class CustomProfileVideoLayer {
             // already on the canvas, which without a layer is the whole profile behind this view.
             final int save = canvas.saveLayer(0, 0, getWidth(), getHeight(), null);
             super.draw(canvas);
-            fadePaint.setShader(fade);
-            canvas.drawRect(0, 0, getWidth(), getHeight(), fadePaint);
+            if (fade != null) {
+                fadePaint.setShader(fade);
+                canvas.drawRect(0, 0, getWidth(), getHeight(), fadePaint);
+            }
+            if (blendRadius > 0) {
+                final float height = getHeight();
+                final float band = Math.min(height, Math.max(org.telegram.messenger.AndroidUtilities.dpf2(8),
+                        height * CustomProfileGfx.clamp(blendRadius, 2, 60) / 100f));
+                fadePaint.setShader(new android.graphics.LinearGradient(0, height - band, 0, height,
+                        0xFFFFFFFF, 0x00FFFFFF, Shader.TileMode.CLAMP));
+                canvas.drawRect(0, height - band, getWidth(), height, fadePaint);
+            }
             fadePaint.setShader(null);
             canvas.restoreToCount(save);
         }

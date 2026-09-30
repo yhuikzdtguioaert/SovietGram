@@ -50,6 +50,7 @@ import tw.nekomimi.nekogram.ui.frame.FrameStudioPreviewView;
 public class FrameStudioActivity extends CustomProfileListActivity {
 
     private static final int menu_reset = 1;
+    private static final int menu_projects = 5;
     private static final int menu_shape = 2;
     private static final int menu_canvas = 3;
     private static final int menu_drop = 4;
@@ -185,6 +186,8 @@ public class FrameStudioActivity extends CustomProfileListActivity {
 
         final ActionBarMenu menu = actionBar.createMenu();
         final ActionBarMenuItem more = menu.addItem(0, R.drawable.ic_ab_other);
+        more.addSubItem(menu_projects, R.drawable.msg_settings,
+                getString(R.string.CustomProfileFrameProjects));
         more.addSubItem(menu_shape, R.drawable.msg_photo_settings,
                 getString(R.string.CustomProfileFrameShape));
         more.addSubItem(menu_canvas, R.drawable.msg_settings,
@@ -197,6 +200,8 @@ public class FrameStudioActivity extends CustomProfileListActivity {
             public void onItemClick(int id) {
                 if (id == -1) {
                     finishFragment();
+                } else if (id == menu_projects) {
+                    presentFragment(new FrameProjectsActivity());
                 } else if (id == menu_shape) {
                     pickShape();
                 } else if (id == menu_canvas) {

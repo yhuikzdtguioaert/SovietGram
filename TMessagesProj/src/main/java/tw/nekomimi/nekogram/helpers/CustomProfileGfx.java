@@ -434,7 +434,15 @@ public final class CustomProfileGfx {
     public static void drawFaded(Canvas canvas, float width, float height, int fadeMode, int fadeAngle,
                                  int fadeRadius, int fadeCenterX, int fadeCenterY,
                                  int alphaPercent, int dimPercent, Runnable content) {
-        if (fadeMode == 0 && alphaPercent >= 100 && dimPercent <= 0) {
+        drawFaded(canvas, width, height, fadeMode, fadeAngle, fadeRadius, fadeCenterX,
+                fadeCenterY, alphaPercent, dimPercent, 0, content);
+    }
+
+    /** Dissolves the bottom of a banner into the background, independently of its chosen fade. */
+    public static void drawFaded(Canvas canvas, float width, float height, int fadeMode, int fadeAngle,
+                                 int fadeRadius, int fadeCenterX, int fadeCenterY,
+                                 int alphaPercent, int dimPercent, int blendRadius, Runnable content) {
+        if (fadeMode == 0 && alphaPercent >= 100 && dimPercent <= 0 && blendRadius <= 0) {
             content.run();
             return;
         }
@@ -451,6 +459,14 @@ public final class CustomProfileGfx {
             // its destination to mask anything, and the layer keeps it off the rest of the canvas.
             fadePaint.setShader(fade);
             canvas.drawRect(0, 0, width, height, fadePaint);
+            fadePaint.setShader(null);
+        }
+        if (blendRadius > 0) {
+            final float band = Math.min(height, Math.max(AndroidUtilities.dpf2(8),
+                    height * clamp(blendRadius, 2, 60) / 100f));
+            fadePaint.setShader(new LinearGradient(0, height - band, 0, height,
+                    0xFFFFFFFF, 0x00FFFFFF, Shader.TileMode.CLAMP));
+            canvas.drawRect(0, height - band, width, height, fadePaint);
             fadePaint.setShader(null);
         }
         canvas.restoreToCount(base);

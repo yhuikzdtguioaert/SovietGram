@@ -5,11 +5,15 @@ import static org.telegram.messenger.LocaleController.getString;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.text.Editable;
 import android.text.TextUtils;
+import android.text.TextWatcher;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
+import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -20,6 +24,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.R;
+import org.telegram.messenger.UserConfig;
 import org.telegram.ui.ActionBar.ActionBar;
 import org.telegram.ui.ActionBar.ActionBarMenu;
 import org.telegram.ui.ActionBar.ActionBarMenuItem;
@@ -37,12 +42,13 @@ import java.util.List;
 import tw.nekomimi.nekogram.helpers.PopupHelper;
 import tw.nekomimi.nekogram.helpers.WorkshopHelper;
 import tw.nekomimi.nekogram.helpers.WorkshopStyle;
+import tw.nekomimi.nekogram.helpers.SovietWorkshop;
+import tw.nekomimi.nekogram.helpers.CustomProfileHelper;
 import tw.nekomimi.nekogram.ui.cells.WorkshopCell;
 
 /**
- * The workshop: the gallery of profile looks other people have published, in a grid of preview
- * shots. Tapping one offers to install it, which overwrites the local Custom Profile settings with
- * what the author saved.
+ * The workshop: galleries of published profile looks and frames, in a grid of preview shots.
+ * Tapping one offers to install it, which overwrites the matching local appearance settings.
  * <p>
  * Sections come from a picker in the title rather than a tab strip, which is how the reference
  * plugin arranges them, and only "Лучшее" carries a period.
@@ -50,22 +56,28 @@ import tw.nekomimi.nekogram.ui.cells.WorkshopCell;
 public class WorkshopActivity extends BaseFragment {
 
     private static final int menu_section = 1;
+    private static final int menu_publish = 2;
 
     private RecyclerListView listView;
     private ListAdapter adapter;
     private FlickerLoadingView progressView;
     private TextView emptyView;
     private ActionBarMenuItem sectionItem;
+    private TextView profileTab;
+    private TextView frameTab;
+    private String search = "";
+    private Runnable pendingSearch;
 
     private final List<WorkshopHelper.Work> works = new ArrayList<>();
+    private final List<WorkshopHelper.Work> allWorks = new ArrayList<>();
 
-    /** Index into {@link #SECTIONS}; "Лучшее" appears three times, once per period. */
+    /** First five sections are the reference gallery; the last four use SovietGram's server. */
     private int section;
     /**
      * Which of the workshop's two galleries this screen shows — looks or avatar frames. Both are the
      * same endpoints, the same sections and the same grid; only what installing a work does differs.
      */
-    private final String kind;
+    private String kind;
 
     public WorkshopActivity() {
         this(WorkshopHelper.KIND_PROFILE);
@@ -84,6 +96,10 @@ public class WorkshopActivity extends BaseFragment {
             {WorkshopHelper.MODE_BEST, WorkshopHelper.PERIOD_DAY},
             {WorkshopHelper.MODE_BEST, WorkshopHelper.PERIOD_WEEK},
             {WorkshopHelper.MODE_BEST, WorkshopHelper.PERIOD_MONTH},
+            {"soviet-new", ""},
+            {"soviet-popular", ""},
+            {"soviet-mine", ""},
+            {"soviet-favorites", ""},
     };
 
     private static ArrayList<String> sectionNames() {
@@ -93,6 +109,10 @@ public class WorkshopActivity extends BaseFragment {
         names.add(getString(R.string.WorkshopSectionBestDay));
         names.add(getString(R.string.WorkshopSectionBestWeek));
         names.add(getString(R.string.WorkshopSectionBestMonth));
+        names.add(getString(R.string.WorkshopSovietNew));
+        names.add(getString(R.string.WorkshopSovietPopular));
+        names.add(getString(R.string.WorkshopSovietMine));
+        names.add(getString(R.string.WorkshopSovietFavorites));
         return names;
     }
 
@@ -113,27 +133,61 @@ public class WorkshopActivity extends BaseFragment {
                     finishFragment();
                 } else if (id == menu_section) {
                     showSectionPicker();
+                } else if (id == menu_publish) {
+                    publish();
                 }
             }
         });
         final ActionBarMenu menu = actionBar.createMenu();
         sectionItem = menu.addItem(menu_section, R.drawable.msg_list);
         sectionItem.setContentDescription(getString(R.string.WorkshopSection));
+        menu.addItem(menu_publish, R.drawable.msg_add)
+                .setContentDescription(getString(R.string.WorkshopPublish));
 
         final FrameLayout root = new FrameLayout(context);
         root.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundGray));
         fragmentView = root;
 
+        final LinearLayout controls = new LinearLayout(context);
+        controls.setOrientation(LinearLayout.VERTICAL);
+        final LinearLayout tabs = new LinearLayout(context);
+        profileTab = tab(context, R.string.CustomProfileWorkshop, WorkshopHelper.KIND_PROFILE);
+        frameTab = tab(context, R.string.CustomProfileFrames, WorkshopHelper.KIND_FRAME);
+        tabs.addView(profileTab, new LinearLayout.LayoutParams(0, dp(44), 1));
+        tabs.addView(frameTab, new LinearLayout.LayoutParams(0, dp(44), 1));
+        controls.addView(tabs);
+        final EditText searchField = new EditText(context);
+        searchField.setSingleLine(true);
+        searchField.setTextSize(15);
+        searchField.setHint(getString(R.string.Search));
+        searchField.setPadding(dp(16), 0, dp(16), 0);
+        searchField.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
+                search = s.toString().trim().toLowerCase(java.util.Locale.ROOT);
+                if (section >= 5) {
+                    if (pendingSearch != null) AndroidUtilities.cancelRunOnUIThread(pendingSearch);
+                    pendingSearch = WorkshopActivity.this::load;
+                    AndroidUtilities.runOnUIThread(pendingSearch, 300);
+                } else filter();
+            }
+            @Override public void afterTextChanged(Editable s) { }
+        });
+        controls.addView(searchField, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(48)));
+        root.addView(controls, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 92, Gravity.TOP));
+        updateTabs();
+
         progressView = new FlickerLoadingView(context);
         progressView.setViewType(FlickerLoadingView.DIALOG_CELL_TYPE);
         progressView.showDate(false);
-        root.addView(progressView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
+        root.addView(progressView, contentParams());
 
         emptyView = new TextView(context);
         emptyView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText));
         emptyView.setGravity(Gravity.CENTER);
         emptyView.setVisibility(View.GONE);
-        root.addView(emptyView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
+        root.addView(emptyView, contentParams());
 
         listView = new RecyclerListView(context);
         listView.setLayoutManager(new GridLayoutManager(context, 2));
@@ -146,10 +200,62 @@ public class WorkshopActivity extends BaseFragment {
                 confirmInstall(((WorkshopCell) view).getWork());
             }
         });
-        root.addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
+        root.addView(listView, contentParams());
 
         load();
         return fragmentView;
+    }
+
+    private static FrameLayout.LayoutParams contentParams() {
+        final FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+        params.topMargin = dp(92);
+        return params;
+    }
+
+    private TextView tab(Context context, int title, String tabKind) {
+        final TextView view = new TextView(context);
+        view.setGravity(Gravity.CENTER);
+        view.setText(getString(title));
+        view.setTextSize(15);
+        view.setOnClickListener(v -> {
+            if (tabKind.equals(kind)) return;
+            kind = tabKind;
+            actionBar.setTitle(getString(WorkshopHelper.KIND_FRAME.equals(kind)
+                    ? R.string.CustomProfileFrames : R.string.CustomProfileWorkshop));
+            updateTabs();
+            load();
+        });
+        listView.setOnItemLongClickListener((view, position) -> {
+            if (view instanceof WorkshopCell) {
+                showWorkMenu(((WorkshopCell) view).getWork());
+                return true;
+            }
+            return false;
+        });
+        return view;
+    }
+
+    private void updateTabs() {
+        if (profileTab != null) {
+            profileTab.setAlpha(WorkshopHelper.KIND_PROFILE.equals(kind) ? 1f : 0.55f);
+        }
+        if (frameTab != null) {
+            frameTab.setAlpha(WorkshopHelper.KIND_FRAME.equals(kind) ? 1f : 0.55f);
+        }
+    }
+
+    @SuppressLint("NotifyDataSetChanged")
+    private void filter() {
+        works.clear();
+        for (WorkshopHelper.Work work : allWorks) {
+            if (search.isEmpty() || work.title.toLowerCase(java.util.Locale.ROOT).contains(search)
+                    || work.authorName.toLowerCase(java.util.Locale.ROOT).contains(search)) {
+                works.add(work);
+            }
+        }
+        if (adapter != null) adapter.notifyDataSetChanged();
+        updateEmptyState(null);
     }
 
     private void showSectionPicker() {
@@ -167,31 +273,103 @@ public class WorkshopActivity extends BaseFragment {
                 });
     }
 
+    private void publish() {
+        if (getParentActivity() == null) return;
+        final int account = UserConfig.selectedAccount;
+        final EditText input = new EditText(getParentActivity());
+        input.setSingleLine(true);
+        input.setHint(getString(R.string.WorkshopPublishTitle));
+        new AlertDialog.Builder(getParentActivity())
+                .setTitle(getString(R.string.WorkshopPublish))
+                .setView(input)
+                .setPositiveButton(getString(R.string.WorkshopPublish), (dialog, which) -> {
+                    final String title = input.getText().toString().trim();
+                    if (title.isEmpty()) return;
+                    SovietWorkshop.publish(account, kind, title, (id, error) -> {
+                        if (id == null) showError(error);
+                        else {
+                            section = 7;
+                            actionBar.setSubtitle(sectionNames().get(section));
+                            load();
+                        }
+                    });
+                })
+                .setNegativeButton(getString(R.string.Cancel), null)
+                .show();
+    }
+
+    private void showWorkMenu(WorkshopHelper.Work work) {
+        if (work == null || !work.soviet || getParentActivity() == null) return;
+        final int account = UserConfig.selectedAccount;
+        final boolean mine = String.valueOf(UserConfig.getInstance(account).getClientUserId())
+                .equals(work.author);
+        final ArrayList<String> options = new ArrayList<>();
+        options.add(getString(work.favorited ? R.string.WorkshopUnfavorite : R.string.WorkshopFavorite));
+        options.add(getString(mine ? R.string.Delete : R.string.WorkshopReport));
+        PopupHelper.show(options, work.title, -1, getParentActivity(), choice -> {
+            if (choice == 0) {
+                SovietWorkshop.favorite(account, work, !work.favorited, (done, error) -> {
+                    if (done == null) showError(error);
+                    else { work.favorited = done; if (section == 8) load(); }
+                });
+            } else if (choice == 1 && mine) {
+                new AlertDialog.Builder(getParentActivity())
+                        .setTitle(getString(R.string.Delete))
+                        .setMessage(getString(R.string.WorkshopDeleteConfirm))
+                        .setPositiveButton(getString(R.string.Delete), (dialog, which) ->
+                                SovietWorkshop.delete(account, work, (done, error) -> {
+                                    if (done == null) showError(error);
+                                    else load();
+                                }))
+                        .setNegativeButton(getString(R.string.Cancel), null).show();
+            } else if (choice == 1) {
+                final EditText reason = new EditText(getParentActivity());
+                reason.setHint(getString(R.string.WorkshopReportReason));
+                new AlertDialog.Builder(getParentActivity())
+                        .setTitle(getString(R.string.WorkshopReport))
+                        .setView(reason)
+                        .setPositiveButton(getString(R.string.Send), (dialog, which) -> {
+                            final String value = reason.getText().toString().trim();
+                            if (value.length() < 3) return;
+                            SovietWorkshop.report(account, work, value, (done, error) -> {
+                                if (done == null) showError(error);
+                            });
+                        })
+                        .setNegativeButton(getString(R.string.Cancel), null).show();
+            }
+        });
+    }
+
     @SuppressLint("NotifyDataSetChanged")
     private void load() {
         final int id = ++requestId;
         loading = true;
+        allWorks.clear();
         works.clear();
         if (adapter != null) {
             adapter.notifyDataSetChanged();
         }
         updateEmptyState(null);
-        WorkshopHelper.list(SECTIONS[section][0], SECTIONS[section][1], kind, (result, error) -> {
-            if (id != requestId) {
+        final int account = UserConfig.selectedAccount;
+        final WorkshopHelper.Callback<List<WorkshopHelper.Work>> finished = (result, error) -> {
+            if (id != requestId || account != UserConfig.selectedAccount) {
                 return;
             }
             loading = false;
             if (result != null) {
-                works.addAll(result);
+                allWorks.addAll(result);
             }
-            if (adapter != null) {
-                adapter.notifyDataSetChanged();
-            }
+            filter();
             // Keep the reason. The workshop lives on a plain-HTTP host on a non-standard port, so the
             // usual failure is the network refusing to reach it — "could not load" alone leaves the
             // user unable to tell a blocked port from an empty section or a server that is really down.
             updateEmptyState(result == null ? loadFailedText(error) : null);
-        });
+        };
+        if (section >= 5) {
+            SovietWorkshop.list(account, kind, SECTIONS[section][0].substring(7), search, finished);
+        } else {
+            WorkshopHelper.list(SECTIONS[section][0], SECTIONS[section][1], kind, finished);
+        }
     }
 
     private String loadFailedText(@Nullable String error) {
@@ -225,10 +403,15 @@ public class WorkshopActivity extends BaseFragment {
     }
 
     private void install(WorkshopHelper.Work work) {
+        final int account = UserConfig.selectedAccount;
         final AlertDialog progress = new AlertDialog(getParentActivity(), AlertDialog.ALERT_TYPE_SPINNER);
         progress.showDelayed(300);
         // The list only carries a summary; the style itself arrives with the full record.
         WorkshopHelper.load(work, (loaded, error) -> {
+            if (account != UserConfig.selectedAccount) {
+                progress.dismiss();
+                return;
+            }
             if (loaded == null) {
                 progress.dismiss();
                 showError(error);
@@ -265,6 +448,12 @@ public class WorkshopActivity extends BaseFragment {
             // would wipe the look the user is wearing it with.
             if (WorkshopHelper.KIND_FRAME.equals(loaded.kind)) {
                 WorkshopStyle.installFrame(loaded, done0);
+            } else if (loaded.soviet) {
+                if (CustomProfileHelper.importProfileJson(loaded.config)) {
+                    done0.onResult(Boolean.TRUE, null);
+                } else {
+                    done0.onResult(null, getString(R.string.WorkshopLoadFailed));
+                }
             } else {
                 WorkshopStyle.install(loaded, done0);
             }
@@ -302,7 +491,28 @@ public class WorkshopActivity extends BaseFragment {
 
         @Override
         public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
-            ((WorkshopCell) holder.itemView).setWork(works.get(position));
+            final WorkshopCell cell = (WorkshopCell) holder.itemView;
+            final WorkshopHelper.Work work = works.get(position);
+            cell.setWork(work);
+            cell.setOnLikeClickListener(() -> {
+                final int account = UserConfig.selectedAccount;
+                if (work.soviet && !tw.nekomimi.nekogram.helpers.SovietGramApiClient
+                        .isReady(account)) {
+                    showError("SovietGram server sign-in required");
+                    return;
+                }
+                final boolean wanted = !work.liked;
+                WorkshopHelper.like(work, wanted, (count, error) -> {
+                if (account != UserConfig.selectedAccount) return;
+                if (count == null) {
+                    showError(error);
+                    return;
+                }
+                work.liked = wanted;
+                work.likes = count;
+                if (cell.getWork() == work) cell.updateLikes();
+                });
+            });
         }
 
         @Override

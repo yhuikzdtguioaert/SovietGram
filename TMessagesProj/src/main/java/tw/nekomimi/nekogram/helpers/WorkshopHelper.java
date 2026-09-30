@@ -28,12 +28,12 @@ import tw.nekomimi.nekogram.helpers.remote.ApiServersHelper;
 
 /**
  * Client for the Custom Profile workshop — the gallery the reference plugin publishes to, talking
- * to the same host, so every look shared there shows up here unchanged.
+ * to the same host for published looks. SovietGram likes live on its own authenticated server.
  * <p>
  * It is a third-party server reached through its HTTPS reverse proxy, so nothing here is allowed to be fatal: work
  * happens off the main thread and a failure comes back as a message for the screen to show rather
  * than an exception. Listing sends the account's Telegram id as {@code me} because that is what
- * decides which works come back already liked and what "Мои работы" contains.
+ * is part of the legacy gallery request; SovietGram likes use the account token instead.
  */
 public final class WorkshopHelper {
 
@@ -100,7 +100,11 @@ public final class WorkshopHelper {
         public String tag = "";
         public long updated;
         public int likes;
+        public int originalLikes;
         public boolean liked;
+        public boolean soviet;
+        public boolean favorited;
+        public String previewSha;
         public JSONObject assets;
         public JSONObject config;
     }
@@ -147,7 +151,34 @@ public final class WorkshopHelper {
                         works.add(parse(item));
                     }
                 }
-                post(callback, works, null);
+                final int account = UserConfig.selectedAccount;
+                if (!SovietGramApiClient.isReady(account) || works.isEmpty()) {
+                    post(callback, works, null);
+                    return;
+                }
+                final StringBuilder ids = new StringBuilder();
+                for (Work work : works) {
+                    if (ids.length() > 0) ids.append(',');
+                    ids.append(work.id);
+                }
+                SovietGramApiClient.get(account, "/v1/work-likes?kind="
+                        + enc(kind == null ? KIND_PROFILE : kind) + "&ids=" + enc(ids.toString()),
+                        (likesBody, likesError) -> {
+                            if (likesBody != null) {
+                                final JSONArray local = likesBody.optJSONArray("works");
+                                for (int i = 0; local != null && i < local.length(); i++) {
+                                    final JSONObject entry = local.optJSONObject(i);
+                                    if (entry == null) continue;
+                                    for (Work work : works) {
+                                        if (!work.id.equals(entry.optString("id"))) continue;
+                                        work.likes = work.originalLikes + entry.optInt("likes");
+                                        work.liked = entry.optBoolean("liked");
+                                        break;
+                                    }
+                                }
+                            }
+                            callback.onResult(works, null);
+                        });
             } catch (Throwable e) {
                 FileLog.e(e);
                 post(callback, null, e.getMessage());
@@ -160,6 +191,10 @@ public final class WorkshopHelper {
      * The same instance is handed back so the caller can keep using the one it already has.
      */
     public static void load(Work work, Callback<Work> callback) {
+        if (work.soviet) {
+            SovietWorkshop.load(UserConfig.selectedAccount, work, callback);
+            return;
+        }
         Utilities.globalQueue.postRunnable(() -> {
             try {
                 final String url = BASE + "/api/work/get?id=" + enc(work.id) + "&ver=" + enc(work.ver)
@@ -184,32 +219,25 @@ public final class WorkshopHelper {
         });
     }
 
-    /**
-     * Toggles the like. The server also wants the per-install key its own plugin registers, which
-     * we have no way to mint, so this can come back rejected — the caller shows what it said.
-     */
+    /** SovietGram likes are attached to the authenticated account, without the plugin install key. */
     public static void like(Work work, boolean liked, Callback<Integer> callback) {
-        Utilities.globalQueue.postRunnable(() -> {
-            try {
-                final JSONObject body = new JSONObject();
-                body.put("uid", me());
-                body.put("id", work.id);
-                body.put("action", liked ? "like" : "unlike");
-                final JSONObject root = new JSONObject(postJson(BASE + "/api/work/like", body.toString()));
-                if (!root.optBoolean("ok")) {
-                    post(callback, null, error(root));
-                    return;
-                }
-                post(callback, root.optInt("likes", work.likes), null);
-            } catch (Throwable e) {
-                FileLog.e(e);
-                post(callback, null, e.getMessage());
-            }
-        });
+        final int account = UserConfig.selectedAccount;
+        if (!SovietGramApiClient.isReady(account)) {
+            post(callback, null, "SovietGram server sign-in required");
+            return;
+        }
+        final String path = "/v1/work-likes/" + enc(work.kind) + "/" + enc(work.id);
+        final SovietGramApiClient.Callback cb = (body, failure) -> {
+            if (body == null) callback.onResult(null, failure);
+            else callback.onResult(work.originalLikes + body.optInt("likes"), null);
+        };
+        if (liked) SovietGramApiClient.putSigned(account, path, new JSONObject(), cb);
+        else SovietGramApiClient.deleteSigned(account, path, cb);
     }
 
     /** The preview image, as a URL {@code BackupImageView} can load on its own. */
     public static String previewUrl(Work work) {
+        if (work.soviet) return SovietWorkshop.previewUrl(work);
         return BASE + "/api/work/prev?id=" + enc(work.id) + "&ver=" + enc(work.ver) + "&access=";
     }
 
@@ -528,7 +556,8 @@ public final class WorkshopHelper {
         work.tag = item.optString("tag");
         work.updated = item.optLong("updated");
         work.likes = item.optInt("likes");
-        work.liked = item.optBoolean("liked");
+        work.originalLikes = work.likes;
+        work.liked = false;
         return work;
     }
 

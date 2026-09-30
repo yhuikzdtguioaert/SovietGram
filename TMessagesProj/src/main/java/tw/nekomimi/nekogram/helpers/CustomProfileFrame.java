@@ -69,6 +69,15 @@ public final class CustomProfileFrame {
             if (src == null || FrameBlanks.is(src)) {
                 return false;
             }
+            try {
+                final File root = new File(ApplicationLoader.getFilesDirFixed(), "frame-assets")
+                        .getCanonicalFile();
+                final File local = new File(src).getCanonicalFile();
+                if (local.getPath().startsWith(root.getPath() + File.separator) && local.isFile()) {
+                    return CustomProfileFormat.moving(local.getAbsolutePath());
+                }
+            } catch (Exception ignore) {
+            }
             final File file = Sources.cacheFile(src);
             return file.isFile() && CustomProfileFormat.moving(file.getAbsolutePath());
         });
@@ -326,9 +335,22 @@ public final class CustomProfileFrame {
                 return FrameBlanks.bitmap(src);
             }
             if (!src.startsWith("http://") && !src.startsWith("https://")) {
-                // A path inside another phone, which is what a frame drawn in the reference's own
-                // studio carries. Nothing to load, and nothing to log every frame about either.
-                return null;
+                // Only read textures imported into this installation. A peer's absolute phone path
+                // can arrive in a shared spec, but must never make us open an arbitrary local file.
+                try {
+                    final File assetRoot = new File(ApplicationLoader.getFilesDirFixed(),
+                            "frame-assets").getCanonicalFile();
+                    final File asset = new File(src).getCanonicalFile();
+                    if (!asset.getPath().startsWith(assetRoot.getPath() + File.separator)
+                            || !asset.isFile()) return null;
+                    final Bitmap cachedLocal = pictures.get(src);
+                    if (cachedLocal != null && !cachedLocal.isRecycled()) return cachedLocal;
+                    final Bitmap decodedLocal = CustomProfileGfx.loadScaled(asset.getAbsolutePath(), 512);
+                    if (decodedLocal != null) pictures.put(src, decodedLocal);
+                    return decodedLocal;
+                } catch (Exception ignore) {
+                    return null;
+                }
             }
             final Bitmap cached = pictures.get(src);
             if (cached != null) {

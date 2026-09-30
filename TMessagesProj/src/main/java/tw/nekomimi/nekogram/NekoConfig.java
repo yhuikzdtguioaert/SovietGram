@@ -293,6 +293,10 @@ public class NekoConfig {
     public static ConfigItem customProfileBannerMedia = addConfig("customProfileBannerMedia", configTypeString, "");
     public static ConfigItem customProfileBannerAlpha = addConfig("customProfileBannerAlpha", configTypeInt, 100);
     public static ConfigItem customProfileBannerDim = addConfig("customProfileBannerDim", configTypeInt, 0);
+    public static ConfigItem customProfileBannerBlend = addConfig("customProfileBannerBlend", configTypeBool, false);
+    public static ConfigItem customProfileBannerBlendRadius = addConfig("customProfileBannerBlendRadius", configTypeInt, 16);
+    public static ConfigItem customProfileBannerSound = addConfig("customProfileBannerSound", configTypeBool, false);
+    public static ConfigItem customProfileBannerSoundVolume = addConfig("customProfileBannerSoundVolume", configTypeInt, 20);
     // Fade: 0 none, 1 linear, 2 radial. The radius is a percent of the box's longest side and runs to
     // 200, where the gradient reaches well past the edges and only its middle shows; both fade kinds
     // use it. The centre is where the fade starts from, as a percent of each side.
@@ -325,6 +329,8 @@ public class NekoConfig {
     public static ConfigItem customProfileBackgroundMedia = addConfig("customProfileBackgroundMedia", configTypeString, "");
     public static ConfigItem customProfileBackgroundAlpha = addConfig("customProfileBackgroundAlpha", configTypeInt, 100);
     public static ConfigItem customProfileBackgroundDim = addConfig("customProfileBackgroundDim", configTypeInt, 0);
+    public static ConfigItem customProfileBackgroundSound = addConfig("customProfileBackgroundSound", configTypeBool, false);
+    public static ConfigItem customProfileBackgroundSoundVolume = addConfig("customProfileBackgroundSoundVolume", configTypeInt, 20);
     public static ConfigItem customProfileBackgroundFade = addConfig("customProfileBackgroundFade", configTypeInt, 0);
     public static ConfigItem customProfileBackgroundFadeAngle = addConfig("customProfileBackgroundFadeAngle", configTypeInt, 180);
     public static ConfigItem customProfileBackgroundFadeRadius = addConfig("customProfileBackgroundFadeRadius", configTypeInt, 100);
@@ -336,6 +342,8 @@ public class NekoConfig {
     public static ConfigItem customProfileBlocksColor = addConfig("customProfileBlocksColor", configTypeInt, 0xFF1C1C1E);
     public static ConfigItem customProfileBlocksAlpha = addConfig("customProfileBlocksAlpha", configTypeInt, 100);
     public static ConfigItem customProfileBlocksBlur = addConfig("customProfileBlocksBlur", configTypeInt, 0);
+    public static ConfigItem customProfileBlocksRadiusEnabled = addConfig("customProfileBlocksRadiusEnabled", configTypeBool, false);
+    public static ConfigItem customProfileBlocksRadius = addConfig("customProfileBlocksRadius", configTypeInt, 12);
 
     // Avatar: 0 circle, 1 rounded square, 2 square, 3 hexagon, 4 pentagon, 5 star, 6 heart, 7 flower.
     // 8 the free-form outline in customProfileAvatarPoints — the shape a look draws by hand, which
@@ -409,6 +417,10 @@ public class NekoConfig {
      * the spec alone, and the graph is rebuilt from it rather than the other way round.
      */
     public static ConfigItem customProfileFrameGraph = addConfig("customProfileFrameGraph", configTypeString, "");
+    /** Named Frame Studio projects are private authoring data and sync through their own API. */
+    public static ConfigItem customProfileFrameProjects = addConfig("customProfileFrameProjects", configTypeString, "[]");
+    public static ConfigItem customProfileFrameActiveProject = addConfig("customProfileFrameActiveProject", configTypeString, "");
+    public static ConfigItem customProfileFrameProjectDeletes = addConfig("customProfileFrameProjectDeletes", configTypeString, "[]");
 
     /**
      * How the studio's node canvas is painted: 0 follows the app's theme, 1 dark, 2 light, 3 the

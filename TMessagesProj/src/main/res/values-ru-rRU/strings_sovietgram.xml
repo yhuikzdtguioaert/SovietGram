@@ -202,6 +202,12 @@
     <!-- Custom Profile: workshop -->
     <string name="CustomProfileWorkshop">Мастерская</string>
     <string name="CustomProfileFrames">Рамки</string>
+    <string name="CustomProfileFrameProjects">Проекты рамок</string>
+    <string name="CustomProfileFrameProjectOpen">Открыть в редакторе рамок</string>
+    <string name="CustomProfileFrameProjectNew">Сохранить текущую рамку как проект</string>
+    <string name="CustomProfileFrameProjectRename">Переименовать проект</string>
+    <string name="CustomProfileFrameProjectLimit">Библиотека проектов заполнена</string>
+    <string name="CustomProfileFrameProjectsInfo">Проекты и импортированные изображения синхронизируются через сервер SovietGram для этого аккаунта. При открытии проекта его рамка применяется к профилю.</string>
     <string name="WorkshopSection">Раздел</string>
     <string name="WorkshopSectionNew">Новое</string>
     <string name="WorkshopSectionPopular">Популярное</string>
@@ -220,6 +226,17 @@
     <string name="WorkshopCopyLink">Копировать ссылку</string>
     <string name="WorkshopEmpty">Здесь пока пусто</string>
     <string name="WorkshopLoadFailed">Не удалось связаться с мастерской</string>
+    <string name="WorkshopSovietNew">SovietGram · Новое</string>
+    <string name="WorkshopSovietPopular">SovietGram · Популярное</string>
+    <string name="WorkshopSovietMine">SovietGram · Мои работы</string>
+    <string name="WorkshopSovietFavorites">SovietGram · Избранное</string>
+    <string name="WorkshopPublish">Опубликовать</string>
+    <string name="WorkshopPublishTitle">Название работы</string>
+    <string name="WorkshopFavorite">В избранное</string>
+    <string name="WorkshopUnfavorite">Убрать из избранного</string>
+    <string name="WorkshopReport">Пожаловаться</string>
+    <string name="WorkshopReportReason">Причина жалобы</string>
+    <string name="WorkshopDeleteConfirm">Удалить опубликованную работу?</string>
 
     <string name="CustomProfileHeaderBanner">Баннер</string>
     <string name="customProfileBannerType">Тип баннера</string>
@@ -227,6 +244,10 @@
     <string name="customProfileBannerPath">Выбрать изображение</string>
     <string name="customProfileBannerAlpha">Непрозрачность баннера</string>
     <string name="customProfileBannerDim">Затемнение</string>
+    <string name="customProfileBannerBlend">Соединить с фоном</string>
+    <string name="customProfileBannerBlendRadius">Радиус перехода</string>
+    <string name="customProfileBannerSound">Звук видео в шапке</string>
+    <string name="customProfileBannerSoundVolume">Громкость видео в шапке</string>
     <string name="customProfileBannerFade">Растворение</string>
     <string name="customProfileBannerFadeAngle">Угол растворения</string>
     <string name="customProfileBannerFadeRadius">Радиус растворения</string>
@@ -247,6 +268,8 @@
     <string name="customProfileBackgroundPath">Выбрать изображение</string>
     <string name="customProfileBackgroundAlpha">Непрозрачность фона</string>
     <string name="customProfileBackgroundDim">Затемнение</string>
+    <string name="customProfileBackgroundSound">Звук видео на фоне</string>
+    <string name="customProfileBackgroundSoundVolume">Громкость фонового видео</string>
     <string name="customProfileBackgroundFade">Растворение</string>
     <string name="customProfileBackgroundFadeAngle">Угол растворения</string>
     <string name="customProfileBackgroundFadeRadius">Радиус растворения</string>
@@ -256,6 +279,8 @@
     <string name="customProfileBlocksColor">Цвет блоков</string>
     <string name="customProfileBlocksAlpha">Непрозрачность блоков</string>
     <string name="customProfileBlocksBlur">Размытие под блоками</string>
+    <string name="customProfileBlocksRadiusEnabled">Своё скругление блоков</string>
+    <string name="customProfileBlocksRadius">Скругление блоков</string>
 
     <string name="CustomProfileHeaderAvatar">Аватарка</string>
     <string name="customProfileAvatarShape">Форма аватарки</string>
@@ -704,4 +729,20 @@
     <string name="customProfileBannerFadeCenterY">Центр затухания по вертикали</string>
     <string name="customProfileGradientCenterX">Центр градиента по горизонтали</string>
     <string name="customProfileGradientCenterY">Центр градиента по вертикали</string>
+    <string name="CustomProfileSocial">Активность профиля</string>
+    <string name="CustomProfileComments">Комментарии профиля</string>
+    <string name="CustomProfileLikes">Нравится</string>
+    <string name="CustomProfileCommentsEnabled">Разрешить комментарии</string>
+    <string name="CustomProfileCommentsPreview">Показывать предпросмотр комментариев</string>
+    <string name="CustomProfileWriteComment">Написать комментарий</string>
+    <string name="CustomProfileReply">Ответить</string>
+    <string name="CustomProfileNoComments">Комментариев пока нет</string>
+    <string name="CustomProfileSocialUnavailable">Войдите на сервер SovietGram, чтобы пользоваться активностью профиля</string>
+    <string name="CustomProfileBlockCommenter">Заблокировать комментатора</string>
+    <string name="CustomProfileFrameProjectDuplicate">Дублировать проект</string>
+    <string name="CustomProfileFrameProjectImport">Импортировать файл .frame</string>
+    <string name="CustomProfileFrameProjectExport">Экспортировать файл .frame</string>
+    <string name="CustomProfileFrameFileError">Не удалось прочитать или записать файл рамки</string>
+    <string name="CustomProfileBlockedCommenters">Заблокированные комментаторы</string>
+    <string name="CustomProfileUnblockCommenter">Разблокировать</string>
 </resources>

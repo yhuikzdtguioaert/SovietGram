@@ -386,6 +386,7 @@ import tw.nekomimi.nekogram.menu.regexfilters.RegexFiltersExclusionPopupWrapper;
 import tw.nekomimi.nekogram.menu.saveDeleted.SaveExclusionPopupWrapper;
 import tw.nekomimi.nekogram.parts.DialogTransKt;
 import tw.nekomimi.nekogram.settings.CustomProfileActivity;
+import tw.nekomimi.nekogram.settings.ProfileCommentsActivity;
 import tw.nekomimi.nekogram.settings.NekoSettingsActivity;
 import tw.nekomimi.nekogram.translate.Translator;
 import tw.nekomimi.nekogram.ui.BottomBuilder;
@@ -652,6 +653,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     private final static int enable_no_forwards = 46;
     private final static int disable_no_forwards = 47;
     private final static int custom_profile = 48;
+    private final static int profile_comments = 49;
 
     private final static int event_log = 102;
     private final static int message_filter = 103;
@@ -2955,6 +2957,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     presentFragment(new PeerColorActivity(0).startOnProfile().setOnApplied(ProfileActivity.this));
                 } else if (id == custom_profile) {
                     presentFragment(new CustomProfileActivity());
+                } else if (id == profile_comments) {
+                    presentFragment(new ProfileCommentsActivity(userId));
                 } else if (id == copy_link_profile) {
                     TLRPC.User user = getMessagesController().getUser(userId);
                     AndroidUtilities.addToClipboard(getMessagesController().linkPrefix + "/" + UserObject.getPublicUsername(user));
@@ -12878,6 +12882,10 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             TLRPC.User user = getMessagesController().getUser(userId);
             if (user == null) {
                 return;
+            }
+            if (NekoConfig.customProfileEnabled.Bool()) {
+                otherItem.addSubItem(profile_comments, R.drawable.msg_discussion,
+                        getString(R.string.CustomProfileComments));
             }
             if (UserObject.isUserSelf(user)) {
                 if (myProfile) {

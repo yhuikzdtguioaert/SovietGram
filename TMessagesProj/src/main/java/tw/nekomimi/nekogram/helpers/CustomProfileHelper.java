@@ -88,6 +88,10 @@ public final class CustomProfileHelper {
             NekoConfig.customProfileBannerMedia,
             NekoConfig.customProfileBannerAlpha,
             NekoConfig.customProfileBannerDim,
+            NekoConfig.customProfileBannerBlend,
+            NekoConfig.customProfileBannerBlendRadius,
+            NekoConfig.customProfileBannerSound,
+            NekoConfig.customProfileBannerSoundVolume,
             NekoConfig.customProfileBannerFade,
             NekoConfig.customProfileBannerFadeAngle,
             NekoConfig.customProfileBannerFadeRadius,
@@ -108,6 +112,8 @@ public final class CustomProfileHelper {
             NekoConfig.customProfileBackgroundMedia,
             NekoConfig.customProfileBackgroundAlpha,
             NekoConfig.customProfileBackgroundDim,
+            NekoConfig.customProfileBackgroundSound,
+            NekoConfig.customProfileBackgroundSoundVolume,
             NekoConfig.customProfileBackgroundFade,
             NekoConfig.customProfileBackgroundFadeAngle,
             NekoConfig.customProfileBackgroundFadeRadius,
@@ -117,6 +123,8 @@ public final class CustomProfileHelper {
             NekoConfig.customProfileBlocksColor,
             NekoConfig.customProfileBlocksAlpha,
             NekoConfig.customProfileBlocksBlur,
+            NekoConfig.customProfileBlocksRadiusEnabled,
+            NekoConfig.customProfileBlocksRadius,
             NekoConfig.customProfileAvatarShape,
             NekoConfig.customProfileAvatarPoints,
             NekoConfig.customProfileAvatarRadius,
@@ -195,6 +203,9 @@ public final class CustomProfileHelper {
                 NekoConfig.customProfileBackgroundPath,
                 NekoConfig.customProfileNameFontPath,
                 NekoConfig.customProfileThoughtFontPath,
+                NekoConfig.customProfileFrameProjects,
+                NekoConfig.customProfileFrameActiveProject,
+                NekoConfig.customProfileFrameProjectDeletes,
         };
         final ConfigItem[] all = new ConfigItem[EXPORTED.length + local.length];
         System.arraycopy(EXPORTED, 0, all, 0, EXPORTED.length);
@@ -415,6 +426,8 @@ public final class CustomProfileHelper {
                 cfgInt(NekoConfig.customProfileBannerFadeCenterY),
                 cfgInt(NekoConfig.customProfileBannerAlpha),
                 cfgInt(NekoConfig.customProfileBannerDim),
+                cfgBool(NekoConfig.customProfileBannerBlend)
+                        ? cfgInt(NekoConfig.customProfileBannerBlendRadius) : 0,
                 () -> {
                     if (playing) {
                         animation.setBounds(0, 0, (int) width, (int) height);
@@ -562,7 +575,11 @@ public final class CustomProfileHelper {
     @Nullable
     private static String picturePath(ConfigItem item, boolean banner) {
         if (remoteLook == null) {
-            return item.String();
+            final String local = item.String();
+            if (!TextUtils.isEmpty(local)) return local;
+            return CustomProfileMedia.pathFor((banner
+                    ? NekoConfig.customProfileBannerMedia
+                    : NekoConfig.customProfileBackgroundMedia).String());
         }
         return banner ? remoteBannerPath : remoteBackgroundPath;
     }
@@ -598,7 +615,10 @@ public final class CustomProfileHelper {
      */
     public static String fontPath() {
         if (remoteLook == null) {
-            return NekoConfig.customProfileNameFontPath.String();
+            final String local = NekoConfig.customProfileNameFontPath.String();
+            return TextUtils.isEmpty(local)
+                    ? CustomProfileMedia.pathFor(NekoConfig.customProfileNameFontMedia.String())
+                    : local;
         }
         return remoteFontPath == null ? "" : remoteFontPath;
     }
@@ -609,7 +629,10 @@ public final class CustomProfileHelper {
      */
     public static String thoughtFontPath() {
         if (remoteLook == null) {
-            return NekoConfig.customProfileThoughtFontPath.String();
+            final String local = NekoConfig.customProfileThoughtFontPath.String();
+            return TextUtils.isEmpty(local)
+                    ? CustomProfileMedia.pathFor(NekoConfig.customProfileThoughtFontMedia.String())
+                    : local;
         }
         return remoteThoughtFontPath == null ? "" : remoteThoughtFontPath;
     }
@@ -621,7 +644,12 @@ public final class CustomProfileHelper {
     static void onRemoteMediaReady() {
         AndroidUtilities.runOnUIThread(() -> {
             if (remoteLook == null) {
-                return; // that profile is no longer on screen; the next open resolves from the cache
+                bannerLoadedFrom = null;
+                backgroundLoadedFrom = null;
+                bannerBitmap = null;
+                backgroundBitmap = null;
+                NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.reloadInterface);
+                return;
             }
             resolveRemoteMedia();
             bannerLoadedFrom = null;
@@ -1358,6 +1386,25 @@ public final class CustomProfileHelper {
             onSettingsChanged();
         }
         return applied > 0;
+    }
+
+    /** Applies a server-hosted SovietGram workshop snapshot to the live account. */
+    public static boolean importProfileJson(@Nullable JSONObject look) {
+        if (look == null) return false;
+        int applied = 0;
+        for (ConfigItem item : EXPORTED) {
+            if (!look.has(item.getKey()) || look.isNull(item.getKey())) continue;
+            if (apply(item, String.valueOf(look.opt(item.getKey())))) applied++;
+        }
+        if (applied == 0) return false;
+        // Device-local paths belong to the previous look. The imported media descriptors
+        // resolve to the published assets for the new one.
+        NekoConfig.customProfileBannerPath.setConfigString("");
+        NekoConfig.customProfileBackgroundPath.setConfigString("");
+        NekoConfig.customProfileNameFontPath.setConfigString("");
+        NekoConfig.customProfileThoughtFontPath.setConfigString("");
+        onSettingsChanged();
+        return true;
     }
 
     private static boolean apply(ConfigItem item, String value) {

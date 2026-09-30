@@ -13,6 +13,7 @@ import android.view.View;
 
 import androidx.annotation.Nullable;
 
+import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.FileLog;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.messenger.Utilities;
@@ -92,6 +93,12 @@ public final class CustomProfileBlocks {
         }
         if (!CustomProfileHelper.cfgBool(NekoConfig.customProfileBlocksEnabled)) {
             return false;
+        }
+        if (CustomProfileHelper.cfgBool(NekoConfig.customProfileBlocksRadiusEnabled)) {
+            final float radius = AndroidUtilities.dpf2(CustomProfileGfx.clamp(
+                    CustomProfileHelper.cfgInt(NekoConfig.customProfileBlocksRadius), 0, 30));
+            topRadius = radius;
+            bottomRadius = radius;
         }
         drawBlur(canvas, rect, topRadius, bottomRadius, alpha, list);
         final int color = CustomProfileHelper.themedColor(Theme.key_windowBackgroundWhite,

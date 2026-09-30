@@ -67,6 +67,10 @@ public class CustomProfileActivity extends BaseNekoXSettingsActivity {
     private final AbstractConfigCell bannerPathRow = new ConfigCellText("customProfileBannerPath", null, () -> pickMedia(REQUEST_BANNER));
     private final AbstractConfigCell bannerAlphaRow = new ConfigCellSlider(NekoConfig.customProfileBannerAlpha, 0, 100, "%");
     private final AbstractConfigCell bannerDimRow = new ConfigCellSlider(NekoConfig.customProfileBannerDim, 0, 100, "%");
+    private final AbstractConfigCell bannerBlendRow = new ConfigCellTextCheck(NekoConfig.customProfileBannerBlend);
+    private final AbstractConfigCell bannerBlendRadiusRow = new ConfigCellSlider(NekoConfig.customProfileBannerBlendRadius, 2, 60, "%");
+    private final AbstractConfigCell bannerSoundRow = new ConfigCellTextCheck(NekoConfig.customProfileBannerSound);
+    private final AbstractConfigCell bannerSoundVolumeRow = new ConfigCellSlider(NekoConfig.customProfileBannerSoundVolume, 0, 65, "%");
     private final AbstractConfigCell bannerFadeRow = new ConfigCellSelectBox(null, NekoConfig.customProfileBannerFade, fadeOptions(), null);
     private final AbstractConfigCell bannerFadeAngleRow = new ConfigCellSlider(NekoConfig.customProfileBannerFadeAngle, 0, 360, "°");
     private final AbstractConfigCell bannerFadeRadiusRow = new ConfigCellSlider(NekoConfig.customProfileBannerFadeRadius, 20, 200, "%");
@@ -98,6 +102,8 @@ public class CustomProfileActivity extends BaseNekoXSettingsActivity {
     private final AbstractConfigCell backgroundPathRow = new ConfigCellText("customProfileBackgroundPath", null, () -> pickMedia(REQUEST_BACKGROUND));
     private final AbstractConfigCell backgroundAlphaRow = new ConfigCellSlider(NekoConfig.customProfileBackgroundAlpha, 0, 100, "%");
     private final AbstractConfigCell backgroundDimRow = new ConfigCellSlider(NekoConfig.customProfileBackgroundDim, 0, 100, "%");
+    private final AbstractConfigCell backgroundSoundRow = new ConfigCellTextCheck(NekoConfig.customProfileBackgroundSound);
+    private final AbstractConfigCell backgroundSoundVolumeRow = new ConfigCellSlider(NekoConfig.customProfileBackgroundSoundVolume, 0, 65, "%");
     private final AbstractConfigCell backgroundFadeRow = new ConfigCellSelectBox(null, NekoConfig.customProfileBackgroundFade, fadeOptions(), null);
     private final AbstractConfigCell backgroundFadeAngleRow = new ConfigCellSlider(NekoConfig.customProfileBackgroundFadeAngle, 0, 360, "°");
     private final AbstractConfigCell backgroundFadeRadiusRow = new ConfigCellSlider(NekoConfig.customProfileBackgroundFadeRadius, 20, 200, "%");
@@ -109,6 +115,8 @@ public class CustomProfileActivity extends BaseNekoXSettingsActivity {
     private final AbstractConfigCell blocksColorRow = new ConfigCellColor(NekoConfig.customProfileBlocksColor, 0xFF1C1C1E);
     private final AbstractConfigCell blocksAlphaRow = new ConfigCellSlider(NekoConfig.customProfileBlocksAlpha, 0, 100, "%");
     private final AbstractConfigCell blocksBlurRow = new ConfigCellSlider(NekoConfig.customProfileBlocksBlur, 0, 100, "%");
+    private final AbstractConfigCell blocksRadiusEnabledRow = new ConfigCellTextCheck(NekoConfig.customProfileBlocksRadiusEnabled);
+    private final AbstractConfigCell blocksRadiusRow = new ConfigCellSlider(NekoConfig.customProfileBlocksRadius, 0, 30, "dp");
 
     private final AbstractConfigCell headerAvatar = new ConfigCellHeader(getString(R.string.CustomProfileHeaderAvatar));
     private final AbstractConfigCell avatarShapeRow = new ConfigCellSelectBox(null, NekoConfig.customProfileAvatarShape, new String[]{
@@ -183,6 +191,8 @@ public class CustomProfileActivity extends BaseNekoXSettingsActivity {
             () -> presentFragment(new WorkshopActivity(WorkshopHelper.KIND_FRAME)));
     private final AbstractConfigCell frameStudioRow = new ConfigCellText("CustomProfileFrameStudio",
             () -> presentFragment(new FrameStudioActivity()));
+    private final AbstractConfigCell frameProjectsRow = new ConfigCellText("CustomProfileFrameProjects",
+            () -> presentFragment(new FrameProjectsActivity()));
     private final AbstractConfigCell frameClearRow = new ConfigCellTextDynamic(
             () -> getString(R.string.CustomProfileFrameClear),
             () -> frameSummary(), this::clearFrame);
@@ -260,9 +270,19 @@ public class CustomProfileActivity extends BaseNekoXSettingsActivity {
         if (bannerType == 3 || bannerType == 4) {
             cellGroup.appendCell(bannerPathRow);
         }
+        if (bannerType == 4) {
+            cellGroup.appendCell(bannerSoundRow);
+            if (NekoConfig.customProfileBannerSound.Bool()) {
+                cellGroup.appendCell(bannerSoundVolumeRow);
+            }
+        }
         if (bannerType != 0) {
             cellGroup.appendCell(bannerAlphaRow);
             cellGroup.appendCell(bannerDimRow);
+            cellGroup.appendCell(bannerBlendRow);
+            if (NekoConfig.customProfileBannerBlend.Bool()) {
+                cellGroup.appendCell(bannerBlendRadiusRow);
+            }
             cellGroup.appendCell(bannerFadeRow);
             // Both fade kinds use the radius and the centre — for a linear fade the radius is the
             // length of the run from opaque to clear and the centre is the point it is struck
@@ -312,6 +332,12 @@ public class CustomProfileActivity extends BaseNekoXSettingsActivity {
         if (backgroundType == 3 || backgroundType == 4) {
             cellGroup.appendCell(backgroundPathRow);
         }
+        if (backgroundType == 4) {
+            cellGroup.appendCell(backgroundSoundRow);
+            if (NekoConfig.customProfileBackgroundSound.Bool()) {
+                cellGroup.appendCell(backgroundSoundVolumeRow);
+            }
+        }
         if (backgroundType != 0) {
             cellGroup.appendCell(backgroundAlphaRow);
             cellGroup.appendCell(backgroundDimRow);
@@ -334,6 +360,10 @@ public class CustomProfileActivity extends BaseNekoXSettingsActivity {
             cellGroup.appendCell(blocksColorRow);
             cellGroup.appendCell(blocksAlphaRow);
             cellGroup.appendCell(blocksBlurRow);
+            cellGroup.appendCell(blocksRadiusEnabledRow);
+            if (NekoConfig.customProfileBlocksRadiusEnabled.Bool()) {
+                cellGroup.appendCell(blocksRadiusRow);
+            }
         }
         cellGroup.appendCell(new ConfigCellDivider());
 
@@ -358,6 +388,7 @@ public class CustomProfileActivity extends BaseNekoXSettingsActivity {
         cellGroup.appendCell(headerFrame);
         cellGroup.appendCell(frameGalleryRow);
         cellGroup.appendCell(frameStudioRow);
+        cellGroup.appendCell(frameProjectsRow);
         cellGroup.appendCell(frameClearRow);
         cellGroup.appendCell(new ConfigCellDivider());
 
@@ -590,6 +621,12 @@ public class CustomProfileActivity extends BaseNekoXSettingsActivity {
         setupDefaultListeners();
 
         cellGroup.callBackSettingsChanged = (key, newValue) -> {
+            if ("customProfileBannerSound".equals(key) && NekoConfig.customProfileBannerSound.Bool()) {
+                NekoConfig.customProfileBackgroundSound.setConfigBool(false);
+            } else if ("customProfileBackgroundSound".equals(key)
+                    && NekoConfig.customProfileBackgroundSound.Bool()) {
+                NekoConfig.customProfileBannerSound.setConfigBool(false);
+            }
             CustomProfileHelper.onSettingsChanged();
             // Nearly every key here either shows or hides a row, so a blanket rebuild is cheaper to
             // reason about than a list of the keys that happen to be structural.

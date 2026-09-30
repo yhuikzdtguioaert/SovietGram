@@ -63,8 +63,8 @@ import tw.nekomimi.nekogram.config.ConfigItem;
  *     <li>{@code name_glow_mode} — mode 0 hangs a second blurred copy of the name off the view
  *         hierarchy; we draw the shadow-layer glow, which is their mode 1, and every published work
  *         is mode 1;</li>
- *     <li>{@code banner_sound}, {@code bg_sound}, {@code has_audio}, {@code audio_volume} — audio off
- *         the banner video, which we play muted;</li>
+ *     <li>{@code has_audio}, {@code audio_volume} — server-derived media metadata. The look's
+ *         explicit sound flags and volumes are imported below.</li>
  *     <li>{@code frame_spec}, {@code frame_file} — an avatar frame overlay. Its {@code src} is an
  *         absolute path inside the author's own device ({@code /data/user/0/com.exteragram/…}), so
  *         there is nothing for anybody else to load, their own users included;</li>
@@ -335,6 +335,11 @@ public final class WorkshopStyle {
         CustomProfileMedia.remember(true, media == null ? "" : media.descriptor());
         set(NekoConfig.customProfileBannerAlpha, clamp(c.optInt("banner_alpha", 100), 0, 100));
         set(NekoConfig.customProfileBannerDim, clamp(c.optInt("banner_dim"), 0, 100));
+        NekoConfig.customProfileBannerBlend.setConfigBool(c.optBoolean("banner_blend", false));
+        set(NekoConfig.customProfileBannerBlendRadius, clamp(c.optInt("banner_blend_radius", 16), 2, 60));
+        NekoConfig.customProfileBannerSound.setConfigBool(type == 4 && c.optBoolean("banner_sound", false));
+        set(NekoConfig.customProfileBannerSoundVolume, clamp(
+                (int) Math.round(c.optDouble("banner_sound_volume", 0.2) * 100), 0, 65));
         set(NekoConfig.customProfileBannerFade, clamp(c.optInt("banner_fade"), 0, 2));
         set(NekoConfig.customProfileBannerFadeAngle, angle(c.optInt("banner_fade_angle")));
         set(NekoConfig.customProfileBannerFadeRadius, clamp(c.optInt("banner_fade_radius", 100), 20, 200));
@@ -377,6 +382,11 @@ public final class WorkshopStyle {
         CustomProfileMedia.remember(false, media == null ? "" : media.descriptor());
         set(NekoConfig.customProfileBackgroundAlpha, clamp(c.optInt("bg_alpha", 100), 0, 100));
         set(NekoConfig.customProfileBackgroundDim, clamp(c.optInt("bg_dim"), 0, 100));
+        NekoConfig.customProfileBackgroundSound.setConfigBool(type == 4
+                && c.optBoolean("bg_sound", false)
+                && !NekoConfig.customProfileBannerSound.Bool());
+        set(NekoConfig.customProfileBackgroundSoundVolume, clamp(
+                (int) Math.round(c.optDouble("bg_sound_volume", 0.2) * 100), 0, 65));
         set(NekoConfig.customProfileBackgroundFade, clamp(c.optInt("bg_fade"), 0, 2));
         set(NekoConfig.customProfileBackgroundFadeAngle, angle(c.optInt("bg_fade_angle")));
         set(NekoConfig.customProfileBackgroundFadeRadius, clamp(c.optInt("bg_fade_radius", 100), 20, 200));
@@ -389,6 +399,8 @@ public final class WorkshopStyle {
         color(c, "blocks_color", NekoConfig.customProfileBlocksColor);
         set(NekoConfig.customProfileBlocksAlpha, clamp(c.optInt("blocks_alpha", 100), 0, 100));
         set(NekoConfig.customProfileBlocksBlur, clamp(c.optInt("blocks_blur"), 0, 100));
+        NekoConfig.customProfileBlocksRadiusEnabled.setConfigBool(c.optBoolean("blocks_radius_enabled", false));
+        set(NekoConfig.customProfileBlocksRadius, clamp(c.optInt("blocks_radius", 12), 0, 30));
     }
 
     private static void applyAvatar(JSONObject c) {

@@ -40,6 +40,7 @@ public class WorkshopCell extends FrameLayout {
     private final TextView likesView;
 
     private WorkshopHelper.Work work;
+    private Runnable likeClick;
 
     public WorkshopCell(Context context) {
         super(context);
@@ -61,6 +62,11 @@ public class WorkshopCell extends FrameLayout {
         likesView.setPadding(dp(6), dp(3), dp(6), dp(3));
         addView(likesView, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT,
                 Gravity.TOP | Gravity.RIGHT, 0, 8, 8, 0));
+        likesView.setOnClickListener(v -> {
+            if (likeClick != null) {
+                likeClick.run();
+            }
+        });
 
         titleView = new TextView(context);
         titleView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13);
@@ -87,8 +93,14 @@ public class WorkshopCell extends FrameLayout {
         subtitleView.setText(TextUtils.isEmpty(work.authorName)
                 ? LocaleController.getString(R.string.WorkshopAuthor) : work.authorName);
         updateLikes();
-        imageView.setImage(ImageLocation.getForPath(WorkshopHelper.previewUrl(work)), "220_480",
-                Theme.createRoundRectDrawable(dp(12), Theme.getColor(Theme.key_listSelector)), null);
+        final String preview = WorkshopHelper.previewUrl(work);
+        if (TextUtils.isEmpty(preview)) {
+            imageView.setImageDrawable(Theme.createRoundRectDrawable(dp(12),
+                    Theme.getColor(Theme.key_listSelector)));
+        } else {
+            imageView.setImage(ImageLocation.getForPath(preview), "220_480",
+                    Theme.createRoundRectDrawable(dp(12), Theme.getColor(Theme.key_listSelector)), null);
+        }
     }
 
     /** Refreshed on its own after a like, so the cell does not have to reload its picture. */
@@ -103,6 +115,10 @@ public class WorkshopCell extends FrameLayout {
 
     public WorkshopHelper.Work getWork() {
         return work;
+    }
+
+    public void setOnLikeClickListener(Runnable listener) {
+        likeClick = listener;
     }
 
     @Override
