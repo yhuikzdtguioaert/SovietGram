@@ -143,7 +143,7 @@ public class ConfigCellTextCheck2 extends AbstractConfigCell implements WithKey 
             cellGroup.rows.removeAll(getCheckBox());
             listAdapter.notifyItemRangeRemoved(toggleRowIndex + 1, getCheckBox().size());
         }
-        listAdapter.notifyItemRangeChanged(toggleRowIndex, getCheckBox().size());
+        listAdapter.notifyItemChanged(toggleRowIndex);
 
         cellGroup.runCallback(getKey(), collapsed);
     }

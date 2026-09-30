@@ -65,6 +65,8 @@ import xyz.nextalone.nagram.NaConfig;
 @SuppressWarnings({"unused", "FieldCanBeLocal"})
 public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
 
+    private final boolean textAnimationOnly;
+
     private ListAdapter listAdapter;
 
     @Override
@@ -291,6 +293,7 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
     private final AbstractConfigCell textAnimationSelectionStretchRow = cellGroup.appendCell(new ConfigCellSlider(NekoConfig.textAnimationSelectionStretch, 0, 200, "%"));
     private final AbstractConfigCell textAnimationSelectionSideRow = cellGroup.appendCell(new ConfigCellSlider(NekoConfig.textAnimationSelectionSide, 0, 200, "%"));
     private final AbstractConfigCell dividerTextAnimation = cellGroup.appendCell(new ConfigCellDivider());
+    private final AbstractConfigCell textAnimationEntryRow = cellGroup.appendCell(new ConfigCellText("TextAnimation", () -> presentFragment(new TextAnimationSettingsActivity())));
 
     // Blur
     private final AbstractConfigCell headerBlur = cellGroup.appendCell(new ConfigCellHeader(getString(R.string.LiteOptionsBlur2)));
@@ -387,6 +390,11 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
     };
 
     public NekoGeneralSettingsActivity() {
+        this(false);
+    }
+
+    protected NekoGeneralSettingsActivity(boolean textAnimationOnly) {
+        this.textAnimationOnly = textAnimationOnly;
         if (!NaConfig.INSTANCE.getCenterActionBarTitle().Bool()) {
             NaConfig.INSTANCE.getCenterActionBarTitleType().setConfigInt(0);
         }
@@ -406,6 +414,27 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
         checkMainTabsRows();
         checkFontsRows();
         checkTextAnimationRows(false);
+        // The animation controls have their own screen. Keep the General list short and let
+        // the controls use a title that describes the screen the user actually opened.
+        cellGroup.rows.remove(textAnimationEntryRow);
+        if (textAnimationOnly) {
+            cellGroup.rows.clear();
+            cellGroup.rows.add(textAnimationRow);
+            if (NekoConfig.textAnimation.Bool()) {
+                for (AbstractConfigCell row : textAnimationSubRows) {
+                    cellGroup.rows.add(row);
+                }
+            }
+            cellGroup.rows.add(dividerTextAnimation);
+        } else {
+            final int index = cellGroup.rows.indexOf(headerTextAnimation);
+            cellGroup.rows.remove(headerTextAnimation);
+            cellGroup.rows.remove(textAnimationRow);
+            for (AbstractConfigCell row : textAnimationSubRows) {
+                cellGroup.rows.remove(row);
+            }
+            cellGroup.rows.add(index, textAnimationEntryRow);
+        }
         addRowsToMap(cellGroup);
     }
 
@@ -551,24 +580,17 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
                 if (!cellGroup.rows.contains(row)) {
                     final int index = cellGroup.rows.indexOf(after) + 1;
                     cellGroup.rows.add(index, row);
-                    if (notify && listAdapter != null) {
-                        listAdapter.notifyItemInserted(index);
-                    }
                 }
                 after = row;
             } else {
                 final int index = cellGroup.rows.indexOf(row);
                 if (index >= 0) {
                     cellGroup.rows.remove(index);
-                    if (notify && listAdapter != null) {
-                        listAdapter.notifyItemRemoved(index);
-                    }
                 }
             }
         }
         if (notify && listAdapter != null) {
-            // The toggle itself now sits next to a different neighbour, so its divider has to be redrawn.
-            listAdapter.notifyItemChanged(cellGroup.rows.indexOf(textAnimationRow));
+            listAdapter.notifyDataSetChanged();
         }
         addRowsToMap(cellGroup);
     }
@@ -652,7 +674,7 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
 
     @Override
     public String getTitle() {
-        return getString(R.string.General);
+        return getString(textAnimationOnly ? R.string.TextAnimation : R.string.General);
     }
 
     // impl ListAdapter

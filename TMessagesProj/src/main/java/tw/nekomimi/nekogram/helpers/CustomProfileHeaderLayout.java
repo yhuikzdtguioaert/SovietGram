@@ -149,6 +149,10 @@ public final class CustomProfileHeaderLayout {
             new java.util.WeakHashMap<>();
     private static final float[] shiftX = new float[CustomProfileAnchors.COUNT];
     private static final float[] shiftY = new float[CustomProfileAnchors.COUNT];
+    // apply() runs on the UI thread for every drawn frame. Reuse the small coordinate buffers so
+    // animated headers do not create two new arrays on every frame.
+    private static final float[] frameWantedX = new float[CustomProfileAnchors.COUNT];
+    private static final float[] frameWantedY = new float[CustomProfileAnchors.COUNT];
 
     private static boolean anchorsReady;
     private static long anchorSignature = Long.MIN_VALUE;
@@ -267,8 +271,8 @@ public final class CustomProfileHeaderLayout {
         // The name's view is as wide as the header, so anchoring it by its edge would anchor empty
         // space. This shifts it by half its text so the letters land where the anchor says.
         final float nameOffset = nameOffset(name);
-        final float[] wantedX = new float[CustomProfileAnchors.COUNT];
-        final float[] wantedY = new float[CustomProfileAnchors.COUNT];
+        final float[] wantedX = frameWantedX;
+        final float[] wantedY = frameWantedY;
         for (int i = 0; i < CustomProfileAnchors.COUNT; i++) {
             wantedX[i] = elements[i].x * width;
             wantedY[i] = elements[i].y * width;
@@ -278,11 +282,45 @@ public final class CustomProfileHeaderLayout {
         wantedX[CustomProfileAnchors.NAME] += nameOffset;
 
         applyAnchors(root, views, wantedX, wantedY, amount, pull);
+        keepStatusClearOfAvatar(root, avatar, status, wantedX, wantedY, amount);
 
         for (int i = 0; i < CustomProfileAnchors.COUNT; i++) {
             transforms[i].apply(views[i], elements[i], wantedX[i], wantedY[i], amount);
         }
         applyActionsContent(actions, amount);
+    }
+
+    /** Keep Last Seen readable when a look moves the avatar across its usual text column. */
+    private static void keepStatusClearOfAvatar(View root, @Nullable View avatar,
+                                                @Nullable View status, float[] wantedX,
+                                                float[] wantedY, float amount) {
+        if (avatar == null || status == null || amount < 0.95f
+                || avatar.getWidth() == 0 || status.getWidth() == 0) {
+            return;
+        }
+        final float avatarLeft = CustomProfileAnchors.drawnStart(root, avatar, false)
+                - transforms[CustomProfileAnchors.AVATAR].appliedNowX()
+                + wantedX[CustomProfileAnchors.AVATAR] * amount;
+        final float avatarTop = CustomProfileAnchors.drawnStart(root, avatar, true)
+                - transforms[CustomProfileAnchors.AVATAR].appliedNowY()
+                + wantedY[CustomProfileAnchors.AVATAR] * amount;
+        final float avatarRight = avatarLeft + CustomProfileAnchors.drawnSize(root, avatar, false);
+        final float avatarBottom = avatarTop + CustomProfileAnchors.drawnSize(root, avatar, true);
+        final float statusLeft = CustomProfileAnchors.drawnStart(root, status, false)
+                - transforms[CustomProfileAnchors.STATUS].appliedNowX()
+                + wantedX[CustomProfileAnchors.STATUS] * amount;
+        final float statusTop = CustomProfileAnchors.drawnStart(root, status, true)
+                - transforms[CustomProfileAnchors.STATUS].appliedNowY()
+                + wantedY[CustomProfileAnchors.STATUS] * amount;
+        final float statusWidth = Math.min(textWidth(status),
+                CustomProfileAnchors.drawnSize(root, status, false));
+        final float statusBottom = statusTop + CustomProfileAnchors.drawnSize(root, status, true);
+        if (statusTop >= avatarBottom || statusBottom <= avatarTop
+                || statusLeft >= avatarRight || statusLeft + statusWidth <= avatarLeft) {
+            return;
+        }
+        final float gap = AndroidUtilities.dpf2(8);
+        wantedX[CustomProfileAnchors.STATUS] += avatarRight + gap - statusLeft;
     }
 
     /**
@@ -407,6 +445,10 @@ public final class CustomProfileHeaderLayout {
 
     private static void applyAnchors(View root, View[] views, float[] wantedX, float[] wantedY,
                                      float amount, float pull) {
+        if (!anchored) {
+            anchorsReady = false;
+            return;
+        }
         if (pull > PULL_FREEZE) {
             // The avatar is opening; nothing here can be measured meaningfully any more.
             wasPulled = true;

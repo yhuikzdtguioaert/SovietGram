@@ -4610,7 +4610,7 @@ public class ChatActivity extends BaseFragment implements
                     showDialog(new CommunitySheet(ChatActivity.this, currentChat.linked_community_id));
                     return true;
                 }
-                if (isTitleCentered()) {
+                if (isTitleCentered() && !sovietgram.com.NaConfig.isLegacyChatHeader()) {
                     if (editTextItem != null && editTextItem.getTag() != null) {
                         checkEditTextItemMenu();
                         editTextItem.createView().performClick();
@@ -4637,7 +4637,7 @@ public class ChatActivity extends BaseFragment implements
 
             @Override
             protected boolean isCentered() {
-                return isTitleCentered();
+                return !sovietgram.com.NaConfig.isLegacyChatHeader() && isTitleCentered();
             }
 
             @Override
@@ -4645,7 +4645,9 @@ public class ChatActivity extends BaseFragment implements
                 return isInPreviewMode();
             }
         };
-        avatarContainer.setGlassMode();
+        if (!sovietgram.com.NaConfig.isLegacyChatHeader()) {
+            avatarContainer.setGlassMode();
+        }
         avatarContainer.allowShorterStatus = true;
         avatarContainer.premiumIconHiddable = true;
         avatarContainer.allowDrawStories = dialog_id < 0 && !isTopic;

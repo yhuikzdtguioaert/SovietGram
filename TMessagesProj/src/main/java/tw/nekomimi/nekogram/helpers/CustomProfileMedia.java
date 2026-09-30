@@ -424,7 +424,13 @@ public final class CustomProfileMedia {
         // descriptor into somebody else's look.
         final long owner = SovietGramAccountScope.owner();
         Utilities.globalQueue.postRunnable(() -> {
-            final String descriptor = publish(slot, read(new File(path)), null);
+            final File media = new File(path);
+            // A large animated banner must not sit beside a second, larger base64 copy on the
+            // phone's heap. Gallery files are stable, so the API client hashes and sends in blocks.
+            final String descriptor = !isFont(slot) && media.length() > SovietGramApiClient.MAX_IMAGE_BYTES
+                    && !stillFile(media)
+                    ? publishFile(slot, media)
+                    : publish(slot, read(media), null);
             if (TextUtils.isEmpty(descriptor)) {
                 return;
             }
@@ -436,6 +442,25 @@ public final class CustomProfileMedia {
                 SovietGramSync.scheduleProfilePush();
             });
         });
+    }
+
+    @WorkerThread
+    @Nullable
+    private static String publishFile(int slot, File file) {
+        final int account = liveAccount();
+        if (account < 0 || !file.isFile() || file.length() > SovietGramApiClient.MAX_VIDEO_BYTES) {
+            if (file.isFile() && file.length() > SovietGramApiClient.MAX_VIDEO_BYTES) {
+                reportTooLarge(file.length(), SovietGramApiClient.MAX_VIDEO_BYTES);
+            }
+            return null;
+        }
+        try {
+            final JSONObject response = SovietGramApiClient.uploadMediaFile(account, slotName(slot), file);
+            return describeUpload(response);
+        } catch (Throwable e) {
+            FileLog.e("CustomProfileMedia: streamed upload failed: " + e.getMessage());
+            return null;
+        }
     }
 
     /**
@@ -555,12 +580,12 @@ public final class CustomProfileMedia {
             if (!file.exists() || length == 0) {
                 return null;
             }
-            // Four times the largest upload of any kind: a still over the limit is scaled down by
-            // fitForUpload, so a camera original has to be readable even though it will never be
-            // published at that size — but a file this far past it would only be read into memory
-            // to be refused, and on a phone that is how an out-of-memory kill starts.
-            if (length > 4L * SovietGramApiClient.MAX_MEDIA_BYTES) {
-                reportTooLarge(length, SovietGramApiClient.MAX_MEDIA_BYTES);
+            // Videos above the still threshold are streamed before reaching this method. Bound
+            // in-memory reads for photographs separately, so increasing the video ceiling does not
+            // permit a 192MB bitmap source to be allocated on a small phone.
+            final long maxInMemory = 8L * SovietGramApiClient.MAX_IMAGE_BYTES;
+            if (length > maxInMemory) {
+                reportTooLarge(length, (int) maxInMemory);
                 return null;
             }
             final byte[] data = new byte[(int) length];

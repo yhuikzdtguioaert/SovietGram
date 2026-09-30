@@ -239,12 +239,9 @@ public final class WorkshopHelper {
     /**
      * Hard ceiling on a downloaded asset.
      *
-     * Deliberately well above {@link SovietGramApiClient#MAX_MEDIA_BYTES} rather than derived from
-     * it, because the two answer different questions: this one decides whether a look can be
-     * <em>installed</em> at all, the upload limit only whether we can re-host its picture. The
-     * largest published asset is 43.66MB — over the upload ceiling, so it stays served from its own
-     * GitHub URL, but it installs and renders perfectly well and a ceiling under it would turn that
-     * look into a flat colour for everyone. Anything far past this is not a banner.
+     * Kept at the same 64MB ceiling as the upload path: the largest measured workshop asset is
+     * 43.66MB, so it can now be installed and re-hosted for other SovietGram users. Anything much
+     * larger is refused before the phone allocates a buffer for it.
      */
     private static final long MAX_MEDIA_BYTES = 64L * 1024 * 1024;
 

@@ -332,6 +332,9 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
     private FireworksOverlay fireworksOverlay;
     private BottomSheetTabsOverlay bottomSheetTabsOverlay;
     public DrawerLayoutContainer drawerLayoutContainer;
+    private org.telegram.ui.Adapters.DrawerLayoutAdapter legacyDrawerAdapter;
+    private org.telegram.ui.ActionBar.DrawerContainer legacyDrawer;
+    private org.telegram.ui.Components.RecyclerListView legacyDrawerList;
     private PasscodeViewDialog passcodeDialog;
     private List<PasscodeView> overlayPasscodeViews = new ArrayList<>();
     private TermsOfServiceView termsOfServiceView;
@@ -573,6 +576,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         drawerLayoutContainer.setParentActionBarLayout(actionBarLayout);
         actionBarLayout.setDrawerLayoutContainer(drawerLayoutContainer);
         actionBarLayout.setFragmentStack(mainFragmentsStack);
+        setupSideDrawer();
         actionBarLayout.setFragmentStackChangedListener(() -> {
             checkSystemBarColors(true, false);
             if (getLastFragment() != null && getLastFragment().getLastStoryViewer() != null) {
@@ -8854,7 +8858,156 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         }
     }
 
+    /** Restores the account and settings drawer used by the 12.3.1 navigation design. */
+    public void setupSideDrawer() {
+        if (drawerLayoutContainer == null) {
+            return;
+        }
+        boolean wanted = sovietgram.com.NaConfig.useSideDrawer() && !AndroidUtilities.isTablet();
+        if (wanted == drawerLayoutContainer.hasDrawer()) {
+            if (wanted && legacyDrawerAdapter != null) {
+                legacyDrawerAdapter.notifyDataSetChanged();
+            }
+            return;
+        }
+        if (!wanted) {
+            drawerLayoutContainer.setAllowOpenDrawer(false, false);
+            drawerLayoutContainer.setDrawerLayout(null);
+            if (legacyDrawerAdapter != null) {
+                NotificationCenter.getGlobalInstance().removeObserver(legacyDrawerAdapter, NotificationCenter.proxySettingsChanged);
+            }
+            legacyDrawerAdapter = null;
+            legacyDrawerList = null;
+            legacyDrawer = null;
+            return;
+        }
+
+        legacyDrawer = new org.telegram.ui.ActionBar.DrawerContainer(this);
+        legacyDrawer.setBackgroundColor(Theme.getColor(Theme.key_chats_menuBackground));
+        legacyDrawerList = new org.telegram.ui.Components.RecyclerListView(this);
+        legacyDrawerList.setLayoutManager(new androidx.recyclerview.widget.LinearLayoutManager(this));
+        legacyDrawerList.setClipToPadding(false);
+        legacyDrawerList.setBackgroundColor(Theme.getColor(Theme.key_chats_menuBackground));
+        org.telegram.ui.Components.SideMenultItemAnimator animator =
+                new org.telegram.ui.Components.SideMenultItemAnimator(legacyDrawerList);
+        legacyDrawerList.setItemAnimator(animator);
+        legacyDrawerAdapter = new org.telegram.ui.Adapters.DrawerLayoutAdapter(
+                this, animator, drawerLayoutContainer);
+        legacyDrawerList.setAdapter(legacyDrawerAdapter);
+        legacyDrawer.addView(legacyDrawerList,
+                LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
+        drawerLayoutContainer.setDrawerLayout(legacyDrawer);
+        FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) legacyDrawer.getLayoutParams();
+        params.width = Math.min(AndroidUtilities.dp(320),
+                Math.min(AndroidUtilities.displaySize.x, AndroidUtilities.displaySize.y) - AndroidUtilities.dp(56));
+        params.height = LayoutHelper.MATCH_PARENT;
+        legacyDrawer.setLayoutParams(params);
+        drawerLayoutContainer.setAllowOpenDrawer(true, false);
+        NotificationCenter.getGlobalInstance().addObserver(legacyDrawerAdapter, NotificationCenter.proxySettingsChanged);
+        legacyDrawerList.setOnItemClickListener((view, position, x, y) -> {
+            if (legacyDrawerAdapter == null) {
+                return;
+            }
+            if (legacyDrawerAdapter.click(view, position)) {
+                drawerLayoutContainer.closeDrawer(false);
+                return;
+            }
+            if (view instanceof org.telegram.ui.Cells.DrawerProfileCell profile) {
+                if (profile.isInAvatar(x, y)) {
+                    presentFragment(new SettingsActivity());
+                    drawerLayoutContainer.closeDrawer(false);
+                } else {
+                    legacyDrawerAdapter.setAccountsShown(!legacyDrawerAdapter.isAccountsShown(), true);
+                }
+            } else if (view instanceof org.telegram.ui.Cells.DrawerUserCell user) {
+                switchToAccount(user.getAccountNumber(), true);
+                drawerLayoutContainer.closeDrawer(false);
+            } else if (view instanceof org.telegram.ui.Cells.DrawerAddCell) {
+                for (int account = 0; account < UserConfig.MAX_ACCOUNT_COUNT; account++) {
+                    if (!UserConfig.getInstance(account).isClientActivated()) {
+                        presentFragment(new LoginActivity(account));
+                        drawerLayoutContainer.closeDrawer(false);
+                        break;
+                    }
+                }
+            } else {
+                openLegacyDrawerItem(legacyDrawerAdapter.getId(position),
+                        legacyDrawerAdapter.getAttachMenuBot(position));
+            }
+        });
+    }
+
+    public void openSideDrawer() {
+        if (drawerLayoutContainer != null && drawerLayoutContainer.hasDrawer()) {
+            drawerLayoutContainer.openDrawer(false);
+        }
+    }
+
+    private void openLegacyDrawerItem(int id, TLRPC.TL_attachMenuBot bot) {
+        if (bot != null) {
+            showAttachMenuBot(this, currentAccount, bot, null, true);
+        } else if (id == 2) {
+            presentFragment(new GroupCreateActivity(new Bundle()));
+        } else if (id == 4) {
+            presentFragment(new ActionIntroActivity(ActionIntroActivity.ACTION_TYPE_CHANNEL_CREATE));
+        } else if (id == 6) {
+            presentFragment(new ContactsActivity(new Bundle()));
+        } else if (id == 8) {
+            presentFragment(new SettingsActivity());
+        } else if (id == 10) {
+            presentFragment(new CallLogActivity());
+        } else if (id == 11) {
+            Bundle args = new Bundle();
+            args.putLong("user_id", UserConfig.getInstance(currentAccount).getClientUserId());
+            presentFragment(new ChatActivity(args));
+        } else if (id == 15 || id == 16) {
+            Bundle args = new Bundle();
+            args.putLong("user_id", UserConfig.getInstance(currentAccount).getClientUserId());
+            args.putBoolean("my_profile", true);
+            presentFragment(new ProfileActivity(args, null));
+        } else if (id == org.telegram.ui.Adapters.DrawerLayoutAdapter.nkbtnSettings) {
+            presentFragment(new tw.nekomimi.nekogram.settings.NekoSettingsActivity());
+        } else if (id == org.telegram.ui.Adapters.DrawerLayoutAdapter.nkbtnArchivedChats) {
+            Bundle args = new Bundle();
+            args.putInt("folderId", 1);
+            presentFragment(new DialogsActivity(args));
+        } else if (id == org.telegram.ui.Adapters.DrawerLayoutAdapter.nkbtnSessions) {
+            presentFragment(new SessionsActivity(SessionsActivity.TYPE_DEVICES));
+        } else if (id == org.telegram.ui.Adapters.DrawerLayoutAdapter.nkbtnQrLogin) {
+            ActionIntroActivity scanner = new ActionIntroActivity(ActionIntroActivity.ACTION_TYPE_QR_LOGIN);
+            scanner.setQrLoginDelegate(code -> {
+                if (code == null || !code.startsWith("tg://login?token=")) {
+                    return;
+                }
+                byte[] token = Base64.decode(code.substring("tg://login?token=".length()), Base64.URL_SAFE);
+                TLRPC.TL_auth_acceptLoginToken request = new TLRPC.TL_auth_acceptLoginToken();
+                request.token = token;
+                ConnectionsManager.getInstance(currentAccount).sendRequest(request, (response, error) ->
+                        AndroidUtilities.runOnUIThread(() -> {
+                            if (!(response instanceof TLRPC.TL_authorization)) {
+                                AlertsCreator.showSimpleAlert(scanner,
+                                        LocaleController.getString(R.string.AuthAnotherClient),
+                                        error != null && error.text != null ? error.text : LocaleController.getString(R.string.ErrorOccurred));
+                            }
+                        }));
+            });
+            presentFragment(scanner);
+        } else if (id == org.telegram.ui.Adapters.DrawerLayoutAdapter.nkbtnBookmarks) {
+            presentFragment(new tw.nekomimi.nekogram.ui.BookmarkManagerActivity());
+        } else if (id == org.telegram.ui.Adapters.DrawerLayoutAdapter.nkbtnBrowser) {
+            tw.nekomimi.nekogram.utils.BrowserUtils.openBrowserHome(currentAccount, null, true);
+        } else if (id == 13) {
+            presentFragment(new ProxyListActivity());
+        } else if (id == org.telegram.ui.Adapters.DrawerLayoutAdapter.nkbtnRestartApp) {
+            tw.nekomimi.nekogram.helpers.AppRestartHelper.triggerRebirth(this, new Intent(this, LaunchActivity.class));
+        }
+        if (drawerLayoutContainer != null) {
+            drawerLayoutContainer.closeDrawer(false);
+        }
+    }
+
     public void rebuildAllFragmentsForDesign() {
+        setupSideDrawer();
         ArrayList<INavigationLayout> layouts = new ArrayList<>();
         if (actionBarLayout != null) layouts.add(actionBarLayout);
         if (rightActionBarLayout != null && !layouts.contains(rightActionBarLayout)) layouts.add(rightActionBarLayout);

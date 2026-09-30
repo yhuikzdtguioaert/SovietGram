@@ -10,6 +10,8 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.telegram.messenger.FileLog;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -25,6 +27,7 @@ import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
+import okio.BufferedSink;
 import tw.nekomimi.nekogram.helpers.remote.ApiServersHelper;
 import tw.nekomimi.nekogram.utils.HttpClient;
 
@@ -139,18 +142,13 @@ public final class SovietGramApiClient {
      *
      * <p>Which is why it is set from the published population rather than a round number. Of the 72
      * animated banners and backgrounds in the workshop: median 1.68MB, p90 8.38MB, and then a thin
-     * tail of 12.34, 16.22, 21.99, 28.46 and 43.66MB. At 32MB this covers 71 of the 72 — everything
-     * anybody has published except one 43.66MB background.
+     * tail of 12.34, 16.22, 21.99, 28.46 and 43.66MB. A 64MB ceiling covers the whole
+     * measured gallery and leaves room for newer workshop animations.
      *
-     * <p>Going higher is not free, and 32 is where the two costs cross. The upload builds its base64
-     * envelope in one buffer, so the phone holds the file and about a third again while it sends:
-     * some 75MB at this ceiling, which is a lot but survivable, where covering that last file would
-     * be over a hundred and would kill the app outright on a low-end phone. The server itself accepts
-     * 50MB, so raising this further is a client-side memory decision and nothing else — and the file
-     * it would buy is reachable anyway, from the URL the look carries and through the workshop's own
-     * proxy when that host is blocked. Going lower starts cutting into p90.
+     * <p>The upload still builds a base64 envelope, so callers must keep this operation on a worker
+     * thread and avoid another in-memory copy of the same media.
      */
-    public static final int MAX_VIDEO_BYTES = 32 * 1024 * 1024;
+    public static final int MAX_VIDEO_BYTES = 64 * 1024 * 1024;
 
     /**
      * The largest upload of any kind, which is what the transport itself has to be sized against —
@@ -207,6 +205,93 @@ public final class SovietGramApiClient {
                 HttpClient.INSTANCE.getUploadInstance()), true);
     }
 
+    /** Streams a gallery video in two passes: hash first, then send, without holding it in RAM. */
+    @WorkerThread
+    public static JSONObject uploadMediaFile(int account, String slot, File file) throws IOException {
+        final long length = file.length();
+        if (!file.isFile() || length <= 0 || length > MAX_VIDEO_BYTES) {
+            throw new IOException("media_too_large");
+        }
+        final String base = ApiServersHelper.baseUrl();
+        final String token = SovietGramTokenStore.tokenForAccount(account);
+        if (TextUtils.isEmpty(base) || !base.startsWith("https://") || TextUtils.isEmpty(token)) {
+            throw new IOException("api_not_ready");
+        }
+
+        final byte[] prefix = ("{\"slot\":\"" + mediaSlot(slot) + "\",\"data\":\"")
+                .getBytes(StandardCharsets.US_ASCII);
+        final byte[] suffix = "\"}".getBytes(StandardCharsets.US_ASCII);
+        final MessageDigest digest;
+        try {
+            digest = MessageDigest.getInstance("SHA-256");
+        } catch (Exception e) {
+            throw new IOException("sha256_unavailable", e);
+        }
+        writeEncodedFile(file, length, prefix, suffix, digest::update);
+        final long timestamp = System.currentTimeMillis() / 1000L;
+        final String path = "/v1/media";
+        final RequestBody body = new RequestBody() {
+            @Override
+            public okhttp3.MediaType contentType() {
+                return HttpClient.MEDIA_TYPE_JSON;
+            }
+
+            @Override
+            public long contentLength() {
+                return prefix.length + ((length + 2) / 3) * 4 + suffix.length;
+            }
+
+            @Override
+            public void writeTo(BufferedSink sink) throws IOException {
+                writeEncodedFile(file, length, prefix, suffix, sink::write);
+            }
+        };
+        final Request request = new Request.Builder()
+                .url(base + path)
+                .header("User-Agent", "SovietGram/api")
+                .header("Authorization", "Bearer " + token)
+                .header("X-Timestamp", String.valueOf(timestamp))
+                .header("X-Signature", signHash(token, "POST", path, timestamp, hex(digest.digest())))
+                .post(body)
+                .build();
+        return readJson(account, HttpClient.INSTANCE.getUploadInstance().newCall(request).execute(), true);
+    }
+
+    @FunctionalInterface
+    private interface EncodedSink {
+        void write(byte[] bytes) throws IOException;
+    }
+
+    /** Encode blocks on a multiple-of-three boundary so each block has no internal padding. */
+    private static void writeEncodedFile(File file, long length, byte[] prefix, byte[] suffix,
+                                         EncodedSink sink) throws IOException {
+        if (file.length() != length) {
+            throw new IOException("media_changed");
+        }
+        sink.write(prefix);
+        final byte[] buffer = new byte[3 * 128 * 1024];
+        try (FileInputStream in = new FileInputStream(file)) {
+            long remaining = length;
+            while (remaining > 0) {
+                final int wanted = (int) Math.min(remaining, buffer.length);
+                int filled = 0;
+                while (filled < wanted) {
+                    final int read = in.read(buffer, filled, wanted - filled);
+                    if (read <= 0) {
+                        throw new IOException("media_changed");
+                    }
+                    filled += read;
+                }
+                sink.write(Base64.encode(buffer, 0, wanted, Base64.NO_WRAP));
+                remaining -= wanted;
+            }
+        }
+        sink.write(suffix);
+        if (file.length() != length) {
+            throw new IOException("media_changed");
+        }
+    }
+
     /** How many base64 characters {@code length} bytes encode to, padded to a multiple of four. */
     private static int base64Length(int length) {
         return (length + 2) / 3 * 4;
@@ -226,7 +311,7 @@ public final class SovietGramApiClient {
         for (int read = 0; read < data.length; read += block) {
             final int len = Math.min(block, data.length - read);
             // Base64.encode allocates its own array, so this is one 2.7MB temporary per block
-            // rather than one 67MB temporary for the whole picture.
+            // rather than one large temporary for the whole picture.
             final byte[] encoded = Base64.encode(data, read, len, Base64.NO_WRAP);
             System.arraycopy(encoded, 0, out, at, encoded.length);
             at += encoded.length;
@@ -367,8 +452,16 @@ public final class SovietGramApiClient {
     @VisibleForSigning
     static String sign(String tokenB64Url, String method, String path, long timestamp, byte[] body) {
         try {
+            return signHash(tokenB64Url, method, path, timestamp, sha256Hex(body));
+        } catch (Throwable e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static String signHash(String tokenB64Url, String method, String path,
+                                   long timestamp, String bodyHash) {
+        try {
             final byte[] rawTokenBytes = Base64.decode(tokenB64Url, Base64.URL_SAFE | Base64.NO_WRAP | Base64.NO_PADDING);
-            final String bodyHash = sha256Hex(body);
             final String msg = method + "\n" + path + "\n" + timestamp + "\n" + bodyHash;
             final Mac mac = Mac.getInstance("HmacSHA256");
             mac.init(new SecretKeySpec(rawTokenBytes, "HmacSHA256"));

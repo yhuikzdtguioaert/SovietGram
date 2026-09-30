@@ -219,7 +219,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
         Bulletin.Delegate delegate = new Bulletin.Delegate() {
             @Override
             public int getBottomOffset(int tag) {
-                return navigationBarHeight + (NaConfig.INSTANCE.getHideBottomNavigationBar().Bool() ? 0 : dp(MainTabsHelper.getMainTabsHeight() + MainTabsHelper.getMainTabsMargin()));
+                return navigationBarHeight + (sovietgram.com.NaConfig.hideBottomTabs() ? 0 : dp(MainTabsHelper.getMainTabsHeight() + MainTabsHelper.getMainTabsMargin()));
             }
         };
 
@@ -955,7 +955,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
     }
 
     private boolean canScrollInternal(MotionEvent ev, boolean forward) {
-        if (NaConfig.INSTANCE.getHideBottomNavigationBar().Bool()) {
+        if (sovietgram.com.NaConfig.hideBottomTabs()) {
             return false;
         }
         final BaseFragment fragment = getCurrentVisibleFragment();
@@ -990,7 +990,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
 
         ViewGroup.MarginLayoutParams lp;
         {
-            final int height = navigationBarHeight + updateLayoutHeight + (NaConfig.INSTANCE.getHideBottomNavigationBar().Bool() ? 0 : dp(MainTabsHelper.getMainTabsHeightWithMargins()));
+            final int height = navigationBarHeight + updateLayoutHeight + (sovietgram.com.NaConfig.hideBottomTabs() ? 0 : dp(MainTabsHelper.getMainTabsHeightWithMargins()));
             lp = (ViewGroup.MarginLayoutParams) fadeView.getLayoutParams();
             if (lp.height != height) {
                 lp.height = height;
@@ -1125,7 +1125,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
     }
 
     private void checkUi_fadeView() {
-        if (viewPager == null || fadeView == null || NaConfig.INSTANCE.getHideBottomNavigationBar().Bool()) {
+        if (viewPager == null || fadeView == null || sovietgram.com.NaConfig.hideBottomTabs()) {
             return;
         }
 
@@ -1144,7 +1144,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
 
     private void checkUi_tabsPosition() {
         if (tabsView == null) return;
-        if (NaConfig.INSTANCE.getHideBottomNavigationBar().Bool()) {
+        if (sovietgram.com.NaConfig.hideBottomTabs()) {
             tabsView.setVisibility(View.GONE);
             return;
         }
@@ -1235,7 +1235,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
     private boolean accountSwitchHintShown;
 
     private void showAccountChangeHint() {
-        if (accountSwitchHintShown || NaConfig.INSTANCE.getHideBottomNavigationBar().Bool()) return;
+        if (accountSwitchHintShown || sovietgram.com.NaConfig.hideBottomTabs()) return;
 
         if (accountSwitchHint == null && HintsController.Hint.AccountSwitchHint.show()) {
             AndroidUtilities.runOnUIThread(() -> {

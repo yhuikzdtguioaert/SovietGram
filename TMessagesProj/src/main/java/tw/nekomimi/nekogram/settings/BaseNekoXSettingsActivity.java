@@ -30,6 +30,8 @@ import org.telegram.ui.Cells.NotificationsCheckCell;
 import org.telegram.ui.Cells.ShadowSectionCell;
 import org.telegram.ui.Cells.TextCell;
 import org.telegram.ui.Cells.TextCheckCell;
+import org.telegram.ui.Cells.TextCheckCell2;
+import org.telegram.ui.Cells.CheckBoxCell;
 import org.telegram.ui.Cells.TextDetailSettingsCell;
 import org.telegram.ui.Cells.TextInfoPrivacyCell;
 import org.telegram.ui.Cells.TextSettingsCell;
@@ -49,8 +51,10 @@ import tw.nekomimi.nekogram.config.CellGroup;
 import tw.nekomimi.nekogram.config.ConfigItem;
 import tw.nekomimi.nekogram.config.cell.AbstractConfigCell;
 import tw.nekomimi.nekogram.config.cell.ConfigCellCheckBox;
+import tw.nekomimi.nekogram.config.cell.ConfigCellColor;
 import tw.nekomimi.nekogram.config.cell.ConfigCellCustom;
 import tw.nekomimi.nekogram.config.cell.ConfigCellSelectBox;
+import tw.nekomimi.nekogram.config.cell.ConfigCellSlider;
 import tw.nekomimi.nekogram.config.cell.ConfigCellTextCheck;
 import tw.nekomimi.nekogram.config.cell.ConfigCellTextCheck2;
 import tw.nekomimi.nekogram.config.cell.ConfigCellTextCheckIcon;
@@ -273,6 +277,7 @@ public class BaseNekoXSettingsActivity extends BaseFragment {
             case ConfigCellTextInput2 c -> c.onClick();
             case ConfigCellTextDetail c -> c.onClick(view, position);
             case ConfigCellCheckBox ignored -> onCheckBoxCellClick(view, position);
+            case ConfigCellColor c -> c.onClick(view.getContext());
             case ConfigCellCustom ignored -> onCustomCellClick(view, position, x, y);
             case WithOnClick withOnClick -> withOnClick.onClick();
             case null, default -> {}
@@ -504,6 +509,10 @@ public class BaseNekoXSettingsActivity extends BaseFragment {
                 case CellGroup.ITEM_TYPE_TEXT_DETAIL -> new TextDetailSettingsCell(mContext);
                 case CellGroup.ITEM_TYPE_TEXT -> new TextInfoPrivacyCell(mContext);
                 case CellGroup.ITEM_TYPE_TEXT_CHECK_ICON -> new TextCell(mContext);
+                case CellGroup.ITEM_TYPE_CHECK2 -> new TextCheckCell2(mContext);
+                case CellGroup.ITEM_TYPE_CHECK_BOX -> new CheckBoxCell(mContext, 1);
+                case CellGroup.ITEM_TYPE_SLIDER -> ConfigCellSlider.createView(mContext);
+                case CellGroup.ITEM_TYPE_COLOR -> ConfigCellColor.createView(mContext);
                 default -> null;
             };
         }

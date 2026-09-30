@@ -3021,8 +3021,8 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         }
 
         BirthdayController.getInstance(currentAccount).check();
-        additionNavigationBarHeight = hasMainTabs && !NaConfig.INSTANCE.getHideBottomNavigationBar().Bool() ? dp(MainTabsHelper.getMainTabsHeightWithMargins()) : 0;
-        additionFloatingButtonOffset = hasMainTabs && !NaConfig.INSTANCE.getHideBottomNavigationBar().Bool() ? dp(MainTabsHelper.getMainTabsHeight() + MainTabsHelper.getMainTabsMargin()) : 0;
+        additionNavigationBarHeight = hasMainTabs && !sovietgram.com.NaConfig.hideBottomTabs() ? dp(MainTabsHelper.getMainTabsHeightWithMargins()) : 0;
+        additionFloatingButtonOffset = hasMainTabs && !sovietgram.com.NaConfig.hideBottomTabs() ? dp(MainTabsHelper.getMainTabsHeight() + MainTabsHelper.getMainTabsMargin()) : 0;
 
         LastSeenHelper.preload();
 
@@ -3291,8 +3291,8 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         filterTabsView = null;
         selectedDialogs.clear();
 
-        additionNavigationBarHeight = hasMainTabs && !NaConfig.INSTANCE.getHideBottomNavigationBar().Bool() ? dp(MainTabsHelper.getMainTabsHeightWithMargins()) : 0;
-        additionFloatingButtonOffset = hasMainTabs && !NaConfig.INSTANCE.getHideBottomNavigationBar().Bool() ? dp(MainTabsHelper.getMainTabsHeight() + MainTabsHelper.getMainTabsMargin()) : 0;
+        additionNavigationBarHeight = hasMainTabs && !sovietgram.com.NaConfig.hideBottomTabs() ? dp(MainTabsHelper.getMainTabsHeightWithMargins()) : 0;
+        additionFloatingButtonOffset = hasMainTabs && !sovietgram.com.NaConfig.hideBottomTabs() ? dp(MainTabsHelper.getMainTabsHeight() + MainTabsHelper.getMainTabsMargin()) : 0;
 
         maximumVelocity = ViewConfiguration.get(context).getScaledMaximumFlingVelocity();
 
@@ -3640,6 +3640,12 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             }
             if (folderId == 0) {
                 actionBar.setSupportsHolidayImage(true);
+            }
+            if (!onlySelect && searchString == null && folderId == 0 && communityId == 0
+                    && sovietgram.com.NaConfig.useSideDrawer()) {
+                MenuDrawable drawerIcon = new MenuDrawable();
+                drawerIcon.setRoundCap();
+                actionBar.setBackButtonDrawable(drawerIcon);
             }
         }
         //if (!onlySelect || initialDialogsType == DIALOGS_TYPE_FORWARD) {
@@ -4040,6 +4046,9 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                         }
                     } else if (onlySelect || folderId != 0 || communityId != 0) {
                         finishFragment();
+                    } else if (sovietgram.com.NaConfig.useSideDrawer()
+                            && getParentActivity() instanceof LaunchActivity launchActivity) {
+                        launchActivity.openSideDrawer();
                     }
                 } else if (id == 1) {
                     if (getParentActivity() == null) {
@@ -13907,7 +13916,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         }
 
         final boolean isCurrentThemeDark;
-        final boolean hideBottomNavigationBar = NaConfig.INSTANCE.getHideBottomNavigationBar().Bool();
+        final boolean hideBottomNavigationBar = sovietgram.com.NaConfig.hideBottomTabs();
             if (resourceProvider != null) {
                 isCurrentThemeDark = resourceProvider.isDark();
             } else {
@@ -14472,7 +14481,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         iBlur3PositionActionBar.set(0, -additionalList, fragmentView.getMeasuredWidth(), lerp(actionBarHeight, actionBarHeightSearch, animatorSearchVisible.getFloatValue()) + additionalList );
 
         boolean hasBottomBlur = false;
-        if (hasMainTabs && !NaConfig.INSTANCE.getHideBottomNavigationBar().Bool()) {
+        if (hasMainTabs && !sovietgram.com.NaConfig.hideBottomTabs()) {
             iBlur3PositionMainTabs.set(0, mainTabTop, fragmentView.getMeasuredWidth(), mainTabBottom);
             iBlur3PositionMainTabs.inset(0, LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS) ? 0 : -dp(48));
 
