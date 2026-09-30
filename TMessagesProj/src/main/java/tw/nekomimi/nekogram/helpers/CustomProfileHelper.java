@@ -1412,5 +1412,6 @@ public final class CustomProfileHelper {
         NekoConfig.customProfileFrameGraph.setConfigString("");
         releaseVideo();
         onSettingsChanged();
+        SovietGramSync.forceProfilePushForCurrentAccount();
     }
 }

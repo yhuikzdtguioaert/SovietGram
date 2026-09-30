@@ -92,6 +92,16 @@ public final class SovietGramSync {
         AndroidUtilities.runOnUIThread(profilePushRunnable, PROFILE_PUSH_DEBOUNCE_MS);
     }
 
+    /** A manual reset is an explicit request to replace the server copy, even if it equals the
+     * last body this process remembers sending. */
+    public static void forceProfilePushForCurrentAccount() {
+        final long ownId = SovietGramAccountScope.owner();
+        if (ownId > 0) {
+            lastPushedBody.remove(ownId);
+        }
+        scheduleProfilePush();
+    }
+
     /**
      * Builds each account's profile body and PUTs it, signed, for every logged-in account that holds
      * a token. The fake identity belongs to one account, not to the install, so the bodies differ:
