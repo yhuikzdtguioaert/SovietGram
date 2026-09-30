@@ -69,6 +69,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import kotlin.Unit;
 import tw.nekomimi.nekogram.NekoConfig;
+import tw.nekomimi.nekogram.helpers.CustomProfileHelper;
 import tw.nekomimi.nekogram.ui.BottomBuilder;
 import xyz.nextalone.nagram.NaConfig;
 
@@ -279,7 +280,7 @@ public class AboutLinkCell extends FrameLayout {
             canvas.restore();
         }
         viewAlpha = bottomShadow.getAlpha();
-        if (viewAlpha > 0) {
+        if (viewAlpha > 0 && !CustomProfileHelper.hasBackground()) {
             canvas.save();
             canvas.saveLayerAlpha(0, 0, getWidth(), getHeight(), (int) (viewAlpha * 255), Canvas.ALL_SAVE_FLAG);
             canvas.translate(bottomShadow.getLeft(), bottomShadow.getTop());

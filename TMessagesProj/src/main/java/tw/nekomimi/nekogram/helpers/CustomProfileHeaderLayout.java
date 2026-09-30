@@ -156,6 +156,7 @@ public final class CustomProfileHeaderLayout {
     private static long geometryLast;
     private static long geometrySettled;
     private static int geometryStableFrames;
+    private static boolean wasPulled;
     private static long openedAt = SystemClock.uptimeMillis();
 
     private CustomProfileHeaderLayout() {
@@ -173,6 +174,7 @@ public final class CustomProfileHeaderLayout {
         anchorSignature = Long.MIN_VALUE;
         stableResolves = 0;
         geometryStableFrames = 0;
+        wasPulled = false;
         openedAt = SystemClock.uptimeMillis();
         java.util.Arrays.fill(shiftX, 0f);
         java.util.Arrays.fill(shiftY, 0f);
@@ -407,6 +409,7 @@ public final class CustomProfileHeaderLayout {
                                      float amount, float pull) {
         if (pull > PULL_FREEZE) {
             // The avatar is opening; nothing here can be measured meaningfully any more.
+            wasPulled = true;
             addShift(wantedX, wantedY);
             return;
         }
@@ -426,9 +429,20 @@ public final class CustomProfileHeaderLayout {
         signature = signature * 31 + settingsSignature();
 
         final long geometry = geometrySignature(root, views);
-        geometryStableFrames = geometry == geometryLast ? geometryStableFrames + 1 : 0;
+        if (wasPulled) {
+            // On closing the avatar, solve the name/status relationship in the first stable-looking
+            // frame. Waiting for several identical frames leaves them over the avatar temporarily.
+            geometrySettled = geometry;
+            anchorSignature = Long.MIN_VALUE;
+            stableResolves = 0;
+            wasPulled = false;
+        }
+        final boolean moved = geometry != geometryLast;
+        geometryStableFrames = moved ? 0 : geometryStableFrames + 1;
         geometryLast = geometry;
-        if (geometryStableFrames >= CustomProfileAnchors.STABLE_RESOLVES) {
+        // Once anchors have been established, follow avatar/name geometry in the current frame.
+        // Waiting for four identical frames left Last Seen and the name at their old positions.
+        if ((anchorsReady && moved) || geometryStableFrames >= CustomProfileAnchors.STABLE_RESOLVES) {
             geometrySettled = geometry;
         }
         signature = signature * 31 + geometrySettled;

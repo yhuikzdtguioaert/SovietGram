@@ -53,6 +53,7 @@ public class NekoSettingsActivity extends BaseNekoSettingsActivity {
     private int generalRow;
     private int translatorRow;
     private int chatRow;
+    private int experimentRow;
     private int bypassBlockingRow;
     private int sovietGramExclusiveRow;
     private int categoriesEndRow;
@@ -70,6 +71,7 @@ public class NekoSettingsActivity extends BaseNekoSettingsActivity {
         generalRow = addRow();
         translatorRow = addRow();
         chatRow = addRow();
+        experimentRow = addRow();
         bypassBlockingRow = addRow();
         sovietGramExclusiveRow = addRow();
         categoriesEndRow = addRow();
@@ -303,6 +305,8 @@ public class NekoSettingsActivity extends BaseNekoSettingsActivity {
             presentFragment(new NekoChatSettingsActivity());
         } else if (position == generalRow) {
             presentFragment(new NekoGeneralSettingsActivity());
+        } else if (position == experimentRow) {
+            presentFragment(new NekoExperimentalSettingsActivity());
         } else if (position == bypassBlockingRow) {
             presentFragment(new BypassBlockingActivity());
         } else if (position == sovietGramExclusiveRow) {
@@ -343,6 +347,8 @@ public class NekoSettingsActivity extends BaseNekoSettingsActivity {
                         textCell.setTextAndIcon(getString(R.string.General), R.drawable.msg_theme, true);
                     } else if (position == translatorRow) {
                         textCell.setTextAndIcon(getString(R.string.TranslatorSettings), R.drawable.ic_translate, true);
+                    } else if (position == experimentRow) {
+                        textCell.setTextAndIcon(getString(R.string.Experimental), R.drawable.msg_fave, true);
                     } else if (position == bypassBlockingRow) {
                         textCell.setTextAndIcon(getString(R.string.BypassBlocking), R.drawable.sovietgram_bypass_blocking, true);
                         textCell.imageView.setColorFilter(null);
@@ -364,7 +370,7 @@ public class NekoSettingsActivity extends BaseNekoSettingsActivity {
         public int getItemViewType(int position) {
             if (position == categoriesEndRow || position == nSettingsEndRow) {
                 return TYPE_SHADOW;
-            } else if (position == chatRow || position == generalRow || position == translatorRow || position == bypassBlockingRow || position == sovietGramExclusiveRow || position == appRestartRow ||
+            } else if (position == chatRow || position == generalRow || position == translatorRow || position == experimentRow || position == bypassBlockingRow || position == sovietGramExclusiveRow || position == appRestartRow ||
                     position == aboutRow) {
                 return TYPE_TEXT;
             }

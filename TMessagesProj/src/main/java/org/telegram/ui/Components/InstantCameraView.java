@@ -126,6 +126,7 @@ import javax.microedition.khronos.egl.EGLDisplay;
 import javax.microedition.khronos.egl.EGLSurface;
 
 import tw.nekomimi.nekogram.NekoConfig;
+import tw.nekomimi.nekogram.helpers.VoiceChangerHelper;
 import xyz.nextalone.nagram.NaConfig;
 
 @SuppressLint("ViewConstructor")
@@ -2294,6 +2295,9 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
                         ByteBuffer byteBuffer = buffer.buffer[a];
                         byteBuffer.rewind();
                         readResult = audioRecorder.read(byteBuffer, 2048);
+                        if (readResult > 0) {
+                            VoiceChangerHelper.video().process(byteBuffer, readResult);
+                        }
                         if (readResult > 0 && a % 2 == 0) {
                             byteBuffer.limit(readResult);
                             double s = 0;
@@ -2355,6 +2359,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
                 } catch (Exception e) {
                     FileLog.e(e);
                 }
+                VoiceChangerHelper.video().release();
                 if (!pauseRecorder) {
                     handler.sendMessage(handler.obtainMessage(MSG_STOP_RECORDING, sendWhenDone, 0, sendWhenDoneOptions));
                 }
@@ -3240,6 +3245,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
 
                 audioRecorder = new AudioRecord(MediaRecorder.AudioSource.DEFAULT, audioSampleRate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, bufferSize);
                 audioRecorder.startRecording();
+                VoiceChangerHelper.video().start(audioSampleRate, 1);
                 if (BuildVars.LOGS_ENABLED) {
                     FileLog.d("InstantCamera initied audio record with channels " + audioRecorder.getChannelCount() + " sample rate = " + audioRecorder.getSampleRate() + " bufferSize = " + bufferSize);
                 }

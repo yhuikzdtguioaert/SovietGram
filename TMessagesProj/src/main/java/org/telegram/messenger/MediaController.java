@@ -137,6 +137,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 
 import tw.nekomimi.nekogram.NekoConfig;
+import tw.nekomimi.nekogram.helpers.VoiceChangerHelper;
 import tw.nekomimi.nekogram.SaveToDownloadReceiver;
 import tw.nekomimi.nekogram.helpers.ChatsHelper;
 import xyz.nextalone.nagram.NaConfig;
@@ -1149,6 +1150,9 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
                 buffer.rewind();
                 int len = audioRecorder.read(buffer, buffer.capacity());
                 if (len > 0) {
+                    // Process on the capture thread before the frame is queued for encoding. This
+                    // also keeps pause/stop from releasing the effect before a queued frame runs.
+                    VoiceChangerHelper.process(buffer, len);
                     buffer.limit(len);
                     double sum = 0;
                     try {
@@ -4690,6 +4694,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
                 audioRecorder.stop();
                 audioRecorder.release();
                 audioRecorder = null;
+                VoiceChangerHelper.release();
                 recordQueue.postRunnable(() -> {
                     stopRecord();
                     final TLRPC.TL_document audioToSend = recordingAudio;
@@ -4754,6 +4759,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
                         writtenFrame = 0;
                         samplesCount = 0;
                         fileBuffer.rewind();
+                        VoiceChangerHelper.start(sampleRate, 1);
                         audioRecorder.startRecording();
                         recordQueue.postRunnable(recordRunnable);
 
@@ -4842,6 +4848,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
                 recordSendMessageChatArguments = sendMessageChatArguments;
                 fileBuffer.rewind();
                 AudioEnhance.INSTANCE.initVoiceEnhance(audioRecorder);
+                VoiceChangerHelper.start(sampleRate, 1);
 
                 audioRecorder.startRecording();
             } catch (Exception e) {
@@ -4857,6 +4864,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
                 }
                 try {
                     AudioEnhance.INSTANCE.releaseVoiceEnhance();
+                    VoiceChangerHelper.release();
                     audioRecorder.release();
                     audioRecorder = null;
                 } catch (Exception e2) {
@@ -5011,6 +5019,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
         }
         try {
             AudioEnhance.INSTANCE.releaseVoiceEnhance();
+            VoiceChangerHelper.release();
             if (audioRecorder != null) {
                 audioRecorder.release();
                 audioRecorder = null;

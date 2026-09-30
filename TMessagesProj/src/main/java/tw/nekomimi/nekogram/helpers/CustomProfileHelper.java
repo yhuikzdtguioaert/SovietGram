@@ -856,6 +856,7 @@ public final class CustomProfileHelper {
         if (drawingOwner != owner) {
             return;
         }
+        releaseVideo();
         drawingOwner = null;
         drawingMyProfile = false;
         drawingPeerId = 0;
@@ -867,8 +868,16 @@ public final class CustomProfileHelper {
         CustomProfileThought.invalidate();
         CustomProfilePalette.invalidate();
         CustomProfileRows.invalidate();
+        CustomProfileHeaderLayout.restoreAll();
         CustomProfileHeaderLayout.invalidate();
         CustomProfileExtraRows.invalidate();
+    }
+
+    /** Pauses media for a backgrounded profile without touching a newer profile's player. */
+    public static void releaseVideoFor(Object owner) {
+        if (drawingOwner == owner) {
+            releaseVideo();
+        }
     }
 
     /**

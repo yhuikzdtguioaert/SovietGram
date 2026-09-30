@@ -51,7 +51,10 @@ import tw.nekomimi.nekogram.config.cell.ConfigCellCustom;
 import tw.nekomimi.nekogram.config.cell.ConfigCellDivider;
 import tw.nekomimi.nekogram.config.cell.ConfigCellHeader;
 import tw.nekomimi.nekogram.config.cell.ConfigCellSelectBox;
+import tw.nekomimi.nekogram.config.cell.ConfigCellSlider;
+import tw.nekomimi.nekogram.config.cell.ConfigCellText;
 import tw.nekomimi.nekogram.config.cell.ConfigCellTextCheck;
+import tw.nekomimi.nekogram.config.cell.ConfigCellTextDynamic;
 import tw.nekomimi.nekogram.config.cell.ConfigCellTextDetail;
 import tw.nekomimi.nekogram.config.cell.ConfigCellTextInput;
 import tw.nekomimi.nekogram.config.cell.ConfigCellTextInput2;
@@ -93,6 +96,7 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
     private final AbstractConfigCell customTitleRow = cellGroup.appendCell(new ConfigCellTextInput(null, NaConfig.INSTANCE.getCustomTitle(),
         getString(R.string.CustomTitleHint), null,
         (input) -> input.isEmpty() ? (String) NaConfig.INSTANCE.getCustomTitle().defaultValue : input));
+    private final AbstractConfigCell versionDesignRow = cellGroup.appendCell(new ConfigCellText("VersionDesign", () -> presentFragment(new VersionDesignActivity())));
     private final AbstractConfigCell folderNameAsTitleRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getFolderNameAsTitle()));
     private final AbstractConfigCell customTitleUserNameRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getCustomTitleUserName()));
     private final AbstractConfigCell disableNumberRoundingRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.disableNumberRounding, "4.8K -> 4777"));
@@ -241,10 +245,60 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
     }, null));
     private final AbstractConfigCell dividerAppearance = cellGroup.appendCell(new ConfigCellDivider());
 
+    // Text animation. Everything below the master toggle is inserted and removed at runtime, so the
+    // section stays a single row until someone actually turns the effect on.
+    private final AbstractConfigCell headerTextAnimation = cellGroup.appendCell(new ConfigCellHeader(getString(R.string.TextAnimation)));
+    private final AbstractConfigCell textAnimationRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.textAnimation, getString(R.string.TextAnimationInfo)));
+    private final AbstractConfigCell textAnimationBehaviourHeaderRow = cellGroup.appendCell(new ConfigCellHeader(getString(R.string.TextAnimationBehaviourHeader)));
+    private final AbstractConfigCell textAnimationAllLinesRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.textAnimationAllLines));
+    private final AbstractConfigCell textAnimationIgnoreSpacesRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.textAnimationIgnoreSpaces));
+    private final AbstractConfigCell textAnimationDurationRow = cellGroup.appendCell(new ConfigCellSlider(NekoConfig.textAnimationDuration, 80, 1200, "ms"));
+    private final AbstractConfigCell textAnimationSoftHeaderRow = cellGroup.appendCell(new ConfigCellHeader(getString(R.string.TextAnimationSoftHeader)));
+    private final AbstractConfigCell textAnimationBlurRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.textAnimationBlur));
+    private final AbstractConfigCell textAnimationBlurDurationRow = cellGroup.appendCell(new ConfigCellSlider(NekoConfig.textAnimationBlurDuration, 80, 1200, "ms"));
+    private final AbstractConfigCell textAnimationBlurRadiusRow = cellGroup.appendCell(new ConfigCellSlider(NekoConfig.textAnimationBlurRadius, 1, 30));
+    private final AbstractConfigCell textAnimationBlurTextDelayRow = cellGroup.appendCell(new ConfigCellSlider(NekoConfig.textAnimationBlurTextDelay, 0, 90, "%"));
+    private final AbstractConfigCell textAnimationMotionHeaderRow = cellGroup.appendCell(new ConfigCellHeader(getString(R.string.TextAnimationMotionHeader)));
+    private final AbstractConfigCell textAnimationSlideRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.textAnimationSlide));
+    private final AbstractConfigCell textAnimationSlideDistanceRow = cellGroup.appendCell(new ConfigCellSlider(NekoConfig.textAnimationSlideDistance, 0, 60));
+    private final AbstractConfigCell textAnimationScaleRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.textAnimationScale));
+    private final AbstractConfigCell textAnimationScaleStartRow = cellGroup.appendCell(new ConfigCellSlider(NekoConfig.textAnimationScaleStart, 0, 200, "%"));
+    private final AbstractConfigCell textAnimationRotateRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.textAnimationRotate));
+    private final AbstractConfigCell textAnimationRotateAngleRow = cellGroup.appendCell(new ConfigCellSlider(NekoConfig.textAnimationRotateAngle, -180, 180, "°"));
+    private final AbstractConfigCell textAnimationDeleteHeaderRow = cellGroup.appendCell(new ConfigCellHeader(getString(R.string.TextAnimationDeleteHeader)));
+    private final AbstractConfigCell textAnimationDeleteRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.textAnimationDelete));
+    private final AbstractConfigCell textAnimationParticleStyleRow = cellGroup.appendCell(new ConfigCellSelectBox(null, NekoConfig.textAnimationParticleStyle, new String[]{
+            getString(R.string.TextAnimationParticleDust),
+            getString(R.string.TextAnimationParticleSparks),
+            getString(R.string.TextAnimationParticleSnow),
+            getString(R.string.TextAnimationParticlePetals),
+            getString(R.string.TextAnimationParticleLetters),
+    }, null));
+    private final AbstractConfigCell textAnimationParticleCountRow = cellGroup.appendCell(new ConfigCellSlider(NekoConfig.textAnimationParticleCount, 0, 30));
+    private final AbstractConfigCell textAnimationParticleSpeedRow = cellGroup.appendCell(new ConfigCellSlider(NekoConfig.textAnimationParticleSpeed, 10, 200, "%"));
+    private final AbstractConfigCell textAnimationParticleSpreadRow = cellGroup.appendCell(new ConfigCellSlider(NekoConfig.textAnimationParticleSpread, 10, 200, "%"));
+    private final AbstractConfigCell textAnimationParticleSizeRow = cellGroup.appendCell(new ConfigCellSlider(NekoConfig.textAnimationParticleSize, 10, 200, "%"));
+    private final AbstractConfigCell textAnimationCursorHeaderRow = cellGroup.appendCell(new ConfigCellHeader(getString(R.string.TextAnimationCursorHeader)));
+    private final AbstractConfigCell textAnimationCursorRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.textAnimationCursor));
+    private final AbstractConfigCell textAnimationCursorSpeedRow = cellGroup.appendCell(new ConfigCellSlider(NekoConfig.textAnimationCursorSpeed, 5, 100));
+    private final AbstractConfigCell textAnimationCursorWidthRow = cellGroup.appendCell(new ConfigCellSlider(NekoConfig.textAnimationCursorWidth, 2, 20));
+    private final AbstractConfigCell textAnimationLiquidCursorRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.textAnimationLiquidCursor));
+    private final AbstractConfigCell textAnimationLiquidScaleRow = cellGroup.appendCell(new ConfigCellSlider(NekoConfig.textAnimationLiquidScale, 0, 100, "%"));
+    private final AbstractConfigCell textAnimationSelectionEffectRow = cellGroup.appendCell(new ConfigCellSelectBox(null, NekoConfig.textAnimationSelectionEffect, new String[]{
+            getString(R.string.TextAnimationSelectionOff),
+            getString(R.string.TextAnimationSelectionLiquid),
+    }, null));
+    private final AbstractConfigCell textAnimationSelectionStretchRow = cellGroup.appendCell(new ConfigCellSlider(NekoConfig.textAnimationSelectionStretch, 0, 200, "%"));
+    private final AbstractConfigCell textAnimationSelectionSideRow = cellGroup.appendCell(new ConfigCellSlider(NekoConfig.textAnimationSelectionSide, 0, 200, "%"));
+    private final AbstractConfigCell dividerTextAnimation = cellGroup.appendCell(new ConfigCellDivider());
+
     // Blur
     private final AbstractConfigCell headerBlur = cellGroup.appendCell(new ConfigCellHeader(getString(R.string.LiteOptionsBlur2)));
     private final AbstractConfigCell strokeOnViews = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getStrokeOnViews()));
     private final AbstractConfigCell disableAvatarBlurRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getDisableAvatarBlur()));
+    private final AbstractConfigCell forceBlurInChatRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.forceBlurInChat));
+    private final AbstractConfigCell chatBlurAlphaValueRow = cellGroup.appendCell(new ConfigCellSlider(
+            NekoConfig.chatBlueAlphaValue, 0, 255, null, getString(R.string.ChatBlurAlphaValue)));
     private final AbstractConfigCell dividerBlur = cellGroup.appendCell(new ConfigCellDivider());
 
     // Main Tabs
@@ -274,11 +328,63 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
     private final AbstractConfigCell disableNotificationBubblesRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.disableNotificationBubbles));
     private final AbstractConfigCell dividerNotifications = cellGroup.appendCell(new ConfigCellDivider());
 
+    // Camera
+    private final AbstractConfigCell headerCamera = cellGroup.appendCell(new ConfigCellHeader(getString(R.string.CameraSettings)));
+    private final AbstractConfigCell useCameraApiRow = cellGroup.appendCell(new ConfigCellTextDynamic(
+            () -> getString(R.string.CameraSettings),
+            () -> getString(SharedConfig.isUsingCamera2(currentAccount)
+                    ? R.string.DebugMenuUseCamera2Api : R.string.DebugMenuUseOldCamera1Api),
+            () -> {
+                SharedConfig.toggleUseCamera2(currentAccount);
+                if (listAdapter != null) {
+                    listAdapter.notifyDataSetChanged();
+                }
+                tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
+            }));
+    private final AbstractConfigCell dividerCamera = cellGroup.appendCell(new ConfigCellDivider());
+
     // AutoDownload
     private final AbstractConfigCell headerAutoDownload = cellGroup.appendCell(new ConfigCellHeader(getString(R.string.AutoDownload)));
     private final AbstractConfigCell win32Row = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.disableAutoDownloadingWin32Executable));
     private final AbstractConfigCell archiveRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.disableAutoDownloadingArchive));
     private final AbstractConfigCell dividerAutoDownload = cellGroup.appendCell(new ConfigCellDivider());
+
+    // Declared after every row above so the initializers have already run. Order matters: this is
+    // the order the block is put back in, and it has to match the order it was appended in.
+    private final AbstractConfigCell[] textAnimationSubRows = {
+            textAnimationBehaviourHeaderRow,
+            textAnimationAllLinesRow,
+            textAnimationIgnoreSpacesRow,
+            textAnimationDurationRow,
+            textAnimationSoftHeaderRow,
+            textAnimationBlurRow,
+            textAnimationBlurDurationRow,
+            textAnimationBlurRadiusRow,
+            textAnimationBlurTextDelayRow,
+            textAnimationMotionHeaderRow,
+            textAnimationSlideRow,
+            textAnimationSlideDistanceRow,
+            textAnimationScaleRow,
+            textAnimationScaleStartRow,
+            textAnimationRotateRow,
+            textAnimationRotateAngleRow,
+            textAnimationDeleteHeaderRow,
+            textAnimationDeleteRow,
+            textAnimationParticleStyleRow,
+            textAnimationParticleCountRow,
+            textAnimationParticleSpeedRow,
+            textAnimationParticleSpreadRow,
+            textAnimationParticleSizeRow,
+            textAnimationCursorHeaderRow,
+            textAnimationCursorRow,
+            textAnimationCursorSpeedRow,
+            textAnimationCursorWidthRow,
+            textAnimationLiquidCursorRow,
+            textAnimationLiquidScaleRow,
+            textAnimationSelectionEffectRow,
+            textAnimationSelectionStretchRow,
+            textAnimationSelectionSideRow,
+    };
 
     public NekoGeneralSettingsActivity() {
         if (!NaConfig.INSTANCE.getCenterActionBarTitle().Bool()) {
@@ -290,6 +396,7 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
         }
         wasCentered = isCentered();
         wasCenteredAtBeginning = wasCentered;
+        ((ConfigCellSlider) chatBlurAlphaValueRow).setEnabled(NekoConfig.forceBlurInChat.Bool());
 
         checkCustomDoHRows();
         checkMapDriftingFixRows();
@@ -298,6 +405,7 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
         checkOpenArchiveOnPullRows();
         checkMainTabsRows();
         checkFontsRows();
+        checkTextAnimationRows(false);
         addRowsToMap(cellGroup);
     }
 
@@ -344,6 +452,9 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
                 }
             } else if (key.equals(NekoConfig.useOSMDroidMap.getKey())) {
                 checkMapDriftingFixRows();
+            } else if (key.equals(NekoConfig.forceBlurInChat.getKey())) {
+                ((ConfigCellSlider) chatBlurAlphaValueRow).setEnabled((Boolean) newValue);
+                listAdapter.notifyItemChanged(cellGroup.rows.indexOf(chatBlurAlphaValueRow));
             } else if (key.equals(NaConfig.INSTANCE.getPushServiceType().getKey())) {
                 PushListenerController.reconcilePushRegistration();
                 if ((int) newValue == 0) {
@@ -424,10 +535,42 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
                 parentLayout.rebuildFragments(0);
             } else if (key.equals(NaConfig.INSTANCE.getHideDialogsSearchField().getKey())) {
                 parentLayout.rebuildFragments(0);
+            } else if (key.equals(NekoConfig.textAnimation.getKey())) {
+                checkTextAnimationRows(true);
             }
         };
 
         return superView;
+    }
+
+    private void checkTextAnimationRows(boolean notify) {
+        final boolean show = NekoConfig.textAnimation.Bool();
+        AbstractConfigCell after = textAnimationRow;
+        for (AbstractConfigCell row : textAnimationSubRows) {
+            if (show) {
+                if (!cellGroup.rows.contains(row)) {
+                    final int index = cellGroup.rows.indexOf(after) + 1;
+                    cellGroup.rows.add(index, row);
+                    if (notify && listAdapter != null) {
+                        listAdapter.notifyItemInserted(index);
+                    }
+                }
+                after = row;
+            } else {
+                final int index = cellGroup.rows.indexOf(row);
+                if (index >= 0) {
+                    cellGroup.rows.remove(index);
+                    if (notify && listAdapter != null) {
+                        listAdapter.notifyItemRemoved(index);
+                    }
+                }
+            }
+        }
+        if (notify && listAdapter != null) {
+            // The toggle itself now sits next to a different neighbour, so its divider has to be redrawn.
+            listAdapter.notifyItemChanged(cellGroup.rows.indexOf(textAnimationRow));
+        }
+        addRowsToMap(cellGroup);
     }
 
     private void showUnifiedPushStatistics() {

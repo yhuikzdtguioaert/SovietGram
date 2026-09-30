@@ -23,6 +23,8 @@ import org.telegram.messenger.FileLog;
 import java.nio.ByteBuffer;
 import java.util.regex.Pattern;
 
+import tw.nekomimi.nekogram.helpers.VoiceChangerHelper;
+
 public class AudioRecordJNI {
 
 	private AudioRecord audioRecord;
@@ -137,6 +139,7 @@ public class AudioRecordJNI {
 			}
 			thread = null;
 		}
+		VoiceChangerHelper.call().release();
 		if (audioRecord != null) {
 			audioRecord.release();
 			audioRecord = null;
@@ -180,6 +183,7 @@ public class AudioRecordJNI {
 			throw new IllegalStateException("thread already started");
 		}
 		running = true;
+		VoiceChangerHelper.call().start(48000, 1);
 		final ByteBuffer tmpBuf = needResampling ? ByteBuffer.allocateDirect(882 * 2) : null;
 		thread = new Thread(() -> {
 			while (running) {
@@ -194,6 +198,7 @@ public class AudioRecordJNI {
 						audioRecord.stop();
 						break;
 					}
+					VoiceChangerHelper.call().process(buffer, 960 * 2);
 					nativeCallback(buffer);
 				} catch (Exception e) {
 					VLog.e(e);

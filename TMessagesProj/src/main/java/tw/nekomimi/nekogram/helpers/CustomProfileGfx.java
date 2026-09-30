@@ -75,6 +75,9 @@ public final class CustomProfileGfx {
     private static final Paint fadePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private static final Paint bitmapPaint = new Paint(Paint.FILTER_BITMAP_FLAG | Paint.ANTI_ALIAS_FLAG);
     private static final Matrix matrix = new Matrix();
+    private static final long[] fadeKeys = {Long.MIN_VALUE, Long.MIN_VALUE, Long.MIN_VALUE, Long.MIN_VALUE};
+    private static final Shader[] fadeShaders = new Shader[fadeKeys.length];
+    private static int nextFadeSlot;
 
     static {
         fadePaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_IN));
@@ -312,23 +315,42 @@ public final class CustomProfileGfx {
         if (mode == 0 || width <= 0 || height <= 0) {
             return null;
         }
+        long key = 17;
+        key = key * 31 + mode;
+        key = key * 31 + angleDeg;
+        key = key * 31 + radiusPercent;
+        key = key * 31 + centerXPercent;
+        key = key * 31 + centerYPercent;
+        key = key * 31 + Float.floatToIntBits(width);
+        key = key * 31 + Float.floatToIntBits(height);
+        for (int i = 0; i < fadeKeys.length; i++) {
+            if (fadeKeys[i] == key && fadeShaders[i] != null) {
+                return fadeShaders[i];
+            }
+        }
         final float r = clamp(radiusPercent, 20, 200) / 100f;
         final float cx = clampF(centerXPercent / 100f, 0f, 1f);
         final float cy = clampF(centerYPercent / 100f, 0f, 1f);
+        final Shader shader;
         if (mode == 2) {
             final float radius = r * 0.5f * Math.max(width, height);
             if (radius <= 0) {
                 return null;
             }
-            return new RadialGradient(cx * width, cy * height, radius, FADE_COLORS, null,
+            shader = new RadialGradient(cx * width, cy * height, radius, FADE_COLORS, null,
                     Shader.TileMode.CLAMP);
+        } else {
+            final double theta = Math.toRadians(angleDeg);
+            final float half = r * 0.5f;
+            final float dx = (float) Math.sin(theta) * half;
+            final float dy = -(float) Math.cos(theta) * half;
+            shader = new LinearGradient((cx - dx) * width, (cy - dy) * height,
+                    (cx + dx) * width, (cy + dy) * height, FADE_COLORS, null, Shader.TileMode.CLAMP);
         }
-        final double theta = Math.toRadians(angleDeg);
-        final float half = r * 0.5f;
-        final float dx = (float) Math.sin(theta) * half;
-        final float dy = -(float) Math.cos(theta) * half;
-        return new LinearGradient((cx - dx) * width, (cy - dy) * height,
-                (cx + dx) * width, (cy + dy) * height, FADE_COLORS, null, Shader.TileMode.CLAMP);
+        fadeKeys[nextFadeSlot] = key;
+        fadeShaders[nextFadeSlot] = shader;
+        nextFadeSlot = (nextFadeSlot + 1) % fadeKeys.length;
+        return shader;
     }
 
     /**
@@ -495,8 +517,13 @@ public final class CustomProfileGfx {
             if (scale >= 1f) {
                 return frame;
             }
-            return Bitmap.createScaledBitmap(frame, Math.max(1, Math.round(frame.getWidth() * scale)),
+            final Bitmap scaled = Bitmap.createScaledBitmap(frame,
+                    Math.max(1, Math.round(frame.getWidth() * scale)),
                     Math.max(1, Math.round(frame.getHeight() * scale)), true);
+            if (scaled != frame) {
+                frame.recycle();
+            }
+            return scaled;
         } catch (Throwable e) {
             FileLog.e(e);
             return null;

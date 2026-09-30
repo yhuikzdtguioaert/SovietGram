@@ -57,6 +57,8 @@ public final class CustomProfileBlocks {
 
     @Nullable
     private static Bitmap backdrop;
+    @Nullable
+    private static BitmapShader backdropShader;
     private static long backdropKey;
 
     private CustomProfileBlocks() {
@@ -65,6 +67,7 @@ public final class CustomProfileBlocks {
     /** Drops the frosted copy. Called whenever the look changes under it. */
     public static void invalidate() {
         backdrop = null;
+        backdropShader = null;
         backdropKey = 0;
     }
 
@@ -121,7 +124,10 @@ public final class CustomProfileBlocks {
         if (frosted == null) {
             return;
         }
-        final BitmapShader shader = new BitmapShader(frosted, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP);
+        if (backdropShader == null) {
+            backdropShader = new BitmapShader(frosted, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP);
+        }
+        final BitmapShader shader = backdropShader;
         // The backdrop was drawn in the list's own coordinates, only smaller, so scaling it back up is
         // the whole of the mapping — the card's rectangle lands on the same pixels it covers.
         matrix.reset();
@@ -171,6 +177,7 @@ public final class CustomProfileBlocks {
             CustomProfileHelper.drawBackdrop(canvas, width, height);
             Utilities.stackBlurBitmap(small, radius);
             backdrop = small;
+            backdropShader = null;
             backdropKey = key;
             return small;
         } catch (Throwable e) {

@@ -2479,6 +2479,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     @Override
     public void onFragmentDestroy() {
         super.onFragmentDestroy();
+        CustomProfileHelper.clearDrawingLook(this);
         if (sharedMediaLayout != null) {
             sharedMediaLayout.onDestroy();
         }
@@ -10171,11 +10172,13 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     @Override
     public void onPause() {
         super.onPause();
-        // Unconditionally: a peer's look must not follow onto whatever screen comes next either.
-        CustomProfileHelper.clearDrawingLook(this);
-        // Also unconditionally: a peer's look can animate its banner or background just as the own one
-        // can, and the player holds a decoder thread either way.
-        CustomProfileHelper.releaseVideo();
+        // A predictive back transition may still be drawing this profile after onPause. Keep its
+        // look until the transition finishes so the avatar and header do not vanish mid-gesture.
+        AndroidUtilities.runOnUIThread(() -> {
+            if (isPaused && !transitionAnimationInProress) {
+                CustomProfileHelper.releaseVideoFor(this);
+            }
+        }, 500);
         // Nobody is looking at this peer any more, so stop re-reading them.
         SovietGramProfileSync.unwatch(userId);
         if (undoView != null) {
@@ -10252,6 +10255,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             undoView.hide(true, 0);
         }
         super.onBecomeFullyHidden();
+        CustomProfileHelper.clearDrawingLook(this);
         fullyVisible = false;
     }
 

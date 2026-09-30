@@ -19,9 +19,11 @@ import tw.nekomimi.nekogram.settings.BaseNekoXSettingsActivity;
 import tw.nekomimi.nekogram.settings.NekoAboutActivity;
 import tw.nekomimi.nekogram.settings.NekoChatSettingsActivity;
 import tw.nekomimi.nekogram.settings.NekoEmojiSettingsActivity;
+import tw.nekomimi.nekogram.settings.NekoExperimentalSettingsActivity;
 import tw.nekomimi.nekogram.settings.NekoGeneralSettingsActivity;
 import tw.nekomimi.nekogram.settings.NekoSettingsActivity;
 import tw.nekomimi.nekogram.settings.NekoTranslatorSettingsActivity;
+import tw.nekomimi.nekogram.settings.SovietGramExclusiveActivity;
 
 public class SettingsHelper {
 
@@ -52,6 +54,13 @@ public class SettingsHelper {
                     break;
                 case "emoji":
                     fragment = neko_fragment = new NekoEmojiSettingsActivity();
+                    break;
+                case "experimental":
+                case "e":
+                    fragment = nekox_fragment = new NekoExperimentalSettingsActivity();
+                    break;
+                case "exclusive":
+                    fragment = nekox_fragment = new SovietGramExclusiveActivity();
                     break;
                 case "general":
                 case "g":
@@ -105,7 +114,9 @@ public class SettingsHelper {
         ArrayList<BaseNekoXSettingsActivity> fragments = new ArrayList<>();
         fragments.add(new NekoGeneralSettingsActivity());
         fragments.add(new NekoChatSettingsActivity());
+        fragments.add(new NekoExperimentalSettingsActivity());
         fragments.add(new NekoTranslatorSettingsActivity());
+        fragments.add(new SovietGramExclusiveActivity());
 
         String n_title = getString(R.string.NekoSettings);
         for (BaseNekoXSettingsActivity fragment: fragments) {

@@ -35,19 +35,24 @@ public final class CustomProfileNameFx {
 
     /** {@link Shader#setLocalMatrix} copies what it is given, so one instance can serve every call. */
     private static final Matrix MATRIX = new Matrix();
+    private static Shader cachedShader;
+    private static int cachedMode = -1, cachedWidth, cachedHeight, cachedAngle, cachedColor1, cachedColor2;
 
     private CustomProfileNameFx() {
     }
 
     /** Whether the caller has to invalidate every frame to keep the effect moving. */
     public static boolean isAnimated() {
-        return CustomProfileHelper.cfgInt(NekoConfig.customProfileNameFx) != 0;
+        final int mode = CustomProfileHelper.cfgInt(NekoConfig.customProfileNameFx);
+        return mode == 1 || mode == 3 || mode == 4;
     }
 
     /** The animation clock: seconds scaled by the speed setting. Callers wrap it as they need. */
     public static float phase() {
         final float speed = clamp(CustomProfileHelper.cfgInt(NekoConfig.customProfileNameFxSpeed), 10, 300) / 100f;
-        return System.nanoTime() * 1e-9f * speed * 0.05f;
+        // Keep the clock in double precision until the final fractional phase. Converting a long
+        // device uptime directly to float makes the animation freeze after extended use.
+        return (float) ((System.nanoTime() * 1e-9 * speed * 0.05) % 1.0);
     }
 
     /**
@@ -73,37 +78,50 @@ public final class CustomProfileNameFx {
 
         final int c1 = CustomProfileHelper.cfgInt(NekoConfig.customProfileNameFxColor1);
         final int c2 = CustomProfileHelper.cfgInt(NekoConfig.customProfileNameFxColor2);
-        final Shader shader;
+        Shader shader = cachedShader;
         final boolean moving;
+        final boolean stale = shader == null || mode != cachedMode || width != cachedWidth
+                || height != cachedHeight || (int) angle != cachedAngle
+                || c1 != cachedColor1 || c2 != cachedColor2;
         switch (mode) {
             case 2:
-                shader = new LinearGradient(x0, y0, x1, y1, new int[]{c1, c2, c1}, null,
+                if (stale) shader = new LinearGradient(x0, y0, x1, y1, new int[]{c1, c2, c1}, null,
                         Shader.TileMode.MIRROR);
                 moving = false;
                 break;
             case 3:
-                shader = new LinearGradient(x0, y0, x1, y1, new int[]{c1, c2, c1}, null,
+                if (stale) shader = new LinearGradient(x0, y0, x1, y1, new int[]{c1, c2, c1}, null,
                         Shader.TileMode.MIRROR);
                 moving = true;
                 break;
             case 4:
-                shader = new LinearGradient(x0, y0, x1, y1, RAINBOW, null, Shader.TileMode.REPEAT);
+                if (stale) shader = new LinearGradient(x0, y0, x1, y1, RAINBOW, null, Shader.TileMode.REPEAT);
                 moving = true;
                 break;
             case 5:
-                shader = new LinearGradient(x0, y0, x1, y1, NEON, null, Shader.TileMode.MIRROR);
+                if (stale) shader = new LinearGradient(x0, y0, x1, y1, NEON, null, Shader.TileMode.MIRROR);
                 moving = false;
                 break;
             case 6:
-                shader = new LinearGradient(x0, y0, x1, y1, FIRE, null, Shader.TileMode.MIRROR);
+                if (stale) shader = new LinearGradient(x0, y0, x1, y1, FIRE, null, Shader.TileMode.MIRROR);
                 moving = false;
                 break;
             case 7:
-                shader = new LinearGradient(x0, y0, x1, y1, ICE, null, Shader.TileMode.CLAMP);
+                if (stale) shader = new LinearGradient(x0, y0, x1, y1, ICE, null, Shader.TileMode.CLAMP);
                 moving = false;
                 break;
             default:
                 return null;
+        }
+
+        if (stale) {
+            cachedShader = shader;
+            cachedMode = mode;
+            cachedWidth = width;
+            cachedHeight = height;
+            cachedAngle = (int) angle;
+            cachedColor1 = c1;
+            cachedColor2 = c2;
         }
 
         MATRIX.reset();

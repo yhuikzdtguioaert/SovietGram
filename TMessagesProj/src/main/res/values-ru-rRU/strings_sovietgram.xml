@@ -696,4 +696,12 @@
     <string name="SaveDeletedCategoryPrivateChannels">Сохранять удалённые сообщения в частных каналах</string>
     <string name="SaveDeletedCategoryPublicGroups">Сохранять удалённые сообщения в публичных группах</string>
     <string name="SaveDeletedCategoryPrivateGroups">Сохранять удалённые сообщения в частных группах</string>
+    <string name="CustomProfileFontBundled">Из этого оформления</string>
+    <string name="WorkshopInstalledPartly">Оформление установлено, но не удалось скачать: %1$s</string>
+    <string name="customProfileBackgroundFadeCenterX">Центр затухания по горизонтали</string>
+    <string name="customProfileBackgroundFadeCenterY">Центр затухания по вертикали</string>
+    <string name="customProfileBannerFadeCenterX">Центр затухания по горизонтали</string>
+    <string name="customProfileBannerFadeCenterY">Центр затухания по вертикали</string>
+    <string name="customProfileGradientCenterX">Центр градиента по горизонтали</string>
+    <string name="customProfileGradientCenterY">Центр градиента по вертикали</string>
 </resources>

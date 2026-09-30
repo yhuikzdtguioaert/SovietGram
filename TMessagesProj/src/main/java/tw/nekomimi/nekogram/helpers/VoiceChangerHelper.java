@@ -28,6 +28,7 @@ public final class VoiceChangerHelper {
 
     private static final Session recorderSession = new Session();
     private static final Session callSession = new Session();
+    private static final Session videoSession = new Session();
 
     private VoiceChangerHelper() {
     }
@@ -35,6 +36,11 @@ public final class VoiceChangerHelper {
     /** The session the VoIP capture thread rewrites its frames through. */
     public static Session call() {
         return callSession;
+    }
+
+    /** Round video messages have their own encoder and recording lifetime. */
+    public static Session video() {
+        return videoSession;
     }
 
     /** @return the pitch factor of a preset, {@code 1} for anything that leaves the voice alone. */
@@ -53,6 +59,10 @@ public final class VoiceChangerHelper {
     /** Reads the config once, when recording starts, so a mid-recording change cannot split a take. */
     public static void start() {
         recorderSession.start(DEFAULT_SAMPLE_RATE, 1);
+    }
+
+    public static void start(int sampleRate, int channels) {
+        recorderSession.start(sampleRate, channels);
     }
 
     public static void release() {
