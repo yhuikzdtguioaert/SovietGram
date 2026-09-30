@@ -16404,8 +16404,10 @@ public class MessagesController extends BaseController implements NotificationCe
                     }
                 }
                 if (account != -1) {
+                    tw.nekomimi.nekogram.helpers.SovietGramAccountScope.syncTo(account);
                     UserConfig.selectedAccount = account;
                     UserConfig.getInstance(0).saveConfig(false);
+                    tw.nekomimi.nekogram.helpers.SovietGramSync.scheduleProfilePush();
                     if (LaunchActivity.instance != null) {
                         LaunchActivity.instance.clearFragments();
                     }

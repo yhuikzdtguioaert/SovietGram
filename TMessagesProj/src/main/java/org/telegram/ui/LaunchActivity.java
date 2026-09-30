@@ -1236,8 +1236,12 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         switchingAccount = true;
 
         ConnectionsManager.getInstance(currentAccount).setAppPaused(true, false);
+        // The custom profile and SovietGram identity settings are stored per Telegram account.
+        // Swap their live values before selectedAccount changes and fragments are rebuilt.
+        tw.nekomimi.nekogram.helpers.SovietGramAccountScope.syncTo(account);
         UserConfig.selectedAccount = account;
         UserConfig.getInstance(0).saveConfig(false);
+        tw.nekomimi.nekogram.helpers.SovietGramSync.scheduleProfilePush();
 
         checkCurrentAccount();
         NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.activeAccountChanged, account);

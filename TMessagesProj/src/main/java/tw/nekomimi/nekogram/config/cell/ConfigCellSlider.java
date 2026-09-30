@@ -68,8 +68,9 @@ public class ConfigCellSlider extends AbstractConfigCell implements WithBindConf
 
     @Override
     public boolean isEnabled() {
-        // The row is never clickable as a whole: the bar inside it takes the touches.
-        return false;
+        // RecyclerListView gates touch dispatch for disabled rows, including child SeekBarViews.
+        // The row click handler has no slider case; the bar itself handles drags and taps.
+        return enabled;
     }
 
     public void setEnabled(boolean enabled) {

@@ -164,6 +164,8 @@ public final class CustomProfileHeaderLayout {
     private static long geometrySettled;
     private static int geometryStableFrames;
     private static boolean wasPulled;
+    private static int measurementRetries;
+    private static boolean measurementRetryPosted;
     private static long openedAt = SystemClock.uptimeMillis();
 
     private CustomProfileHeaderLayout() {
@@ -182,6 +184,8 @@ public final class CustomProfileHeaderLayout {
         stableResolves = 0;
         geometryStableFrames = 0;
         wasPulled = false;
+        measurementRetries = 0;
+        measurementRetryPosted = false;
         openedAt = SystemClock.uptimeMillis();
         java.util.Arrays.fill(shiftX, 0f);
         java.util.Arrays.fill(shiftY, 0f);
@@ -265,6 +269,21 @@ public final class CustomProfileHeaderLayout {
         if (!CustomProfileHelper.isEnabled() || !has() || root == null) {
             restoreAll();
             return;
+        }
+        // During the entrance animation Telegram may draw the header before its status or avatar
+        // has been measured. The collision solver cannot place Last Seen in that frame; request a
+        // bounded follow-up as soon as layout has had another chance, without waiting for a scroll.
+        if (avatar != null && status != null
+                && (avatar.getWidth() == 0 || status.getWidth() == 0)
+                && measurementRetries < 4 && !measurementRetryPosted) {
+            measurementRetryPosted = true;
+            measurementRetries++;
+            root.postOnAnimation(() -> {
+                measurementRetryPosted = false;
+                if (root.isAttachedToWindow()) {
+                    apply(root, avatar, name, status, actions, expand, pull);
+                }
+            });
         }
         parse();
         final float width = Math.max(1f, root.getWidth());
@@ -517,7 +536,7 @@ public final class CustomProfileHeaderLayout {
         // Resolving needs everything measured, and the header fully open — a part measured mid-
         // collapse would anchor its neighbour to a size that is about to change.
         if ((working || !anchorsReady || signature != anchorSignature)
-                && amount > 0.99f && measured(views, targets)) {
+                && amount > 0.6f && measured(views, targets)) {
             resolve(root, views, wantedX, wantedY, targets);
             anchorSignature = signature;
             anchorsReady = true;

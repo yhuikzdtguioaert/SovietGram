@@ -415,8 +415,10 @@ public class ExternalActionActivity extends Activity implements INavigationLayou
             return;
         }
         ConnectionsManager.getInstance(UserConfig.selectedAccount).setAppPaused(true, false);
+        tw.nekomimi.nekogram.helpers.SovietGramAccountScope.syncTo(account);
         UserConfig.selectedAccount = account;
         UserConfig.getInstance(0).saveConfig(false);
+        tw.nekomimi.nekogram.helpers.SovietGramSync.scheduleProfilePush();
         if (!ApplicationLoader.mainInterfacePaused) {
             ConnectionsManager.getInstance(UserConfig.selectedAccount).setAppPaused(false, false);
         }

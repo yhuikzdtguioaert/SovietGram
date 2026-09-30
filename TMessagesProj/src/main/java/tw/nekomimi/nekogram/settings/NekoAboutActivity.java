@@ -20,7 +20,6 @@ public class NekoAboutActivity extends BaseNekoSettingsActivity {
     private static final String SOURCE_CODE_URL = "https://github.com/yhuikzdtguioaert/SovietGram";
 
     private int sovietGramChannelRow;
-    private int nagramXChannelRow;
     private int sourceCodeRow;
     private int datacenterStatusRow;
 
@@ -29,7 +28,6 @@ public class NekoAboutActivity extends BaseNekoSettingsActivity {
         super.updateRows();
 
         sovietGramChannelRow = addRow();
-        nagramXChannelRow = addRow();
         sourceCodeRow = addRow();
         datacenterStatusRow = addRow();
     }
@@ -43,8 +41,6 @@ public class NekoAboutActivity extends BaseNekoSettingsActivity {
     protected void onItemClick(View view, int position, float x, float y) {
         if (position == sovietGramChannelRow) {
             MessagesController.getInstance(currentAccount).openByUserName("SovietUnionGram", NekoAboutActivity.this, 1);
-        } else if (position == nagramXChannelRow) {
-            MessagesController.getInstance(currentAccount).openByUserName("NagramX", NekoAboutActivity.this, 1);
         } else if (position == sourceCodeRow) {
             // The repository is not a Telegram link, so hand it straight to the system browser
             // instead of the in-app one.
@@ -71,8 +67,6 @@ public class NekoAboutActivity extends BaseNekoSettingsActivity {
                 TextSettingsCell textCell = (TextSettingsCell) holder.itemView;
                 if (position == sovietGramChannelRow) {
                     textCell.setTextAndValue(getString(R.string.SovietGramChannel), "@SovietUnionGram", true);
-                } else if (position == nagramXChannelRow) {
-                    textCell.setTextAndValue(getString(R.string.NagramXChannel), "@NagramX", true);
                 } else if (position == sourceCodeRow) {
                     textCell.setTextAndValue(getString(R.string.SourceCode), "GitHub", true);
                 } else if (position == datacenterStatusRow) {
