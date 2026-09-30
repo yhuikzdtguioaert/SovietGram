@@ -237,6 +237,7 @@
     <string name="WorkshopReport">Пожаловаться</string>
     <string name="WorkshopReportReason">Причина жалобы</string>
     <string name="WorkshopDeleteConfirm">Удалить опубликованную работу?</string>
+    <string name="WorkshopAuthorWorks">Другие работы автора</string>
 
     <string name="CustomProfileHeaderBanner">Баннер</string>
     <string name="customProfileBannerType">Тип баннера</string>

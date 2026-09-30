@@ -23,13 +23,15 @@ public final class SovietWorkshop {
     private SovietWorkshop() { }
 
     public static void list(int account, String kind, String mode, String query,
+                            @Nullable String author,
                             WorkshopHelper.Callback<List<WorkshopHelper.Work>> callback) {
         if (!SovietGramApiClient.isReady(account)) {
             callback.onResult(new ArrayList<>(), null);
             return;
         }
         final String path = "/v1/works?kind=" + enc(kind) + "&mode=" + enc(mode)
-                + "&q=" + enc(query);
+                + "&q=" + enc(query)
+                + (author == null ? "" : "&author=" + enc(author));
         SovietGramApiClient.get(account, path, (body, error) -> {
             if (body == null) {
                 callback.onResult(null, error);

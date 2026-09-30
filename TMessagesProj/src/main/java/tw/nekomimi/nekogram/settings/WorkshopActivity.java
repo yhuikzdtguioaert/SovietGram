@@ -66,6 +66,7 @@ public class WorkshopActivity extends BaseFragment {
     private TextView profileTab;
     private TextView frameTab;
     private String search = "";
+    private String authorFilter;
     private Runnable pendingSearch;
 
     private final List<WorkshopHelper.Work> works = new ArrayList<>();
@@ -221,6 +222,7 @@ public class WorkshopActivity extends BaseFragment {
         view.setOnClickListener(v -> {
             if (tabKind.equals(kind)) return;
             kind = tabKind;
+            authorFilter = null;
             actionBar.setTitle(getString(WorkshopHelper.KIND_FRAME.equals(kind)
                     ? R.string.CustomProfileFrames : R.string.CustomProfileWorkshop));
             updateTabs();
@@ -268,6 +270,7 @@ public class WorkshopActivity extends BaseFragment {
                         return;
                     }
                     section = which;
+                    authorFilter = null;
                     actionBar.setSubtitle(sectionNames().get(section));
                     load();
                 });
@@ -304,15 +307,21 @@ public class WorkshopActivity extends BaseFragment {
         final boolean mine = String.valueOf(UserConfig.getInstance(account).getClientUserId())
                 .equals(work.author);
         final ArrayList<String> options = new ArrayList<>();
+        options.add(getString(R.string.WorkshopAuthorWorks));
         options.add(getString(work.favorited ? R.string.WorkshopUnfavorite : R.string.WorkshopFavorite));
         options.add(getString(mine ? R.string.Delete : R.string.WorkshopReport));
         PopupHelper.show(options, work.title, -1, getParentActivity(), choice -> {
             if (choice == 0) {
+                authorFilter = work.author;
+                section = 5;
+                actionBar.setSubtitle(getString(R.string.WorkshopAuthorWorks) + " " + work.author);
+                load();
+            } else if (choice == 1) {
                 SovietWorkshop.favorite(account, work, !work.favorited, (done, error) -> {
                     if (done == null) showError(error);
                     else { work.favorited = done; if (section == 8) load(); }
                 });
-            } else if (choice == 1 && mine) {
+            } else if (choice == 2 && mine) {
                 new AlertDialog.Builder(getParentActivity())
                         .setTitle(getString(R.string.Delete))
                         .setMessage(getString(R.string.WorkshopDeleteConfirm))
@@ -322,7 +331,7 @@ public class WorkshopActivity extends BaseFragment {
                                     else load();
                                 }))
                         .setNegativeButton(getString(R.string.Cancel), null).show();
-            } else if (choice == 1) {
+            } else if (choice == 2) {
                 final EditText reason = new EditText(getParentActivity());
                 reason.setHint(getString(R.string.WorkshopReportReason));
                 new AlertDialog.Builder(getParentActivity())
@@ -366,7 +375,8 @@ public class WorkshopActivity extends BaseFragment {
             updateEmptyState(result == null ? loadFailedText(error) : null);
         };
         if (section >= 5) {
-            SovietWorkshop.list(account, kind, SECTIONS[section][0].substring(7), search, finished);
+            SovietWorkshop.list(account, kind, SECTIONS[section][0].substring(7),
+                    search, authorFilter, finished);
         } else {
             WorkshopHelper.list(SECTIONS[section][0], SECTIONS[section][1], kind, finished);
         }
