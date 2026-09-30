@@ -147,6 +147,8 @@ public final class SovietGramApiClient {
      * thread and avoid another in-memory copy of the same media.
      */
     public static final int MAX_VIDEO_BYTES = 96 * 1024 * 1024;
+    private static final int SINGLE_UPLOAD_BYTES = 64 * 1024 * 1024;
+    private static final int UPLOAD_PART_BYTES = 10 * 1024 * 1024;
 
     /**
      * The largest upload of any kind, which is what the transport itself has to be sized against —
@@ -210,6 +212,11 @@ public final class SovietGramApiClient {
         if (!file.isFile() || length <= 0 || length > MAX_VIDEO_BYTES) {
             throw new IOException("media_too_large");
         }
+        // A 96 MiB file turns into a 128 MiB JSON request, beyond the public proxy's 100 MB
+        // request cap. Ten smaller signed parts keep every request under that cap.
+        if (length > SINGLE_UPLOAD_BYTES) {
+            return uploadMediaFileInParts(account, slot, file, length);
+        }
         final String base = ApiServersHelper.baseUrl();
         final String token = SovietGramTokenStore.tokenForAccount(account);
         if (TextUtils.isEmpty(base) || !base.startsWith("https://") || TextUtils.isEmpty(token)) {
@@ -253,6 +260,58 @@ public final class SovietGramApiClient {
                 .post(body)
                 .build();
         return readJson(account, HttpClient.INSTANCE.getUploadInstance().newCall(request).execute(), true);
+    }
+
+    /** Upload a large file in bounded, independently signed parts, then publish its verified SHA. */
+    private static JSONObject uploadMediaFileInParts(int account, String slot, File file,
+                                                      long length) throws IOException {
+        final MessageDigest digest;
+        try {
+            digest = MessageDigest.getInstance("SHA-256");
+        } catch (Exception e) {
+            throw new IOException("sha256_unavailable", e);
+        }
+        final byte[] hashBuffer = new byte[64 * 1024];
+        try (FileInputStream in = new FileInputStream(file)) {
+            int read;
+            while ((read = in.read(hashBuffer)) > 0) {
+                digest.update(hashBuffer, 0, read);
+            }
+        }
+        if (file.length() != length) throw new IOException("media_changed");
+        final String sha = hex(digest.digest());
+        final byte[] suffix = "\"}".getBytes(StandardCharsets.US_ASCII);
+        try (FileInputStream in = new FileInputStream(file)) {
+            long remaining = length;
+            int index = 0;
+            while (remaining > 0) {
+                final int wanted = (int) Math.min(remaining, UPLOAD_PART_BYTES);
+                final byte[] part = new byte[wanted];
+                int at = 0;
+                while (at < wanted) {
+                    final int read = in.read(part, at, wanted - at);
+                    if (read <= 0) throw new IOException("media_changed");
+                    at += read;
+                }
+                final byte[] prefix = ("{\"sha\":\"" + sha + "\",\"index\":" + index
+                        + ",\"size\":" + length + ",\"data\":\"")
+                        .getBytes(StandardCharsets.US_ASCII);
+                final byte[] body = new byte[prefix.length + base64Length(wanted) + suffix.length];
+                System.arraycopy(prefix, 0, body, 0, prefix.length);
+                encodeBase64Into(part, body, prefix.length);
+                System.arraycopy(suffix, 0, body, body.length - suffix.length, suffix.length);
+                readJson(account, execute(account, "POST", "/v1/media/chunk", body, true,
+                        HttpClient.INSTANCE.getUploadInstance()), true);
+                remaining -= wanted;
+                index++;
+            }
+        }
+        if (file.length() != length) throw new IOException("media_changed");
+        final byte[] complete = ("{\"sha\":\"" + sha + "\",\"size\":" + length
+                + ",\"slot\":\"" + mediaSlot(slot) + "\"}")
+                .getBytes(StandardCharsets.US_ASCII);
+        return readJson(account, execute(account, "POST", "/v1/media/complete", complete,
+                true, HttpClient.INSTANCE.getUploadInstance()), true);
     }
 
     @FunctionalInterface
