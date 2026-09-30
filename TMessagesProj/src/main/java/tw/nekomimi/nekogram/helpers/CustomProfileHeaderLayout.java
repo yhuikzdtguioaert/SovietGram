@@ -153,6 +153,9 @@ public final class CustomProfileHeaderLayout {
     // animated headers do not create two new arrays on every frame.
     private static final float[] frameWantedX = new float[CustomProfileAnchors.COUNT];
     private static final float[] frameWantedY = new float[CustomProfileAnchors.COUNT];
+    private static final View[] frameViews = new View[CustomProfileAnchors.COUNT];
+    private static final int[] frameTargets = new int[CustomProfileAnchors.COUNT];
+    private static final boolean[] framePresent = new boolean[CustomProfileAnchors.COUNT];
 
     private static boolean anchorsReady;
     private static long anchorSignature = Long.MIN_VALUE;
@@ -266,7 +269,12 @@ public final class CustomProfileHeaderLayout {
         parse();
         final float width = Math.max(1f, root.getWidth());
         final float amount = headerAmount(expand, pull);
-        final View[] views = {avatar, name, status, actions, null};
+        final View[] views = frameViews;
+        views[CustomProfileAnchors.AVATAR] = avatar;
+        views[CustomProfileAnchors.NAME] = name;
+        views[CustomProfileAnchors.STATUS] = status;
+        views[CustomProfileAnchors.ACTIONS] = actions;
+        views[CustomProfileAnchors.TITLE] = null;
 
         // The name's view is as wide as the header, so anchoring it by its edge would anchor empty
         // space. This shifts it by half its text so the letters land where the anchor says.
@@ -457,7 +465,20 @@ public final class CustomProfileHeaderLayout {
             addShift(wantedX, wantedY);
             return;
         }
-        final int[] targets = CustomProfileAnchors.withoutMissing(targets(), present(views));
+        final int[] targets = frameTargets;
+        for (int i = 0; i < targets.length; i++) {
+            targets[i] = anchorValue(i, TARGET);
+            framePresent[i] = views[i] != null && views[i].getVisibility() != View.GONE;
+            if (!framePresent[i]) {
+                targets[i] = CustomProfileAnchors.TARGET_NONE;
+            }
+        }
+        for (int i = 0; i < targets.length; i++) {
+            final int part = CustomProfileAnchors.partOf(targets[i]);
+            if (part >= 0 && !framePresent[part]) {
+                targets[i] = CustomProfileAnchors.TARGET_NONE;
+            }
+        }
         boolean any = false;
         long signature = 527L + preset();
         for (int target : targets) {
@@ -566,14 +587,6 @@ public final class CustomProfileHeaderLayout {
         stableResolves = CustomProfileAnchors.nextStableCount(stableResolves, moved);
     }
 
-    private static boolean[] present(View[] views) {
-        final boolean[] out = new boolean[views.length];
-        for (int i = 0; i < views.length; i++) {
-            out[i] = views[i] != null && views[i].getVisibility() != View.GONE;
-        }
-        return out;
-    }
-
     /** Whether everything an anchor depends on has a size yet. */
     private static boolean measured(View[] views, int[] targets) {
         boolean needsThought = false;
@@ -620,13 +633,13 @@ public final class CustomProfileHeaderLayout {
         long hash = 17;
         for (int axis = 0; axis < 2; axis++) {
             final boolean vertical = axis == 1;
-            final float[] off = offsets(vertical);
-            final float[] from = points(false, vertical);
-            final float[] to = points(true, vertical);
-            for (int i = 0; i < off.length; i++) {
-                hash = hash * 31 + Math.round(off[i]);
-                hash = hash * 31 + Math.round(from[i] * 100f);
-                hash = hash * 31 + Math.round(to[i] * 100f);
+            final int offsetKey = vertical ? OFFSET_Y : OFFSET_X;
+            final int fromKey = vertical ? FROM_Y : FROM_X;
+            final int toKey = vertical ? TO_Y : TO_X;
+            for (int i = 0; i < CustomProfileAnchors.COUNT; i++) {
+                hash = hash * 31 + Math.round(AndroidUtilities.dpf2(anchorValue(i, offsetKey)));
+                hash = hash * 31 + Math.round(CustomProfileAnchors.fraction(anchorValue(i, fromKey)) * 100f);
+                hash = hash * 31 + Math.round(CustomProfileAnchors.fraction(anchorValue(i, toKey)) * 100f);
             }
         }
         return hash;
@@ -637,14 +650,6 @@ public final class CustomProfileHeaderLayout {
             return text.getGravity();
         }
         return 0;
-    }
-
-    private static int[] targets() {
-        final int[] out = new int[CustomProfileAnchors.COUNT];
-        for (int i = 0; i < out.length; i++) {
-            out[i] = anchorValue(i, TARGET);
-        }
-        return out;
     }
 
     private static float[] points(boolean to, boolean vertical) {
