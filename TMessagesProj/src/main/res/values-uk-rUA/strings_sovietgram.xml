@@ -92,7 +92,7 @@
     <string name="CustomProfileRowDown">Нижче</string>
     <string name="CustomProfileRowsReset">Скинути порядок</string>
     <string name="CustomProfileRowsResetInfo">Рядки повернуться до порядку самого Telegram, а приховані знову з’являться.</string>
-    <string name="CustomProfileRowsInfo">Торкніться рядка, щоб приховати або переставити його. Рядки, яких немає в цьому профілі, теж варто налаштувати: оформлення вдягається на будь-який профіль.</string>
+    <string name="CustomProfileRowsInfo">Торкніться рядка, щоб сховати або перемістити його. Ви також можете налаштувати відсутні рядки, оскільки настроюваний стиль профілю можна використовувати в різних профілях.</string>
     <string name="CustomProfileRow_phone">Номер телефону</string>
     <string name="CustomProfileRow_bio">Про себе</string>
     <string name="CustomProfileRow_username">Ім’я користувача</string>
@@ -537,7 +537,7 @@
     <string name="WorkshopInstall">встановити</string>
     <string name="WorkshopInstallConfirm">Встановлення замінить усі налаштування вашого профілю. Продовжити?</string>
     <string name="WorkshopInstalled">Подивіться встановлено</string>
-    <string name="WorkshopInstalledPartly">Здається, установлено, але це не вдалося завантажити: %1$s</string>
+    <string name="WorkshopInstalledPartly">Спеціальний стиль профілю було встановлено, але цей файл не вдалося завантажити: %1$s</string>
     <string name="WorkshopLike">Подобається</string>
     <string name="WorkshopUnlike">Зняти лайк</string>
     <string name="WorkshopCopyLink">Копіювати посилання</string>
@@ -637,7 +637,7 @@
     <string name="CustomProfileFontSans">Без засічок</string>
     <string name="CustomProfileFontLight">світло</string>
     <string name="CustomProfileFontCondensed">Ущільнений</string>
-    <string name="CustomProfileFontBundled">Від цього див</string>
+    <string name="CustomProfileFontBundled">Гарнітура, включена в цей спеціальний стиль профілю</string>
     <string name="CustomProfileImagePicked">Вибране</string>
     <string name="CustomProfileImageNotPicked">Не вибрано</string>
     <string name="CustomProfileExport">Копіювати налаштування</string>

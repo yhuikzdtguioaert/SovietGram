@@ -92,7 +92,7 @@
     <string name="CustomProfileRowDown">Turunkan</string>
     <string name="CustomProfileRowsReset">Atur ulang urutan</string>
     <string name="CustomProfileRowsResetInfo">Baris kembali ke urutan Telegram dan yang tersembunyi muncul lagi.</string>
-    <string name="CustomProfileRowsInfo">Ketuk baris untuk menyembunyikan atau memindahkannya. Baris yang tidak ada di profil ini pun layak diatur: sebuah tampilan dipakai di profil mana pun.</string>
+    <string name="CustomProfileRowsInfo">Ketuk satu baris untuk menyembunyikan atau memindahkannya. Anda juga dapat mengonfigurasi baris yang hilang karena gaya profil khusus dapat digunakan pada profil berbeda.</string>
     <string name="CustomProfileRow_phone">Nomor telepon</string>
     <string name="CustomProfileRow_bio">Bio</string>
     <string name="CustomProfileRow_username">Nama pengguna</string>
@@ -537,7 +537,7 @@
     <string name="WorkshopInstall">Instal</string>
     <string name="WorkshopInstallConfirm">Instalasi akan menggantikan semua pengaturan profil khusus Anda. Melanjutkan?</string>
     <string name="WorkshopInstalled">Terlihat terpasang</string>
-    <string name="WorkshopInstalledPartly">Terlihat terpasang, tetapi ini tidak dapat diunduh: %1$s</string>
+    <string name="WorkshopInstalledPartly">Gaya profil khusus telah diinstal, tetapi file ini tidak dapat diunduh: %1$s</string>
     <string name="WorkshopLike">Suka</string>
     <string name="WorkshopUnlike">Hapus suka</string>
     <string name="WorkshopCopyLink">Salin tautan</string>
@@ -637,7 +637,7 @@
     <string name="CustomProfileFontSans">Sans-serif</string>
     <string name="CustomProfileFontLight">Ringan</string>
     <string name="CustomProfileFontCondensed">kental</string>
-    <string name="CustomProfileFontBundled">Dari tampilan ini</string>
+    <string name="CustomProfileFontBundled">Jenis huruf disertakan dengan gaya profil khusus ini</string>
     <string name="CustomProfileImagePicked">Dipilih</string>
     <string name="CustomProfileImageNotPicked">Tidak dipilih</string>
     <string name="CustomProfileExport">Salin pengaturan</string>

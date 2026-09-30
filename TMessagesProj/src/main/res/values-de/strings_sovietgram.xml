@@ -95,7 +95,7 @@
     <string name="CustomProfileRowDown">Nach unten</string>
     <string name="CustomProfileRowsReset">Reihenfolge zurücksetzen</string>
     <string name="CustomProfileRowsResetInfo">Die Zeilen kehren zur Reihenfolge von Telegram zurück und alle ausgeblendeten erscheinen wieder.</string>
-    <string name="CustomProfileRowsInfo">Tippe auf eine Zeile, um sie auszublenden oder zu verschieben. Auch Zeilen, die dieses Profil nicht hat, lohnen sich: Ein Look passt auf jedes Profil.</string>
+    <string name="CustomProfileRowsInfo">Tippen Sie auf eine Zeile, um sie auszublenden oder zu verschieben. Sie können auch fehlende Zeilen konfigurieren, da ein benutzerdefinierter Profilstil für verschiedene Profile verwendet werden kann.</string>
     <string name="CustomProfileRow_phone">Telefonnummer</string>
     <string name="CustomProfileRow_bio">Info</string>
     <string name="CustomProfileRow_username">Benutzername</string>
@@ -540,7 +540,7 @@
     <string name="WorkshopInstall">Installieren</string>
     <string name="WorkshopInstallConfirm">Durch die Installation werden alle Ihre benutzerdefinierten Profileinstellungen ersetzt. Weitermachen?</string>
     <string name="WorkshopInstalled">Schauen Sie installiert</string>
-    <string name="WorkshopInstalledPartly">Schauen Sie installiert, aber dies konnte nicht heruntergeladen werden: %1$s</string>
+    <string name="WorkshopInstalledPartly">Der benutzerdefinierte Profilstil wurde installiert, aber diese Datei konnte nicht heruntergeladen werden: %1$s</string>
     <string name="WorkshopLike">Wie</string>
     <string name="WorkshopUnlike">Like entfernen</string>
     <string name="WorkshopCopyLink">Link kopieren</string>
@@ -640,7 +640,7 @@
     <string name="CustomProfileFontSans">Ohne Serifen</string>
     <string name="CustomProfileFontLight">Licht</string>
     <string name="CustomProfileFontCondensed">Kondensiert</string>
-    <string name="CustomProfileFontBundled">Von diesem Blick</string>
+    <string name="CustomProfileFontBundled">In diesem benutzerdefinierten Profilstil enthaltene Schriftart</string>
     <string name="CustomProfileImagePicked">Ausgewählt</string>
     <string name="CustomProfileImageNotPicked">Nicht ausgewählt</string>
     <string name="CustomProfileExport">Einstellungen kopieren</string>

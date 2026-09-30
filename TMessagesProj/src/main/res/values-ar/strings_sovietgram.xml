@@ -95,7 +95,7 @@
     <string name="CustomProfileRowDown">تحريك لأسفل</string>
     <string name="CustomProfileRowsReset">إعادة تعيين الترتيب</string>
     <string name="CustomProfileRowsResetInfo">ستعود الصفوف إلى ترتيب تيليجرام وستظهر المخفية من جديد.</string>
-    <string name="CustomProfileRowsInfo">اضغط على صف لإخفائه أو نقله. يستحق ضبط الصفوف غير الموجودة في هذا الملف أيضاً: فالمظهر يُطبَّق على أي ملف شخصي.</string>
+    <string name="CustomProfileRowsInfo">اضغط على صف لإخفائه أو نقله. يمكنك أيضًا تكوين الصفوف المفقودة لأنه يمكن استخدام نمط ملف تعريف مخصص في ملفات تعريف مختلفة.</string>
     <string name="CustomProfileRow_phone">رقم الهاتف</string>
     <string name="CustomProfileRow_bio">نبذة</string>
     <string name="CustomProfileRow_username">اسم المستخدم</string>
@@ -540,7 +540,7 @@
     <string name="WorkshopInstall">تثبيت</string>
     <string name="WorkshopInstallConfirm">سيؤدي التثبيت إلى استبدال كافة إعدادات ملف التعريف المخصص لديك. يكمل؟</string>
     <string name="WorkshopInstalled">تبدو مثبتة</string>
-    <string name="WorkshopInstalledPartly">يبدو أنه تم تثبيته، ولكن لا يمكن تنزيله: %1$s</string>
+    <string name="WorkshopInstalledPartly">تم تثبيت نمط ملف التعريف المخصص، ولكن تعذر تنزيل هذا الملف: %1$s</string>
     <string name="WorkshopLike">مثل</string>
     <string name="WorkshopUnlike">إزالة مثل</string>
     <string name="WorkshopCopyLink">انسخ الرابط</string>
@@ -640,7 +640,7 @@
     <string name="CustomProfileFontSans">بلا الرقيق</string>
     <string name="CustomProfileFontLight">ضوء</string>
     <string name="CustomProfileFontCondensed">مكثفة</string>
-    <string name="CustomProfileFontBundled">من هذه النظرة</string>
+    <string name="CustomProfileFontBundled">المحرف المضمن مع نمط ملف التعريف المخصص هذا</string>
     <string name="CustomProfileImagePicked">مختارة</string>
     <string name="CustomProfileImageNotPicked">لم يتم التحديد</string>
     <string name="CustomProfileExport">إعدادات النسخ</string>

@@ -92,7 +92,7 @@
     <string name="CustomProfileRowDown">W dół</string>
     <string name="CustomProfileRowsReset">Przywróć kolejność</string>
     <string name="CustomProfileRowsResetInfo">Wiersze wrócą do kolejności Telegrama, a ukryte pojawią się ponownie.</string>
-    <string name="CustomProfileRowsInfo">Dotknij wiersza, aby go ukryć lub przenieść. Warto ustawić także wiersze, których nie ma w tym profilu: styl zakłada się na dowolny profil.</string>
+    <string name="CustomProfileRowsInfo">Kliknij wiersz, aby go ukryć lub przenieść. Możesz także skonfigurować brakujące wiersze, ponieważ niestandardowy styl profilu może być używany w różnych profilach.</string>
     <string name="CustomProfileRow_phone">Numer telefonu</string>
     <string name="CustomProfileRow_bio">O sobie</string>
     <string name="CustomProfileRow_username">Nazwa użytkownika</string>
@@ -537,7 +537,7 @@
     <string name="WorkshopInstall">Zainstaluj</string>
     <string name="WorkshopInstallConfirm">Instalacja zastąpi wszystkie niestandardowe ustawienia profilu. Kontynuować?</string>
     <string name="WorkshopInstalled">Wygląda na zainstalowany</string>
-    <string name="WorkshopInstalledPartly">Wygląda na zainstalowany, ale nie można tego pobrać: %1$s</string>
+    <string name="WorkshopInstalledPartly">Zainstalowano niestandardowy styl profilu, ale nie można było pobrać tego pliku: %1$s</string>
     <string name="WorkshopLike">Jak</string>
     <string name="WorkshopUnlike">Usuń polubienie</string>
     <string name="WorkshopCopyLink">Skopiuj link</string>
@@ -637,7 +637,7 @@
     <string name="CustomProfileFontSans">Bezszeryfowy</string>
     <string name="CustomProfileFontLight">Światło</string>
     <string name="CustomProfileFontCondensed">Skondensowane</string>
-    <string name="CustomProfileFontBundled">Z tego spojrzenia</string>
+    <string name="CustomProfileFontBundled">Krój pisma dołączony do tego niestandardowego stylu profilu</string>
     <string name="CustomProfileImagePicked">Wybrane</string>
     <string name="CustomProfileImageNotPicked">Nie wybrano</string>
     <string name="CustomProfileExport">Skopiuj ustawienia</string>

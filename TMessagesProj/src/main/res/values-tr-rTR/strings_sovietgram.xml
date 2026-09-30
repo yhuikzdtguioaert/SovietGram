@@ -92,7 +92,7 @@
     <string name="CustomProfileRowDown">Aşağı taşı</string>
     <string name="CustomProfileRowsReset">Sırayı sıfırla</string>
     <string name="CustomProfileRowsResetInfo">Satırlar Telegram’ın sırasına döner ve gizlenenler yeniden görünür.</string>
-    <string name="CustomProfileRowsInfo">Bir satırı gizlemek veya taşımak için dokunun. Bu profilde bulunmayan satırları ayarlamak da işe yarar: bir görünüm her profile giydirilir.</string>
+    <string name="CustomProfileRowsInfo">Gizlemek veya taşımak için bir satıra dokunun. Özel profil stili farklı profillerde kullanılabildiği için eksik satırları da yapılandırabilirsiniz.</string>
     <string name="CustomProfileRow_phone">Telefon numarası</string>
     <string name="CustomProfileRow_bio">Hakkında</string>
     <string name="CustomProfileRow_username">Kullanıcı adı</string>
@@ -537,7 +537,7 @@
     <string name="WorkshopInstall">Yükle</string>
     <string name="WorkshopInstallConfirm">Yükleme işlemi tüm özel profil ayarlarınızın yerini alacaktır. Devam etmek?</string>
     <string name="WorkshopInstalled">Yüklü görün</string>
-    <string name="WorkshopInstalledPartly">Yüklü görünüyor ancak bu indirilemedi: %1$s</string>
+    <string name="WorkshopInstalledPartly">Özel profil stili yüklendi ancak bu dosya indirilemedi: %1$s</string>
     <string name="WorkshopLike">Beğen</string>
     <string name="WorkshopUnlike">Beğeniyi kaldır</string>
     <string name="WorkshopCopyLink">Bağlantıyı kopyala</string>
@@ -637,7 +637,7 @@
     <string name="CustomProfileFontSans">Sans-serif</string>
     <string name="CustomProfileFontLight">Işık</string>
     <string name="CustomProfileFontCondensed">Yoğunlaştırılmış</string>
-    <string name="CustomProfileFontBundled">Bu bakıştan</string>
+    <string name="CustomProfileFontBundled">Bu özel profil stiline dahil edilen yazı tipi</string>
     <string name="CustomProfileImagePicked">Seçildi</string>
     <string name="CustomProfileImageNotPicked">Seçilmedi</string>
     <string name="CustomProfileExport">Ayarları kopyala</string>

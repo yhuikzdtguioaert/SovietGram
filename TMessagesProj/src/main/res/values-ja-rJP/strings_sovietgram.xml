@@ -92,7 +92,7 @@
     <string name="CustomProfileRowDown">下へ</string>
     <string name="CustomProfileRowsReset">並び順をリセット</string>
     <string name="CustomProfileRowsResetInfo">項目は Telegram 本来の並び順に戻り、非表示のものも再び表示されます。</string>
-    <string name="CustomProfileRowsInfo">項目をタップすると非表示や並べ替えができます。このプロフィールにない項目も設定しておく価値があります。見た目はどのプロフィールにも適用されます。</string>
+    <string name="CustomProfileRowsInfo">行をタップして非表示または移動します。カスタム プロファイル スタイルはさまざまなプロファイルで使用できるため、欠落している行を構成することもできます。</string>
     <string name="CustomProfileRow_phone">電話番号</string>
     <string name="CustomProfileRow_bio">自己紹介</string>
     <string name="CustomProfileRow_username">ユーザー名</string>
@@ -537,7 +537,7 @@
     <string name="WorkshopInstall">インストール</string>
     <string name="WorkshopInstallConfirm">インストールすると、すべてのカスタム プロファイル設定が置き換えられます。続く？</string>
     <string name="WorkshopInstalled">インストールされているように見えます</string>
-    <string name="WorkshopInstalledPartly">インストールされているように見えますが、ダウンロードできませんでした: %1$s</string>
+    <string name="WorkshopInstalledPartly">カスタム プロファイル スタイルはインストールされましたが、次のファイルをダウンロードできませんでした: %1$s</string>
     <string name="WorkshopLike">いいね</string>
     <string name="WorkshopUnlike">いいねを削除</string>
     <string name="WorkshopCopyLink">リンクをコピー</string>
@@ -637,7 +637,7 @@
     <string name="CustomProfileFontSans">サンセリフ</string>
     <string name="CustomProfileFontLight">ライト</string>
     <string name="CustomProfileFontCondensed">凝縮された</string>
-    <string name="CustomProfileFontBundled">この表情からすると</string>
+    <string name="CustomProfileFontBundled">このカスタム プロファイル スタイルに含まれる書体</string>
     <string name="CustomProfileImagePicked">選択済み</string>
     <string name="CustomProfileImageNotPicked">未選択</string>
     <string name="CustomProfileExport">設定をコピーする</string>

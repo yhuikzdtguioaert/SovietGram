@@ -95,7 +95,7 @@
     <string name="CustomProfileRowDown">Omlaag</string>
     <string name="CustomProfileRowsReset">Volgorde herstellen</string>
     <string name="CustomProfileRowsResetInfo">De rijen keren terug naar de volgorde van Telegram en verborgen rijen komen terug.</string>
-    <string name="CustomProfileRowsInfo">Tik op een rij om die te verbergen of te verplaatsen. Ook rijen die dit profiel niet heeft zijn de moeite waard: een look past op elk profiel.</string>
+    <string name="CustomProfileRowsInfo">Tik op een rij om deze te verbergen of te verplaatsen. U kunt ook ontbrekende rijen configureren omdat een aangepaste profielstijl voor verschillende profielen kan worden gebruikt.</string>
     <string name="CustomProfileRow_phone">Telefoonnummer</string>
     <string name="CustomProfileRow_bio">Bio</string>
     <string name="CustomProfileRow_username">Gebruikersnaam</string>
@@ -540,7 +540,7 @@
     <string name="WorkshopInstall">Installeren</string>
     <string name="WorkshopInstallConfirm">Door de installatie worden al uw aangepaste profielinstellingen vervangen. Doorgaan?</string>
     <string name="WorkshopInstalled">Kijk geïnstalleerd</string>
-    <string name="WorkshopInstalledPartly">Kijk geïnstalleerd, maar dit kon niet worden gedownload: %1$s</string>
+    <string name="WorkshopInstalledPartly">De aangepaste profielstijl is geïnstalleerd, maar dit bestand kan niet worden gedownload: %1$s</string>
     <string name="WorkshopLike">Zoals</string>
     <string name="WorkshopUnlike">Verwijder like</string>
     <string name="WorkshopCopyLink">Kopieer link</string>
@@ -640,7 +640,7 @@
     <string name="CustomProfileFontSans">Sans-serif</string>
     <string name="CustomProfileFontLight">Licht</string>
     <string name="CustomProfileFontCondensed">Gecondenseerd</string>
-    <string name="CustomProfileFontBundled">Van deze blik</string>
+    <string name="CustomProfileFontBundled">Lettertype inbegrepen bij deze aangepaste profielstijl</string>
     <string name="CustomProfileImagePicked">Geselecteerd</string>
     <string name="CustomProfileImageNotPicked">Niet geselecteerd</string>
     <string name="CustomProfileExport">Kopieer instellingen</string>

@@ -715,10 +715,11 @@ public final class CustomProfileHelper {
      * Dresses a name's paint for one frame: colour, animated shader, pulse alpha and glow. Always
      * paired with {@link #clearNamePaint}, because the paint belongs to the view and is reused.
      */
-    public static void applyNamePaint(Paint paint, int width, int height) {
+    public static int applyNamePaint(Paint paint, int width, int height) {
         if (paint == null) {
-            return;
+            return 0;
         }
+        final int originalColor = paint.getColor();
         if (cfgBool(NekoConfig.customProfileNameColorEnabled)) {
             paint.setColor(cfgInt(NekoConfig.customProfileNameColor));
         }
@@ -728,12 +729,14 @@ public final class CustomProfileHelper {
             paint.setAlpha((int) (paint.getAlpha() * alpha));
         }
         CustomProfileNameFx.applyGlow(paint);
+        return originalColor;
     }
 
-    public static void clearNamePaint(Paint paint) {
+    public static void clearNamePaint(Paint paint, int originalColor) {
         if (paint != null) {
             paint.setShader(null);
             paint.clearShadowLayer();
+            paint.setColor(originalColor);
         }
     }
 

@@ -5918,12 +5918,20 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 protected void onDraw(Canvas canvas) {
                     final int wasRightDrawableX = getRightDrawableX();
                     final boolean custom = CustomProfileHelper.isEnabled();
+                    final int originalColor;
                     if (custom) {
-                        CustomProfileHelper.applyNamePaint(getPaint(), getMeasuredWidth(), getMeasuredHeight());
+                        originalColor = CustomProfileHelper.applyNamePaint(getPaint(), getMeasuredWidth(), getMeasuredHeight());
+                    } else {
+                        originalColor = 0;
                     }
-                    super.onDraw(canvas);
+                    try {
+                        super.onDraw(canvas);
+                    } finally {
+                        if (custom) {
+                            CustomProfileHelper.clearNamePaint(getPaint(), originalColor);
+                        }
+                    }
                     if (custom) {
-                        CustomProfileHelper.clearNamePaint(getPaint());
                         if (CustomProfileNameFx.isAnimated()) {
                             invalidate();
                         }

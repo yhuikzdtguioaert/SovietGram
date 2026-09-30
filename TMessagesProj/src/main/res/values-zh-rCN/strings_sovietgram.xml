@@ -92,7 +92,7 @@
     <string name="CustomProfileRowDown">下移</string>
     <string name="CustomProfileRowsReset">重置顺序</string>
     <string name="CustomProfileRowsResetInfo">条目恢复为 Telegram 原本的顺序，隐藏的条目也会重新出现。</string>
-    <string name="CustomProfileRowsInfo">点按条目可隐藏或移动。本资料页没有的条目也值得设置：外观会应用到任何资料页。</string>
+    <string name="CustomProfileRowsInfo">点击一行可隐藏或移动它。您还可以配置缺失的行，因为自定义配置文件样式可以用于不同的配置文件。</string>
     <string name="CustomProfileRow_phone">电话号码</string>
     <string name="CustomProfileRow_bio">简介</string>
     <string name="CustomProfileRow_username">用户名</string>
@@ -537,7 +537,7 @@
     <string name="WorkshopInstall">安装</string>
     <string name="WorkshopInstallConfirm">安装将替换您的所有自定义配置文件设置。继续？</string>
     <string name="WorkshopInstalled">看看已安装</string>
-    <string name="WorkshopInstalledPartly">看起来已经安装了，但是这个无法下载：%1$s</string>
+    <string name="WorkshopInstalledPartly">已安装自定义配置文件样式，但无法下载此文件：%1$s</string>
     <string name="WorkshopLike">喜欢</string>
     <string name="WorkshopUnlike">删除喜欢</string>
     <string name="WorkshopCopyLink">复制链接</string>
@@ -637,7 +637,7 @@
     <string name="CustomProfileFontSans">无衬线字体</string>
     <string name="CustomProfileFontLight">光</string>
     <string name="CustomProfileFontCondensed">浓缩</string>
-    <string name="CustomProfileFontBundled">从这个看上去</string>
+    <string name="CustomProfileFontBundled">此自定义配置文件样式包含字体</string>
     <string name="CustomProfileImagePicked">已选择</string>
     <string name="CustomProfileImageNotPicked">未选择</string>
     <string name="CustomProfileExport">复制设置</string>

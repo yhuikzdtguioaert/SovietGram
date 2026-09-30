@@ -92,7 +92,7 @@
     <string name="CustomProfileRowDown">پایین بردن</string>
     <string name="CustomProfileRowsReset">بازنشانی ترتیب</string>
     <string name="CustomProfileRowsResetInfo">سطرها به ترتیب خود تلگرام بازمی‌گردند و موارد پنهان دوباره نمایان می‌شوند.</string>
-    <string name="CustomProfileRowsInfo">برای پنهان کردن یا جابه‌جایی روی یک سطر بزنید. تنظیم سطرهایی که در این نمایه نیستند هم ارزش دارد: یک ظاهر روی هر نمایه‌ای می‌نشیند.</string>
+    <string name="CustomProfileRowsInfo">روی یک ردیف ضربه بزنید تا پنهان یا جابجا شود. همچنین می‌توانید ردیف‌های گمشده را پیکربندی کنید، زیرا می‌توان از یک سبک پروفایل سفارشی در پروفایل‌های مختلف استفاده کرد.</string>
     <string name="CustomProfileRow_phone">شماره تلفن</string>
     <string name="CustomProfileRow_bio">درباره</string>
     <string name="CustomProfileRow_username">نام کاربری</string>
@@ -537,7 +537,7 @@
     <string name="WorkshopInstall">نصب کنید</string>
     <string name="WorkshopInstallConfirm">نصب، جایگزین تمام تنظیمات نمایه سفارشی شما می شود. ادامه دهید؟</string>
     <string name="WorkshopInstalled">ببینید نصب شده</string>
-    <string name="WorkshopInstalledPartly">به نظر نصب شده است، اما دانلود نشد: %1$s</string>
+    <string name="WorkshopInstalledPartly">سبک نمایه سفارشی نصب شد، اما این فایل دانلود نشد: %1$s</string>
     <string name="WorkshopLike">مانند</string>
     <string name="WorkshopUnlike">حذف لایک</string>
     <string name="WorkshopCopyLink">لینک را کپی کنید</string>
@@ -637,7 +637,7 @@
     <string name="CustomProfileFontSans">Sans-serif</string>
     <string name="CustomProfileFontLight">نور</string>
     <string name="CustomProfileFontCondensed">متراکم شده</string>
-    <string name="CustomProfileFontBundled">از این نگاه</string>
+    <string name="CustomProfileFontBundled">تایپ فیس همراه با این سبک نمایه سفارشی گنجانده شده است</string>
     <string name="CustomProfileImagePicked">انتخاب شده است</string>
     <string name="CustomProfileImageNotPicked">انتخاب نشده است</string>
     <string name="CustomProfileExport">تنظیمات را کپی کنید</string>
