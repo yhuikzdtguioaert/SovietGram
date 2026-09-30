@@ -239,11 +239,10 @@ public final class WorkshopHelper {
     /**
      * Hard ceiling on a downloaded asset.
      *
-     * Kept at the same 64MB ceiling as the upload path: the largest measured workshop asset is
-     * 43.66MB, so it can now be installed and re-hosted for other SovietGram users. Anything much
-     * larger is refused before the phone allocates a buffer for it.
+     * Matches the reference plugin's 96 MiB external-media ceiling and the upload path. A known
+     * Content-Length is read into one exact-sized buffer to avoid doubling heap use at this limit.
      */
-    private static final long MAX_MEDIA_BYTES = 64L * 1024 * 1024;
+    private static final long MAX_MEDIA_BYTES = 96L * 1024 * 1024;
 
     /**
      * The media a work declares for one slot, or {@code null} when it declares none.
@@ -617,16 +616,18 @@ public final class WorkshopHelper {
             if (declared > limit) {
                 throw new Exception("response too large: " + declared);
             }
+            final String encoding = connection.getContentEncoding();
+            final boolean encoded = encoding != null && !"identity".equalsIgnoreCase(encoding.trim());
             final byte[] data;
             try (InputStream in = connection.getInputStream()) {
-                data = readAll(in, limit);
+                data = !encoded && declared >= 0
+                        ? readKnownLength(in, declared, limit)
+                        : readAll(in, limit);
             }
             // Only meaningful when the two numbers count the same bytes: Content-Length is the encoded
             // length, and HttpURLConnection decompresses a gzipped body underneath us, so on an encoded
             // response what arrives is legitimately a different size. A -1 means the host promised
             // nothing at all (chunked), and then a short read cannot be told from a whole file.
-            final String encoding = connection.getContentEncoding();
-            final boolean encoded = encoding != null && !"identity".equalsIgnoreCase(encoding.trim());
             if (declared >= 0 && !encoded && data.length < declared) {
                 throw new TruncatedException(data.length, declared);
             }
@@ -731,6 +732,28 @@ public final class WorkshopHelper {
             out.write(buffer, 0, read);
         }
         return out.toByteArray();
+    }
+
+    /** Read a declared, uncompressed body without ByteArrayOutputStream growth and final copying. */
+    private static byte[] readKnownLength(InputStream in, long declared, long limit) throws Exception {
+        if (declared > limit || declared > Integer.MAX_VALUE) {
+            throw new IOException("response too large: " + declared);
+        }
+        final byte[] data = new byte[(int) declared];
+        int offset = 0;
+        while (offset < data.length) {
+            final int read = in.read(data, offset, data.length - offset);
+            if (read < 0) {
+                throw new TruncatedException(offset, declared);
+            }
+            if (read > 0) {
+                offset += read;
+            }
+        }
+        if (in.read() != -1) {
+            throw new IOException("response exceeded declared length");
+        }
+        return data;
     }
 
     private static <T> void post(Callback<T> callback, @Nullable T result, @Nullable String error) {

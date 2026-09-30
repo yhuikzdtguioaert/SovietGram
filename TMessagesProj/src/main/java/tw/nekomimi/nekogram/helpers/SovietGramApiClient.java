@@ -140,15 +140,13 @@ public final class SovietGramApiClient {
      * would publish its first frame as the whole banner. So unlike the still limit, this really is
      * the budget somebody making a look has to work within.
      *
-     * <p>Which is why it is set from the published population rather than a round number. Of the 72
-     * animated banners and backgrounds in the workshop: median 1.68MB, p90 8.38MB, and then a thin
-     * tail of 12.34, 16.22, 21.99, 28.46 and 43.66MB. A 64MB ceiling covers the whole
-     * measured gallery and leaves room for newer workshop animations.
+     * <p>The reference Custom Profile plugin accepts external media up to 96 MiB. Use the same
+     * ceiling here so a valid workshop animation is not silently refused during sync.
      *
      * <p>The upload still builds a base64 envelope, so callers must keep this operation on a worker
      * thread and avoid another in-memory copy of the same media.
      */
-    public static final int MAX_VIDEO_BYTES = 64 * 1024 * 1024;
+    public static final int MAX_VIDEO_BYTES = 96 * 1024 * 1024;
 
     /**
      * The largest upload of any kind, which is what the transport itself has to be sized against —
