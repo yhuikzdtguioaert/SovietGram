@@ -190,7 +190,7 @@ public final class SovietWorkshop {
         work.kind = row.optString("kind", WorkshopHelper.KIND_PROFILE);
         work.title = row.optString("title", "");
         work.author = row.optString("owner_id", "");
-        work.authorName = work.author;
+        work.authorName = row.optString("author_name", work.author);
         work.previewSha = row.optString("preview_sha", null);
         work.updated = row.optLong("updated_ms", 0);
         work.likes = row.optInt("likes", 0);
