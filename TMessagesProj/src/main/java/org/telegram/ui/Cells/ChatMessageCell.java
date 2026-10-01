@@ -18678,7 +18678,11 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
             drawBookmarkInTime = showBookmarkInTime;
         }
         // bookmark end
-        final int editedDate = edited && currentMessagesGroup != null ? currentMessagesGroup.getMaxEditDate() : messageObject.messageOwner.edit_date;
+        int editedDate = edited && currentMessagesGroup != null ? currentMessagesGroup.getMaxEditDate() : messageObject.messageOwner.edit_date;
+        if (edited && editedDate == 0 && currentMessageObject != null && currentMessageObject.isEditing()) {
+            // Telegram 12.10.6: a message still being edited has no edit date yet, so show now.
+            editedDate = ConnectionsManager.getInstance(currentAccount).getCurrentTime();
+        }
         if (currentMessageObject.isWelcomeMessage()) {
             timeString = ""; // Long.toString(currentMessageObject.getId());
         } else if (currentMessageObject.notime || currentMessageObject.isSponsored() || currentMessageObject.isQuickReply() || currentMessageObject.isWelcomeMessage()) {
