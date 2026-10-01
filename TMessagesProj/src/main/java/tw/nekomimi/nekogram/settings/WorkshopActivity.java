@@ -202,6 +202,13 @@ public class WorkshopActivity extends BaseFragment {
                 confirmInstall(((WorkshopCell) view).getWork());
             }
         });
+        listView.setOnItemLongClickListener((cell, position) -> {
+            if (cell instanceof WorkshopCell) {
+                showWorkMenu(((WorkshopCell) cell).getWork());
+                return true;
+            }
+            return false;
+        });
         root.addView(listView, contentParams());
 
         load();
@@ -228,13 +235,6 @@ public class WorkshopActivity extends BaseFragment {
                     ? R.string.CustomProfileFrames : R.string.CustomProfileWorkshop));
             updateTabs();
             load();
-        });
-        listView.setOnItemLongClickListener((view, position) -> {
-            if (view instanceof WorkshopCell) {
-                showWorkMenu(((WorkshopCell) view).getWork());
-                return true;
-            }
-            return false;
         });
         return view;
     }
