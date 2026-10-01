@@ -294,7 +294,10 @@ public final class FrameProjects {
         flushDeletes(account);
         SovietGramApiClient.get(account, "/v1/frame-projects", (body, error) -> {
             refreshing.remove(owner);
-            if (owner != SovietGramTokenStore.ownId(account)) return;
+            if (owner != SovietGramTokenStore.ownId(account)) {
+                if (finished != null) finished.run();
+                return;
+            }
             if (body == null) {
                 lastRefresh.remove(owner);
                 AndroidUtilities.runOnUIThread(SovietGramSync::scheduleProfilePush, 12000);

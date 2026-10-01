@@ -416,7 +416,7 @@ public final class SovietGramProfileSync {
             return;
         }
         final RemoteProfile profile = cache.get(user.id);
-        if (profile == null || !profile.hasInjectable()) {
+        if (profile == null || (!profile.hasInjectable() && !holdsInjected(user))) {
             return;
         }
         // Premium: set only, never clear — a real premium peer must not be downgraded by an absent fake.
@@ -424,28 +424,48 @@ public final class SovietGramProfileSync {
             user.premium = true;
             user.flags |= USER_FLAG_PREMIUM;
         }
-        // The emoji status they picked: only where Telegram says they have none of their own, and only
-        // while it has not run out.
-        if (profile.emojiStatusDocument != 0 && !(user.emoji_status instanceof TLRPC.TL_emojiStatus)
-                && !(user.emoji_status instanceof TLRPC.TL_emojiStatusCollectible)
-                && (profile.emojiStatusUntil == 0 || profile.emojiStatusUntil > System.currentTimeMillis() / 1000)) {
+        // The emoji status they picked: only where Telegram says they have none of their own (an object
+        // we wrote earlier counts as none), and only while it has not run out. When they clear it, the
+        // one we wrote is taken off again.
+        final boolean ownStatus = user.emoji_status != null && !injected.containsKey(user.emoji_status)
+                && (user.emoji_status instanceof TLRPC.TL_emojiStatus
+                || user.emoji_status instanceof TLRPC.TL_emojiStatusCollectible);
+        final boolean wantsStatus = profile.emojiStatusDocument != 0
+                && (profile.emojiStatusUntil == 0 || profile.emojiStatusUntil > System.currentTimeMillis() / 1000);
+        if (wantsStatus && !ownStatus) {
             final TLRPC.TL_emojiStatus status = new TLRPC.TL_emojiStatus();
             status.document_id = profile.emojiStatusDocument;
             if (profile.emojiStatusUntil > 0) {
                 status.flags |= 1;
                 status.until = profile.emojiStatusUntil;
             }
+            injected.put(status, Boolean.TRUE);
             user.emoji_status = status;
             user.flags |= 1 << 30;
+        } else if (!wantsStatus && user.emoji_status != null && injected.containsKey(user.emoji_status)) {
+            user.emoji_status = null;
+            user.flags &= ~(1 << 30);
         }
-        // Their name and profile colours, likewise only where Telegram gave them none.
-        if (user.color == null && (profile.nameColor >= 0 || profile.nameEmoji != 0)) {
-            user.color = peerColor(profile.nameColor, profile.nameEmoji);
+        // Their name and profile colours, by the same rule.
+        final boolean wantsName = profile.nameColor >= 0 || profile.nameEmoji != 0;
+        if (wantsName && (user.color == null || injected.containsKey(user.color))) {
+            final TLRPC.TL_peerColor color = peerColor(profile.nameColor, profile.nameEmoji);
+            injected.put(color, Boolean.TRUE);
+            user.color = color;
             user.flags2 |= 1 << 8;
+        } else if (!wantsName && user.color != null && injected.containsKey(user.color)) {
+            user.color = null;
+            user.flags2 &= ~(1 << 8);
         }
-        if (user.profile_color == null && (profile.profileColor >= 0 || profile.profileEmoji != 0)) {
-            user.profile_color = peerColor(profile.profileColor, profile.profileEmoji);
+        final boolean wantsProfile = profile.profileColor >= 0 || profile.profileEmoji != 0;
+        if (wantsProfile && (user.profile_color == null || injected.containsKey(user.profile_color))) {
+            final TLRPC.TL_peerColor color = peerColor(profile.profileColor, profile.profileEmoji);
+            injected.put(color, Boolean.TRUE);
+            user.profile_color = color;
             user.flags2 |= 1 << 9;
+        } else if (!wantsProfile && user.profile_color != null && injected.containsKey(user.profile_color)) {
+            user.profile_color = null;
+            user.flags2 &= ~(1 << 9);
         }
         // Fragment phone: a collectible number is drawn when the phone starts with 888, so writing the
         // configured number onto the peer is all it takes. Peers usually expose no phone, so there is
@@ -627,6 +647,16 @@ public final class SovietGramProfileSync {
     }
 
     // ===== small helpers (peer-local mirrors of ServerFragmentHelper's private ones) =====
+
+    /** The emoji status and colour objects this class wrote itself, so they can be replaced or removed. */
+    private static final java.util.Map<Object, Boolean> injected =
+            java.util.Collections.synchronizedMap(new java.util.WeakHashMap<>());
+
+    private static boolean holdsInjected(TLRPC.User user) {
+        return user.emoji_status != null && injected.containsKey(user.emoji_status)
+                || user.color != null && injected.containsKey(user.color)
+                || user.profile_color != null && injected.containsKey(user.profile_color);
+    }
 
     private static TLRPC.TL_peerColor peerColor(int color, long emoji) {
         final TLRPC.TL_peerColor out = new TLRPC.TL_peerColor();

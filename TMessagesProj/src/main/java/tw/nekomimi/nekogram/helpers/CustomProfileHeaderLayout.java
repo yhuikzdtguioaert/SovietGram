@@ -520,7 +520,9 @@ public final class CustomProfileHeaderLayout {
         }
         if (view instanceof org.telegram.ui.ActionBar.SimpleTextView simple) {
             // The badges and emoji status drawn beside a name are part of what a neighbour must clear.
-            final float width = simple.getTextWidth() + simple.getSideDrawablesSize();
+            // Text plus the badges beside it, each counted once (getTextWidth() already holds the
+            // right-hand ones when they are drawn inside the text).
+            final float width = simple.getExactWidth();
             if (simple.getTextWidth() > 0) {
                 return width;
             }

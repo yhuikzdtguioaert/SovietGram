@@ -99,8 +99,9 @@ public class SovietGramExclusiveActivity extends BaseNekoXSettingsActivity {
     private final AbstractConfigCell dividerSupports = cellGroup.appendCell(new ConfigCellDivider());
     private boolean supportRowsVisible = true;
     private int pendingSupportColor = -1;
+    private int pendingSupportAccount = -1;
     private final Runnable pushSupportColor = () -> {
-        if (pendingSupportColor >= 0) {
+        if (pendingSupportColor >= 0 && pendingSupportAccount == UserConfig.selectedAccount) {
             saveSupportIconColor(pendingSupportColor);
         }
     };
@@ -176,10 +177,13 @@ public class SovietGramExclusiveActivity extends BaseNekoXSettingsActivity {
         }
         final long self = UserConfig.getInstance(UserConfig.selectedAccount).getClientUserId();
         final int current = SovietGramBadges.colorOf(self);
-        final int start = 0xFF000000 | (current != 0 ? current : 0x4FA4E8);
+        final int start = 0xFF000000 | (current >= 0 ? current : 0x4FA4E8);
+        final int account = UserConfig.selectedAccount;
         ConfigCellColor.show(getParentActivity(), getString(R.string.SovietGramSupportIconColor), start, start, false, color -> {
-            // The wheel reports every frame of a drag; save once the finger has rested.
+            // The wheel reports every frame of a drag; save once the finger has rested, for the
+            // account the colour was picked on.
             pendingSupportColor = color & 0xFFFFFF;
+            pendingSupportAccount = account;
             org.telegram.messenger.AndroidUtilities.cancelRunOnUIThread(pushSupportColor);
             org.telegram.messenger.AndroidUtilities.runOnUIThread(pushSupportColor, 700);
         });
@@ -204,7 +208,7 @@ public class SovietGramExclusiveActivity extends BaseNekoXSettingsActivity {
                 }
                 return;
             }
-            SovietGramBadges.setColor(self, color == null ? 0 : color);
+            SovietGramBadges.setColor(self, color == null ? SovietGramBadges.NO_COLOR : color);
         });
     }
 

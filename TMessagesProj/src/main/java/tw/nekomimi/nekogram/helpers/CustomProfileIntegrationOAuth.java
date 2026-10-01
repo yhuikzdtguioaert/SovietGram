@@ -132,7 +132,12 @@ public final class CustomProfileIntegrationOAuth {
 
     private final Runnable poll = new Runnable() {
         @Override public void run() {
-            if (!alive() || state == null) return;
+            if (!alive()) {
+                // The screen went away while the browser had the foreground: nothing left to wait for.
+                dismiss();
+                return;
+            }
+            if (state == null) return;
             if (android.os.SystemClock.elapsedRealtime() - startedAt > GIVE_UP_MS) {
                 dismiss();
                 fail(getString(R.string.CustomProfileIntegrationUnavailable));
@@ -182,6 +187,7 @@ public final class CustomProfileIntegrationOAuth {
                 })
                 .setNegativeButton(getString(R.string.Cancel), (d, which) -> cancel())
                 .create();
+        dialog.setOnCancelListener(d -> cancel());
         dialog.show();
         AndroidUtilities.cancelRunOnUIThread(watchClipboard);
         AndroidUtilities.runOnUIThread(watchClipboard, 800);
@@ -204,9 +210,11 @@ public final class CustomProfileIntegrationOAuth {
     private final Runnable watchClipboard = new Runnable() {
         @Override public void run() {
             final Activity activity = fragment.getParentActivity();
-            if (!alive() || dialog == null || activity == null) return;
+            if (!alive() || dialog == null || activity == null || !dialog.isShowing()) return;
             final String text = clipboardText(activity);
-            final String token = text.equals(staleClip) ? null : extractToken(text);
+            // Only something that is plainly a Yandex token is taken on its own; anything else a user
+            // happens to copy stays on the clipboard and is never sent anywhere.
+            final String token = text.equals(staleClip) || !looksLikeYandexToken(text) ? null : extractToken(text);
             if (token != null) {
                 dismiss();
                 preview(token);
@@ -215,6 +223,11 @@ public final class CustomProfileIntegrationOAuth {
             AndroidUtilities.runOnUIThread(this, 800);
         }
     };
+
+    private static boolean looksLikeYandexToken(String text) {
+        final String t = text == null ? "" : text.trim();
+        return t.contains("access_token=") || t.startsWith("y0_") || t.startsWith("AQAAAA");
+    }
 
     private static String extractToken(String pasted) {
         if (pasted == null) return null;
@@ -241,6 +254,7 @@ public final class CustomProfileIntegrationOAuth {
                     .setPositiveButton(getString(R.string.Done), (d, which) -> save(payload))
                     .setNegativeButton(getString(R.string.Cancel), (d, which) -> cancel())
                     .create();
+            dialog.setOnCancelListener(d -> cancel());
             dialog.show();
         });
     }

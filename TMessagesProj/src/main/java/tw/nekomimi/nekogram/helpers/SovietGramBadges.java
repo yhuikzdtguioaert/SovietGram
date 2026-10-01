@@ -46,6 +46,9 @@ import java.nio.file.Files;
  */
 public final class SovietGramBadges {
 
+    /** No colour chosen: black (0) is a colour like any other. */
+    public static final int NO_COLOR = -1;
+
     public static final int STATUS_NONE = 0;
     public static final int STATUS_DEVELOPER = 1;
     public static final int STATUS_SUPPORTER = 2;
@@ -72,7 +75,7 @@ public final class SovietGramBadges {
         /** What the badge says when tapped; null falls back to the plain wording for the status. */
         @Nullable
         public final String label;
-        /** The colour the holder chose for their own mark (0xFFRRGGBB), or 0 for the theme's own. */
+        /** The colour the holder chose for their own mark (0xRRGGBB), or {@link #NO_COLOR}. */
         public final int color;
 
         Badge(long id, int status, @Nullable String label, int color) {
@@ -88,6 +91,9 @@ public final class SovietGramBadges {
     private static boolean loaded;
     private static boolean fetching;
     private static long checkedAt;
+    /** When this device last changed a badge by hand, and when the running fetch began. */
+    private static long localEditAt;
+    private static long fetchStartedAt;
     /** Set once the server has answered, so the disk copy can no longer overwrite a fresh list. */
     private static boolean fetched;
 
@@ -107,10 +113,10 @@ public final class SovietGramBadges {
         return badgeOf(id) != null;
     }
 
-    /** The colour this person's mark is drawn in, or 0 when they have not picked one. */
+    /** The colour this person's mark is drawn in, or {@link #NO_COLOR} when they have not picked one. */
     public static int colorOf(long id) {
         final Badge badge = badgeOf(id);
-        return badge == null ? 0 : badge.color;
+        return badge == null ? NO_COLOR : badge.color;
     }
 
     public static boolean isDeveloper(long id) {
@@ -131,7 +137,7 @@ public final class SovietGramBadges {
      */
     @Nullable
     public static Drawable drawable() {
-        return drawable(BESIDE_NAME_DP, 0);
+        return drawable(BESIDE_NAME_DP, NO_COLOR);
     }
 
     /** The mark for one person: in the colour they picked, when they picked one. */
@@ -146,7 +152,7 @@ public final class SovietGramBadges {
      */
     @Nullable
     public static Drawable drawable(int sizeDp) {
-        return drawable(sizeDp, 0);
+        return drawable(sizeDp, NO_COLOR);
     }
 
     @Nullable
@@ -190,7 +196,7 @@ public final class SovietGramBadges {
             this.source = source;
             this.size = size;
             this.fixedColor = fixedColor;
-            if (fixedColor != 0) {
+            if (fixedColor >= 0) {
                 source.setColorFilter(new PorterDuffColorFilter(fixedColor | 0xFF000000, PorterDuff.Mode.SRC_IN));
             }
         }
@@ -222,7 +228,7 @@ public final class SovietGramBadges {
 
         @Override
         public void setColorFilter(@Nullable ColorFilter colorFilter) {
-            if (fixedColor == 0) {
+            if (fixedColor < 0) {
                 source.setColorFilter(colorFilter);
             }
         }
@@ -317,8 +323,16 @@ public final class SovietGramBadges {
         }
         fetching = true;
         checkedAt = now;
+        fetchStartedAt = now;
         SovietGramApiClient.getPublic(PATH, (body, error) -> {
             fetching = false;
+            if (body != null && localEditAt > fetchStartedAt) {
+                // The answer predates a change made here while it was on its way: ask again rather
+                // than let it put the old colour back.
+                checkedAt = 0;
+                sync(true);
+                return;
+            }
             if (body == null) {
                 // Try again sooner than the usual interval, but not on the next name drawn.
                 checkedAt = System.currentTimeMillis() - REFRESH_MS + RETRY_MS;
@@ -402,7 +416,8 @@ public final class SovietGramBadges {
         if (badge == null) {
             return;
         }
-        badges.put(id, new Badge(id, badge.status, badge.label, color & 0xFFFFFF));
+        badges.put(id, new Badge(id, badge.status, badge.label, color < 0 ? NO_COLOR : color & 0xFFFFFF));
+        localEditAt = System.currentTimeMillis();
         announceChange();
         sync(true);
     }
@@ -410,7 +425,7 @@ public final class SovietGramBadges {
     /** "#RRGGBB" from the server; anything else means the default colour. */
     private static int parseColor(String value) {
         if (value == null || !value.matches("#[0-9A-Fa-f]{6}")) {
-            return 0;
+            return NO_COLOR;
         }
         return Integer.parseInt(value.substring(1), 16) & 0xFFFFFF;
     }

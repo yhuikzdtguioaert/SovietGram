@@ -3723,7 +3723,34 @@ public class StarsController {
                     endReached = true;
                 }
                 NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.starUserGiftsLoaded, dialogId, GiftsList.this);
+                if (first && craftingGiftId == 0 && !isCollection) {
+                    mergeServerGifts();
+                }
             }));
+        }
+
+        /**
+         * SovietGram gifts live on our own server, not in Telegram's saved-gifts list, so the first page
+         * of a profile's showcase is completed with the NFT gifts the server holds for that profile.
+         */
+        private void mergeServerGifts() {
+            tw.nekomimi.nekogram.helpers.SovietGramProfileGifts.load(currentAccount, dialogId,
+                    isInclude_displayed(), isInclude_hidden(), server -> {
+                        // A reload may have started while the server was answering; its page wins.
+                        int removed = 0;
+                        for (int i = gifts.size() - 1; i >= 0; --i) {
+                            if (tw.nekomimi.nekogram.helpers.SovietGramProfileGifts.isServerGift(gifts.get(i))) {
+                                gifts.remove(i);
+                                removed++;
+                            }
+                        }
+                        if (server.isEmpty() && removed == 0) {
+                            return;
+                        }
+                        gifts.addAll(0, server);
+                        totalCount += server.size() - removed;
+                        NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.starUserGiftsLoaded, dialogId, GiftsList.this);
+                    });
         }
 
         public void cancel() {

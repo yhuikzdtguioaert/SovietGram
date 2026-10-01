@@ -209,7 +209,7 @@ public abstract class CustomProfileListActivity extends BaseFragment {
                     @Override public boolean areContentsTheSame(int oldPosition, int newPosition) {
                         final Row a = before.get(oldPosition);
                         final Row b = after.get(newPosition);
-                        return a.checked == b.checked && a.number == b.number && a.valueColor == b.valueColor
+                        return a.type != TYPE_SLIDER && a.checked == b.checked && a.number == b.number && a.valueColor == b.valueColor
                                 && a.min == b.min && a.max == b.max
                                 && java.util.Objects.equals(String.valueOf(a.value), String.valueOf(b.value))
                                 && java.util.Objects.equals(a.suffix, b.suffix)

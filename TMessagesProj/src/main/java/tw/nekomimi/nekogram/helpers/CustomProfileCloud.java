@@ -16,6 +16,8 @@ public final class CustomProfileCloud {
     private static final Set<Long> ready = new HashSet<>();
     private static final Set<Long> loading = new HashSet<>();
     private static final Set<Long> pushing = new HashSet<>();
+    /** Owners with a retry already on the clock, so a failing read never starts a second chain. */
+    private static final Set<Long> retrying = new HashSet<>();
     private static final Map<Long, String> saved = new HashMap<>();
     /** Consecutive failed first reads of the backup, per account. */
     private static final Map<Long, Integer> failures = new HashMap<>();
@@ -53,7 +55,12 @@ public final class CustomProfileCloud {
                 // Let the public look go out once the backup has stayed unreachable, then keep trying
                 // for the backup itself, gently.
                 if (count == GIVE_UP_AFTER) SovietGramSync.scheduleProfilePush();
-                AndroidUtilities.runOnUIThread(() -> reconcile(account, after), count < GIVE_UP_AFTER ? 12000 : 60000);
+                if (retrying.add(owner)) {
+                    AndroidUtilities.runOnUIThread(() -> {
+                        retrying.remove(owner);
+                        reconcile(account, after);
+                    }, count < GIVE_UP_AFTER ? 12000 : 60000);
+                }
                 return;
             }
             failures.remove(owner);
