@@ -127,10 +127,13 @@ public final class SovietGramSync {
         for (int account : accounts) {
             if (!CustomProfileCloud.isReady(account)) {
                 CustomProfileCloud.reconcile(account, SovietGramSync::scheduleProfilePush);
-                continue;
+                if (!CustomProfileCloud.unreachable(account)) {
+                    continue;
+                }
+            } else {
+                CustomProfileCloud.backup(account);
+                FrameProjects.synchronize(account);
             }
-            CustomProfileCloud.backup(account);
-            FrameProjects.synchronize(account);
             final long ownId = SovietGramTokenStore.ownId(account);
             if (ownId <= 0) {
                 continue;
@@ -236,9 +239,61 @@ public final class SovietGramSync {
                     }
                 }
             }
+            // The locally picked emoji status and name/profile colours ride along in the look's blob
+            // under a reserved key, so another device and every peer see them without a new server field.
+            final JSONObject identity = localIdentity(account);
+            if (identity != null) {
+                customProfile = new JSONObject(customProfile.toString());
+                customProfile.put(IDENTITY_KEY, identity);
+            }
             body.put("custom_profile", customProfile);
 
             return body;
+        } catch (Throwable e) {
+            FileLog.e(e);
+            return null;
+        }
+    }
+
+    /** The key inside {@code custom_profile} that carries the account's local emoji status and colours. */
+    public static final String IDENTITY_KEY = "sg_identity";
+
+    /**
+     * What the account picked locally with its fake premium: an emoji status, and the colours of its
+     * name and profile. Null when the feature is off or nothing was picked.
+     */
+    @Nullable
+    private static JSONObject localIdentity(int account) {
+        if (!SovietGramAccountScope.bool(account, NekoConfig.localPremium)) {
+            return null;
+        }
+        final long own = SovietGramTokenStore.ownId(account);
+        if (own <= 0) {
+            return null;
+        }
+        try {
+            final JSONObject out = new JSONObject();
+            final sovietgram.com.helper.LocalEmojiStatusData status =
+                    sovietgram.com.helper.LocalPremiumStatusHelper.exportForSync(own);
+            if (status != null && status.getDocumentId() != null && status.getDocumentId() != 0L) {
+                out.put("es", new JSONObject()
+                        .put("id", String.valueOf(status.getDocumentId()))
+                        .put("u", status.getUntil() == null ? 0 : status.getUntil()));
+            }
+            final sovietgram.com.helper.LocalQuoteColorData colors =
+                    sovietgram.com.helper.LocalPeerColorHelper.exportForSync(own);
+            if (colors != null) {
+                final JSONObject pc = new JSONObject()
+                        .put("c", colors.getColorId() == null ? -1 : colors.getColorId())
+                        .put("e", String.valueOf(colors.getEmojiId() == null ? 0L : colors.getEmojiId()))
+                        .put("p", colors.getProfileColorId() == null ? -1 : colors.getProfileColorId())
+                        .put("pe", String.valueOf(colors.getProfileEmojiId() == null ? 0L : colors.getProfileEmojiId()));
+                if (pc.getInt("c") >= 0 || pc.getInt("p") >= 0
+                        || !"0".equals(pc.getString("e")) || !"0".equals(pc.getString("pe"))) {
+                    out.put("pc", pc);
+                }
+            }
+            return out.length() == 0 ? null : out;
         } catch (Throwable e) {
             FileLog.e(e);
             return null;

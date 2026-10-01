@@ -489,6 +489,7 @@ public class ChatActivity extends BaseFragment implements
     private final static int nkbtn_report = 2041;
     private final static int nkbtn_clearDeleted = 2100;
     private final static int nkbtn_viewDeleted = 2101;
+    private final static int nkbtn_localGiftSender = 2102;
 
     public int shareAlertDebugMode = DEBUG_SHARE_ALERT_MODE_NORMAL;
     public boolean shareAlertDebugTopicsSlowMotion;
@@ -5068,6 +5069,10 @@ public class ChatActivity extends BaseFragment implements
         if (currentChat != null && forumTopic != null && chatMode == 0) {
             closeTopicItem = headerItem.lazilyAddSubItem(topic_close, R.drawable.msg_topic_close, LocaleController.getString(R.string.CloseTopic));
             closeTopicItem.setVisibility(currentChat != null && ChatObject.canManageTopic(currentAccount, currentChat, forumTopic) && forumTopic != null && !forumTopic.closed ? View.VISIBLE : View.GONE);
+        }
+        // Deliberately the last thing appended so it always sits at the very bottom of the menu.
+        if (headerItem != null && chatMode == MODE_DEFAULT && NekoConfig.localGiftSender.Bool()) {
+            headerItem.lazilyAddSubItem(nkbtn_localGiftSender, R.drawable.msg_gift_premium, LocaleController.getString(R.string.LocalGiftSenderMenu));
         }
         menu.setVisibility(inMenuMode ? View.GONE : View.VISIBLE);
 
@@ -31265,6 +31270,14 @@ public class ChatActivity extends BaseFragment implements
     @Override
     public void onResume() {
         super.onResume();
+        // Opening or returning to a chat is a good, bounded moment to drain this account's gift inbox,
+        // so a gift sent to it while the app was open still materialises. Self-throttled per account.
+        tw.nekomimi.nekogram.helpers.SovietGramGiftSync.pollInbox(currentAccount);
+        // The peer's fake identity decides what their name row draws (a premium badge, a Fragment
+        // number in the header); opening the chat is the moment to make sure we have it. TTL-cached.
+        if (currentUser != null) {
+            tw.nekomimi.nekogram.helpers.SovietGramProfileSync.requestProfile(currentAccount, currentUser.id);
+        }
         cachedIsGestureNavigation = AndroidUtil.isGestureNavigation(getContext());
         checkShowBlur(false);
         activityResumeTime = System.currentTimeMillis();
@@ -46662,7 +46675,9 @@ public class ChatActivity extends BaseFragment implements
         createUndoView();
         // from ActionBar & Header ( without text_* )
         // should hide shit action bar after done
-        if (id == nkbtn_forward_noquote || id == nkbtn_forward_nocaption) {
+        if (id == nkbtn_localGiftSender) {
+            tw.nekomimi.nekogram.helpers.LocalGiftHelper.showSheet(ChatActivity.this, dialog_id);
+        } else if (id == nkbtn_forward_noquote || id == nkbtn_forward_nocaption) {
             noForwardQuote = id == nkbtn_forward_noquote;
             noForwardCaption = id == nkbtn_forward_nocaption;
             if (messagePreviewParams != null) {

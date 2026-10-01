@@ -46,8 +46,8 @@ import tw.nekomimi.nekogram.utils.GsonUtil;
 import tw.nekomimi.nekogram.utils.ShareUtil;
 import xyz.nextalone.nagram.NaConfig;
 import xyz.nextalone.nagram.helper.BookmarksHelper;
-import xyz.nextalone.nagram.helper.LocalPeerColorHelper;
-import xyz.nextalone.nagram.helper.LocalPremiumStatusHelper;
+import sovietgram.com.helper.LocalPeerColorHelper;
+import sovietgram.com.helper.LocalPremiumStatusHelper;
 
 public final class SettingsBackupHelper {
     public static String backupSettingsJson(boolean isCloud, int indentSpaces) throws JSONException {

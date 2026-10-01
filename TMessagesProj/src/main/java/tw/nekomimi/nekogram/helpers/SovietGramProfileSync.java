@@ -424,6 +424,29 @@ public final class SovietGramProfileSync {
             user.premium = true;
             user.flags |= USER_FLAG_PREMIUM;
         }
+        // The emoji status they picked: only where Telegram says they have none of their own, and only
+        // while it has not run out.
+        if (profile.emojiStatusDocument != 0 && !(user.emoji_status instanceof TLRPC.TL_emojiStatus)
+                && !(user.emoji_status instanceof TLRPC.TL_emojiStatusCollectible)
+                && (profile.emojiStatusUntil == 0 || profile.emojiStatusUntil > System.currentTimeMillis() / 1000)) {
+            final TLRPC.TL_emojiStatus status = new TLRPC.TL_emojiStatus();
+            status.document_id = profile.emojiStatusDocument;
+            if (profile.emojiStatusUntil > 0) {
+                status.flags |= 1;
+                status.until = profile.emojiStatusUntil;
+            }
+            user.emoji_status = status;
+            user.flags |= 1 << 30;
+        }
+        // Their name and profile colours, likewise only where Telegram gave them none.
+        if (user.color == null && (profile.nameColor >= 0 || profile.nameEmoji != 0)) {
+            user.color = peerColor(profile.nameColor, profile.nameEmoji);
+            user.flags2 |= 1 << 8;
+        }
+        if (user.profile_color == null && (profile.profileColor >= 0 || profile.profileEmoji != 0)) {
+            user.profile_color = peerColor(profile.profileColor, profile.profileEmoji);
+            user.flags2 |= 1 << 9;
+        }
         // Fragment phone: a collectible number is drawn when the phone starts with 888, so writing the
         // configured number onto the peer is all it takes. Peers usually expose no phone, so there is
         // nothing real to lose here.
@@ -539,9 +562,38 @@ public final class SovietGramProfileSync {
         }
         // Stored for the peer's profile screen to draw from; there is nothing on a TLRPC.User to apply
         // it to, so it is deliberately not touched by applyRemote.
-        final JSONObject custom = body.optJSONObject("custom_profile");
+        JSONObject custom = body.optJSONObject("custom_profile");
+        if (custom != null && custom.has(SovietGramSync.IDENTITY_KEY)) {
+            // The reserved key is the peer's local emoji status and colours, not part of the look.
+            final JSONObject identity = custom.optJSONObject(SovietGramSync.IDENTITY_KEY);
+            try {
+                custom = new JSONObject(custom.toString());
+                custom.remove(SovietGramSync.IDENTITY_KEY);
+            } catch (Exception e) {
+                FileLog.e(e);
+            }
+            readIdentity(profile, identity);
+        }
         profile.customProfile = custom != null && custom.length() > 0 ? custom : null;
         return profile;
+    }
+
+    private static void readIdentity(RemoteProfile profile, @Nullable JSONObject identity) {
+        if (identity == null) {
+            return;
+        }
+        final JSONObject es = identity.optJSONObject("es");
+        if (es != null) {
+            profile.emojiStatusDocument = parseId(es.optString("id", ""));
+            profile.emojiStatusUntil = es.optInt("u", 0);
+        }
+        final JSONObject pc = identity.optJSONObject("pc");
+        if (pc != null) {
+            profile.nameColor = pc.optInt("c", -1);
+            profile.nameEmoji = parseId(pc.optString("e", ""));
+            profile.profileColor = pc.optInt("p", -1);
+            profile.profileEmoji = parseId(pc.optString("pe", ""));
+        }
     }
 
     /** The subset of a peer's ProfileDto that has a visible surface on their profile as others see it. */
@@ -553,10 +605,19 @@ public final class SovietGramProfileSync {
         @Nullable String fragmentPhone;
         final List<String> fragmentUsernames = new ArrayList<>();
         @Nullable JSONObject customProfile;
+        /** The emoji status the peer picked locally, and the colours of their name and profile. */
+        long emojiStatusDocument;
+        int emojiStatusUntil;
+        int nameColor = -1;
+        long nameEmoji;
+        int profileColor = -1;
+        long profileEmoji;
 
         /** Whether anything here can be written onto the peer's {@link TLRPC.User} object. */
         boolean hasInjectable() {
-            return fakePremium || !TextUtils.isEmpty(fragmentPhone) || !fragmentUsernames.isEmpty();
+            return fakePremium || !TextUtils.isEmpty(fragmentPhone) || !fragmentUsernames.isEmpty()
+                    || emojiStatusDocument != 0 || nameColor >= 0 || nameEmoji != 0
+                    || profileColor >= 0 || profileEmoji != 0;
         }
 
         /** A look is not injectable — it is read off the cache while the peer's profile draws. */
@@ -566,6 +627,19 @@ public final class SovietGramProfileSync {
     }
 
     // ===== small helpers (peer-local mirrors of ServerFragmentHelper's private ones) =====
+
+    private static TLRPC.TL_peerColor peerColor(int color, long emoji) {
+        final TLRPC.TL_peerColor out = new TLRPC.TL_peerColor();
+        if (color >= 0) {
+            out.flags |= 1;
+            out.color = color;
+        }
+        if (emoji != 0) {
+            out.flags |= 2;
+            out.background_emoji_id = emoji;
+        }
+        return out;
+    }
 
     /** A collectible username: active, not editable — the client's rule for drawing the Fragment badge. */
     private static TLRPC.TL_username collectible(String name) {

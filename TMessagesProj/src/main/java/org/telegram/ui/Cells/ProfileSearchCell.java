@@ -246,6 +246,11 @@ public class ProfileSearchCell extends BaseCell implements NotificationCenter.No
         subLabel = s;
         drawCount = needCount;
         savedMessages = saved;
+        // Search results and contact rows draw the peer's premium star too, off the same user object.
+        final TLRPC.User peer = user != null ? user : contact != null ? contact.user : null;
+        if (peer != null && peer.id > 0 && !peer.self && !peer.bot) {
+            tw.nekomimi.nekogram.helpers.SovietGramProfileSync.sighted(currentAccount, peer.id);
+        }
         update(0);
     }
 

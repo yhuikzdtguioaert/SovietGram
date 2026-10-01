@@ -709,6 +709,11 @@
     <string name="CustomProfileIntegrationNotConfigured">Цей сервіс ще не налаштовано на сервері SovietGram.</string>
     <string name="CustomProfileIntegrationNoBrowser">Не знайдено браузер для відкриття сторінки входу.</string>
     <string name="CustomProfileIntegrationDenied">Доступ не надано. Нічого не підключено.</string>
-    <string name="CustomProfileIntegrationPasteToken">Після входу скопіюйте токен доступу (або адресу сторінки, на якій його показано) і вставте сюди.</string>
+    <string name="CustomProfileIntegrationPasteToken">Після входу скопіюйте токен (або адресу сторінки, на якій його показано). SovietGram підхопить його, коли ви повернетеся, або вставте його сюди.</string>
     <string name="CustomProfileIntegrationPasteHint">Токен або адреса сторінки</string>
+    <string name="SovietGramForSupports">Для саппортів</string>
+    <string name="SovietGramSupportIconColor">Колір іконки саппорта</string>
+    <string name="SovietGramSupportIconColorReset">Скинути колір іконки</string>
+    <string name="CustomProfileRestoreFailed">Не вдалося зв’язатися із сервером SovietGram. Перевірте з’єднання та повторіть.</string>
+    <string name="CustomProfileRestored">Профіль відновлено із сервера</string>
 </resources>

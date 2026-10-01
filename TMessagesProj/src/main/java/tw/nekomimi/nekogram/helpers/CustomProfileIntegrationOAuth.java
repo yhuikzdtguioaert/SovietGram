@@ -59,7 +59,7 @@ public final class CustomProfileIntegrationOAuth {
         this.connected = connected;
     }
 
-    /** Starts the sign-in for {@code service} (3 Yandex Music, 4 Spotify, 5 SoundCloud, 6 VK). */
+    /** Starts the sign-in for {@code service} (3 Yandex Music, 4 Spotify). */
     public static void begin(BaseFragment fragment, int account, int service, Consumer<JSONObject> connected) {
         new CustomProfileIntegrationOAuth(fragment, account, service, connected).start();
     }
@@ -167,14 +167,10 @@ public final class CustomProfileIntegrationOAuth {
         input.setSingleLine(true);
         input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
         input.setHint(getString(R.string.CustomProfileIntegrationPasteHint));
-        try {
-            final ClipboardManager clipboard = (ClipboardManager) activity.getSystemService(Context.CLIPBOARD_SERVICE);
-            final ClipData clip = clipboard == null ? null : clipboard.getPrimaryClip();
-            if (clip != null && clip.getItemCount() > 0 && clip.getItemAt(0).getText() != null) {
-                final String text = clip.getItemAt(0).getText().toString();
-                if (extractToken(text) != null) input.setText(text);
-            }
-        } catch (RuntimeException ignored) { }
+        // Whatever is on the clipboard when the dialog opens was there before the sign-in, so it is
+        // only remembered, not used: a token copied on the provider's page afterwards is picked up
+        // by the watch below the moment the user comes back, without anything to paste or press.
+        staleClip = clipboardText(activity);
         dialog = new AlertDialog.Builder(activity)
                 .setTitle(CustomProfileIntegrations.serviceName(service))
                 .setMessage((problem == null ? "" : problem + "\n\n") + getString(R.string.CustomProfileIntegrationPasteToken))
@@ -187,7 +183,38 @@ public final class CustomProfileIntegrationOAuth {
                 .setNegativeButton(getString(R.string.Cancel), (d, which) -> cancel())
                 .create();
         dialog.show();
+        AndroidUtilities.cancelRunOnUIThread(watchClipboard);
+        AndroidUtilities.runOnUIThread(watchClipboard, 800);
     }
+
+    private String staleClip = "";
+
+    private static String clipboardText(Context context) {
+        try {
+            final ClipboardManager clipboard = (ClipboardManager) context.getSystemService(Context.CLIPBOARD_SERVICE);
+            final ClipData clip = clipboard == null ? null : clipboard.getPrimaryClip();
+            if (clip != null && clip.getItemCount() > 0 && clip.getItemAt(0).getText() != null) {
+                return clip.getItemAt(0).getText().toString();
+            }
+        } catch (RuntimeException ignored) { }
+        return "";
+    }
+
+    /** Takes a token copied after the dialog opened and goes straight on to confirming the account. */
+    private final Runnable watchClipboard = new Runnable() {
+        @Override public void run() {
+            final Activity activity = fragment.getParentActivity();
+            if (!alive() || dialog == null || activity == null) return;
+            final String text = clipboardText(activity);
+            final String token = text.equals(staleClip) ? null : extractToken(text);
+            if (token != null) {
+                dismiss();
+                preview(token);
+                return;
+            }
+            AndroidUtilities.runOnUIThread(this, 800);
+        }
+    };
 
     private static String extractToken(String pasted) {
         if (pasted == null) return null;
@@ -241,6 +268,7 @@ public final class CustomProfileIntegrationOAuth {
         finished = true;
         generation++;
         AndroidUtilities.cancelRunOnUIThread(poll);
+        AndroidUtilities.cancelRunOnUIThread(watchClipboard);
         dismiss();
     }
 
@@ -255,6 +283,7 @@ public final class CustomProfileIntegrationOAuth {
         finished = true;
         generation++;
         AndroidUtilities.cancelRunOnUIThread(poll);
+        AndroidUtilities.cancelRunOnUIThread(watchClipboard);
         dismiss();
         final Activity activity = fragment.getParentActivity();
         if (fragment.isFinished || activity == null) return;

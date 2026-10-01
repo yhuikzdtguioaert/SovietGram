@@ -586,7 +586,9 @@ public class UserConfig extends BaseController {
         if (user == null) {
             return false;
         }
-        return user.premium || NekoConfig.localPremium.Bool();
+        // Read per account: only one account's fake-premium setting is live at a time, and a plain
+        // read here would answer for every logged-in account. See SovietGramAccountScope.
+        return user.premium || tw.nekomimi.nekogram.helpers.SovietGramAccountScope.bool(currentAccount, NekoConfig.localPremium);
     }
 
     public Long getEmojiStatus() {

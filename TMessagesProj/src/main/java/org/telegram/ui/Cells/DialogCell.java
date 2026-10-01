@@ -1578,7 +1578,7 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                         }
                         if (drawSovietBadge) {
                             nameLayoutEllipsizeByGradient = true;
-                            sovietBadgeDrawable = SovietGramBadges.drawable();
+                            sovietBadgeDrawable = SovietGramBadges.drawable(user.id);
                         }
                     }
                     if (dialogBotVerificationIcon != 0 && drawBotVerified) {
@@ -3497,7 +3497,7 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                                 emojiStatus.set((Drawable) null, animated);
                                 emojiStatus.setParticles(false, animated);
                             }
-                            sovietBadgeDrawable = drawSovietBadge ? SovietGramBadges.drawable() : null;
+                            sovietBadgeDrawable = drawSovietBadge ? SovietGramBadges.drawable(user.id) : null;
                             if (wasPremium != drawPremium || wasSovietBadge != drawSovietBadge) {
                                 continueUpdate = true;
                             }

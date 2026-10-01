@@ -173,7 +173,7 @@ public class CustomProfileBlocksActivity extends CustomProfileListActivity {
         }
         if (block.type == CustomProfileExtraRows.TYPE_INTEGRATION) {
             setting(getString(R.string.CustomProfileIntegrationService), CustomProfileIntegrations.serviceName(block.service), () -> {
-                PopupHelper.show(new ArrayList<>(java.util.Arrays.asList("Last.fm", "GitHub", "Steam", "Yandex Music", "Spotify", "SoundCloud", "VK")), getString(R.string.CustomProfileIntegrationService),
+                PopupHelper.show(new ArrayList<>(java.util.Arrays.asList("Last.fm", "GitHub", "Steam", "Yandex Music", "Spotify", "SoundCloud")), getString(R.string.CustomProfileIntegrationService),
                         block.service, getParentActivity(), service -> {
                             boolean defaultTitle = block.title.equals(CustomProfileIntegrations.serviceName(block.service));
                             try { block.accounts.put(CustomProfileIntegrations.key(block.service), block.url); }
@@ -187,7 +187,7 @@ public class CustomProfileBlocksActivity extends CustomProfileListActivity {
                         });
             });
             if (block.url.isEmpty()) info(getString(R.string.CustomProfileIntegrationNeedsBinding));
-            if (block.service <= 2) {
+            if (!CustomProfileIntegrations.isConnected(block.service)) {
                 setting(getString(R.string.CustomProfileIntegrationAccount), preview(block.url),
                         () -> askText(getString(R.string.CustomProfileIntegrationAccount), block.url, 128, value -> {
                             block.url = value;
@@ -216,7 +216,7 @@ public class CustomProfileBlocksActivity extends CustomProfileListActivity {
                 });
             }
             info(getString(R.string.CustomProfileIntegrationPrivacy));
-            if (block.service > 2) info(getString(R.string.CustomProfileIntegrationAvailability));
+            if (CustomProfileIntegrations.isConnected(block.service)) info(getString(R.string.CustomProfileIntegrationAvailability));
         }
         if (block.type == CustomProfileExtraRows.TYPE_LINK
                 || block.type == CustomProfileExtraRows.TYPE_BUTTON) {

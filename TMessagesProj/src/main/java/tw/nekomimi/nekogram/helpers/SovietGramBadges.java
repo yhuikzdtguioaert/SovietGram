@@ -72,11 +72,14 @@ public final class SovietGramBadges {
         /** What the badge says when tapped; null falls back to the plain wording for the status. */
         @Nullable
         public final String label;
+        /** The colour the holder chose for their own mark (0xFFRRGGBB), or 0 for the theme's own. */
+        public final int color;
 
-        Badge(long id, int status, @Nullable String label) {
+        Badge(long id, int status, @Nullable String label, int color) {
             this.id = id;
             this.status = status;
             this.label = label;
+            this.color = color;
         }
     }
 
@@ -104,6 +107,12 @@ public final class SovietGramBadges {
         return badgeOf(id) != null;
     }
 
+    /** The colour this person's mark is drawn in, or 0 when they have not picked one. */
+    public static int colorOf(long id) {
+        final Badge badge = badgeOf(id);
+        return badge == null ? 0 : badge.color;
+    }
+
     public static boolean isDeveloper(long id) {
         final Badge badge = badgeOf(id);
         return badge != null && badge.status == STATUS_DEVELOPER;
@@ -122,7 +131,13 @@ public final class SovietGramBadges {
      */
     @Nullable
     public static Drawable drawable() {
-        return drawable(BESIDE_NAME_DP);
+        return drawable(BESIDE_NAME_DP, 0);
+    }
+
+    /** The mark for one person: in the colour they picked, when they picked one. */
+    @Nullable
+    public static Drawable drawable(long id) {
+        return drawable(BESIDE_NAME_DP, colorOf(id));
     }
 
     /**
@@ -131,10 +146,15 @@ public final class SovietGramBadges {
      */
     @Nullable
     public static Drawable drawable(int sizeDp) {
+        return drawable(sizeDp, 0);
+    }
+
+    @Nullable
+    private static Drawable drawable(int sizeDp, int color) {
         try {
             final Drawable source = ApplicationLoader.applicationContext.getResources()
                     .getDrawable(R.drawable.sovietgram_notification, null);
-            return source == null ? null : new Mark(source.mutate(), AndroidUtilities.dp(sizeDp));
+            return source == null ? null : new Mark(source.mutate(), AndroidUtilities.dp(sizeDp), color);
         } catch (Throwable e) {
             FileLog.e(e);
             return null;
@@ -163,10 +183,16 @@ public final class SovietGramBadges {
 
         private final Drawable source;
         private final int size;
+        /** A colour the holder chose; it wins over whatever tint the name beside the mark asks for. */
+        private final int fixedColor;
 
-        Mark(Drawable source, int size) {
+        Mark(Drawable source, int size, int fixedColor) {
             this.source = source;
             this.size = size;
+            this.fixedColor = fixedColor;
+            if (fixedColor != 0) {
+                source.setColorFilter(new PorterDuffColorFilter(fixedColor | 0xFF000000, PorterDuff.Mode.SRC_IN));
+            }
         }
 
         @Override
@@ -196,7 +222,9 @@ public final class SovietGramBadges {
 
         @Override
         public void setColorFilter(@Nullable ColorFilter colorFilter) {
-            source.setColorFilter(colorFilter);
+            if (fixedColor == 0) {
+                source.setColorFilter(colorFilter);
+            }
         }
 
         @Override
@@ -320,7 +348,7 @@ public final class SovietGramBadges {
             // optString hands back the four letters "null" for a JSON null rather than the fallback,
             // and a row without a line of its own is exactly that, so ask before reading.
             final String label = item.isNull("label") ? "" : item.optString("label", "").trim();
-            next.put(id, new Badge(id, status, label.isEmpty() ? null : label));
+            next.put(id, new Badge(id, status, label.isEmpty() ? null : label, parseColor(item.optString("color", ""))));
         }
         final boolean changed = differs(next);
         badges.clear();
@@ -331,21 +359,25 @@ public final class SovietGramBadges {
             writeCache(body.toString());
         }
         if (changed) {
-            // Names already on screen were drawn without these; the badge appears without a restart.
-            // Two signals because they reach different places: reloadInterface rebuilds the lists,
-            // and the emoji-status mask is what a chat header and an open profile listen to for the
-            // mark beside a name — which is exactly the thing that just changed.
-            AndroidUtilities.runOnUIThread(() -> {
-                NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.reloadInterface);
-                for (int account = 0; account < org.telegram.messenger.UserConfig.MAX_ACCOUNT_COUNT; account++) {
-                    if (org.telegram.messenger.UserConfig.getInstance(account).isClientActivated()) {
-                        NotificationCenter.getInstance(account).postNotificationName(
-                                NotificationCenter.updateInterfaces,
-                                org.telegram.messenger.MessagesController.UPDATE_MASK_EMOJI_STATUS);
-                    }
-                }
-            });
+            announceChange();
         }
+    }
+
+    private static void announceChange() {
+        // Names already on screen were drawn without these; the badge appears without a restart.
+        // Two signals because they reach different places: reloadInterface rebuilds the lists,
+        // and the emoji-status mask is what a chat header and an open profile listen to for the
+        // mark beside a name, which is exactly the thing that just changed.
+        AndroidUtilities.runOnUIThread(() -> {
+            NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.reloadInterface);
+            for (int account = 0; account < org.telegram.messenger.UserConfig.MAX_ACCOUNT_COUNT; account++) {
+                if (org.telegram.messenger.UserConfig.getInstance(account).isClientActivated()) {
+                    NotificationCenter.getInstance(account).postNotificationName(
+                            NotificationCenter.updateInterfaces,
+                            org.telegram.messenger.MessagesController.UPDATE_MASK_EMOJI_STATUS);
+                }
+            }
+        });
     }
 
     private static boolean differs(LongSparseArray<Badge> next) {
@@ -354,11 +386,33 @@ public final class SovietGramBadges {
         }
         for (int i = 0; i < next.size(); i++) {
             final Badge was = badges.get(next.keyAt(i));
-            if (was == null || was.status != next.valueAt(i).status) {
+            if (was == null || was.status != next.valueAt(i).status || was.color != next.valueAt(i).color) {
                 return true;
             }
         }
         return false;
+    }
+
+    /**
+     * Applies a colour the holder just saved to their own mark, without waiting for the next list
+     * fetch. The server is the authority (it checks the badge before storing), this only repaints.
+     */
+    public static void setColor(long id, int color) {
+        final Badge badge = badges.get(id);
+        if (badge == null) {
+            return;
+        }
+        badges.put(id, new Badge(id, badge.status, badge.label, color & 0xFFFFFF));
+        announceChange();
+        sync(true);
+    }
+
+    /** "#RRGGBB" from the server; anything else means the default colour. */
+    private static int parseColor(String value) {
+        if (value == null || !value.matches("#[0-9A-Fa-f]{6}")) {
+            return 0;
+        }
+        return Integer.parseInt(value.substring(1), 16) & 0xFFFFFF;
     }
 
     /** The id arrives as text: it is a Telegram id and does not survive a JSON number everywhere. */

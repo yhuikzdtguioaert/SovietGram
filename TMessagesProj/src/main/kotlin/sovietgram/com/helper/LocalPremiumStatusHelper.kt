@@ -30,6 +30,13 @@ object LocalPremiumStatusHelper {
         return data.documentId
     }
 
+    /** The emoji status picked for this account, for the profile sync to publish. */
+    @JvmStatic
+    fun exportForSync(userId: Long): LocalEmojiStatusData? {
+        if (userId == 0L) return null
+        return getDataForUser(userId)
+    }
+
     private fun getDataForUser(userId: Long): LocalEmojiStatusData? {
         if (userId == 0L) return null
         initForUser(userId)
@@ -89,6 +96,7 @@ object LocalPremiumStatusHelper {
         if (status == null || status is TLRPC.TL_emojiStatusEmpty) {
             dataMap[userId] = null
             NaConfig.getPreferences().edit { putString(userKey, "") }
+            tw.nekomimi.nekogram.helpers.SovietGramSync.scheduleProfilePush()
             return
         }
 
@@ -109,5 +117,6 @@ object LocalPremiumStatusHelper {
         val localData = LocalEmojiStatusData(documentId, until)
         dataMap[userId] = localData
         NaConfig.getPreferences().edit { putString(userKey, Gson().toJson(localData)) }
+        tw.nekomimi.nekogram.helpers.SovietGramSync.scheduleProfilePush()
     }
 }

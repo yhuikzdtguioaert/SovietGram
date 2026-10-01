@@ -19064,6 +19064,12 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
         }
 
         updateCurrentUserAndChat();
+        // Whose message this is decides what the name row draws, the premium star among other things.
+        // A group chat renders senders no screen ever asked the backend about; the sighting is
+        // coalesced and TTL-cached, so a bind costs one map lookup once the answer is in.
+        if (currentUser != null && currentUser.id > 0 && !currentUser.self && !currentUser.bot) {
+            tw.nekomimi.nekogram.helpers.SovietGramProfileSync.sighted(currentAccount, currentUser.id);
+        }
         setAvatar(messageObject);
 
         measureTime(messageObject);

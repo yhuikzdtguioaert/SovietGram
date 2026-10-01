@@ -132,7 +132,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-import xyz.nextalone.nagram.helper.LocalPeerColorHelper;
+import sovietgram.com.helper.LocalPeerColorHelper;
 
 public class PeerColorActivity extends BaseFragment implements NotificationCenter.NotificationCenterDelegate {
 

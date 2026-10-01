@@ -49,6 +49,13 @@ object LocalPeerColorHelper {
         return data.profileEmojiId
     }
 
+    /** The name and profile colours picked for this account, for the profile sync to publish. */
+    @JvmStatic
+    fun exportForSync(userId: Long): LocalQuoteColorData? {
+        if (userId == 0L) return null
+        return getDataForUser(userId)
+    }
+
     private fun getDataForUser(userId: Long): LocalQuoteColorData? {
         if (userId == 0L) return null
         initForUser(userId)
@@ -108,5 +115,6 @@ object LocalPeerColorHelper {
 
         val userKey = KEY_PREFIX + userId
         NaConfig.getPreferences().edit { putString(userKey, Gson().toJson(localData)) }
+        tw.nekomimi.nekogram.helpers.SovietGramSync.scheduleProfilePush()
     }
 }

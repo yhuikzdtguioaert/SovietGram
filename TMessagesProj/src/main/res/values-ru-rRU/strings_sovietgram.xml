@@ -793,6 +793,11 @@
     <string name="CustomProfileIntegrationNotConfigured">Этот сервис ещё не настроен на сервере SovietGram.</string>
     <string name="CustomProfileIntegrationNoBrowser">Не найден браузер для открытия страницы входа.</string>
     <string name="CustomProfileIntegrationDenied">Доступ не предоставлен. Ничего не подключено.</string>
-    <string name="CustomProfileIntegrationPasteToken">После входа скопируйте токен доступа (или адрес страницы, на которой он показан) и вставьте сюда.</string>
+    <string name="CustomProfileIntegrationPasteToken">После входа скопируйте токен (или адрес страницы, на которой он показан). SovietGram подхватит его, когда вы вернётесь, либо вставьте его сюда.</string>
     <string name="CustomProfileIntegrationPasteHint">Токен или адрес страницы</string>
+    <string name="SovietGramForSupports">Для саппортов</string>
+    <string name="SovietGramSupportIconColor">Цвет иконки саппорта</string>
+    <string name="SovietGramSupportIconColorReset">Сбросить цвет иконки</string>
+    <string name="CustomProfileRestoreFailed">Не удалось связаться с сервером SovietGram. Проверьте соединение и повторите.</string>
+    <string name="CustomProfileRestored">Профиль восстановлен с сервера</string>
 </resources>

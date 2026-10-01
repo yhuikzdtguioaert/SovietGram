@@ -1037,6 +1037,7 @@ public class ChatAvatarContainer extends FrameLayout implements FactorAnimator.T
     private boolean rightDrawableIsScamOrVerified = false;
     private boolean rightDrawableIsScam = false;
     private boolean rightDrawableIsSovietBadge = false;
+    private long sovietBadgeId;
     private String rightDrawableContentDescription = null;
     private String rightDrawable2ContentDescription = null;
 
@@ -1044,7 +1045,7 @@ public class ChatAvatarContainer extends FrameLayout implements FactorAnimator.T
         titleTextView.setLeftDrawable(leftIcon);
         if (!rightDrawableIsScamOrVerified && !rightDrawableIsScam) {
             if (rightDrawableIsSovietBadge) {
-                titleTextView.setRightDrawable2(SovietGramBadges.drawable());
+                titleTextView.setRightDrawable2(SovietGramBadges.drawable(sovietBadgeId));
             } else {
                 titleTextView.setRightDrawable2(mutedIcon);
             }
@@ -1114,8 +1115,9 @@ public class ChatAvatarContainer extends FrameLayout implements FactorAnimator.T
                 && badgeDialogId != UserConfig.getInstance(currentAccount).clientUserId
                 && SovietGramBadges.has(badgeDialogId);
         rightDrawableIsSovietBadge = sovietBadge;
+        sovietBadgeId = sovietBadge ? badgeDialogId : 0;
         if (sovietBadge) {
-            titleTextView.setRightDrawable2(SovietGramBadges.drawable());
+            titleTextView.setRightDrawable2(SovietGramBadges.drawable(badgeDialogId));
             rightDrawable2ContentDescription = SovietGramBadges.label(SovietGramBadges.badgeOf(badgeDialogId));
             titleTextView.setRightDrawable2OnClick(v -> SovietGramBadges.show(parentFragment, badgeDialogId));
         } else if (!scam && !fake && !verified) {

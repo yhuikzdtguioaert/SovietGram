@@ -180,11 +180,49 @@ public abstract class CustomProfileListActivity extends BaseFragment {
     }
 
     protected void rebuild() {
+        if (listView != null && listView.isComputingLayout()) {
+            listView.post(this::rebuild);
+            return;
+        }
+        final List<Row> before = new ArrayList<>(rows);
         rows.clear();
         buildRows();
-        if (adapter != null) {
-            adapter.notifyDataSetChanged();
+        if (adapter == null) {
+            return;
         }
+        if (before.isEmpty() || listView == null || listView.getChildCount() == 0) {
+            adapter.notifyDataSetChanged();
+            return;
+        }
+        // Rows that appear or go (the options a switch reveals) slide in and out instead of the whole
+        // list being replaced at once.
+        final List<Row> after = new ArrayList<>(rows);
+        androidx.recyclerview.widget.DiffUtil.calculateDiff(
+                new androidx.recyclerview.widget.DiffUtil.Callback() {
+                    @Override public int getOldListSize() { return before.size(); }
+                    @Override public int getNewListSize() { return after.size(); }
+                    @Override public boolean areItemsTheSame(int oldPosition, int newPosition) {
+                        final Row a = before.get(oldPosition);
+                        final Row b = after.get(newPosition);
+                        return a.type == b.type && java.util.Objects.equals(String.valueOf(a.title), String.valueOf(b.title));
+                    }
+                    @Override public boolean areContentsTheSame(int oldPosition, int newPosition) {
+                        final Row a = before.get(oldPosition);
+                        final Row b = after.get(newPosition);
+                        return a.checked == b.checked && a.number == b.number && a.valueColor == b.valueColor
+                                && a.min == b.min && a.max == b.max
+                                && java.util.Objects.equals(String.valueOf(a.value), String.valueOf(b.value))
+                                && java.util.Objects.equals(a.suffix, b.suffix)
+                                && hasDivider(before, oldPosition) == hasDivider(after, newPosition);
+                    }
+                }, false).dispatchUpdatesTo(adapter);
+    }
+
+    private static boolean hasDivider(List<Row> list, int position) {
+        return position + 1 < list.size()
+                && list.get(position + 1).type != TYPE_SHADOW
+                && list.get(position + 1).type != TYPE_INFO
+                && list.get(position + 1).type != TYPE_HEADER;
     }
 
     /**
@@ -258,6 +296,19 @@ public abstract class CustomProfileListActivity extends BaseFragment {
         listView = new RecyclerListView(context);
         listView.setLayoutManager(new LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false));
         listView.setVerticalScrollBarEnabled(false);
+        // The same rounded cards the other settings screens are drawn in; the cells themselves stay
+        // transparent so the card's corners show.
+        listView.setSections(true);
+        listView.setClipToPadding(false);
+        final androidx.recyclerview.widget.DefaultItemAnimator animator =
+                new androidx.recyclerview.widget.DefaultItemAnimator();
+        animator.setSupportsChangeAnimations(false);
+        animator.setDelayAnimations(false);
+        animator.setAddDuration(250);
+        animator.setRemoveDuration(200);
+        animator.setMoveDuration(250);
+        animator.setInterpolator(org.telegram.ui.Components.CubicBezierInterpolator.EASE_OUT_QUINT);
+        listView.setItemAnimator(animator);
         adapter = new ListAdapter(context);
         listView.setAdapter(adapter);
         listView.setOnItemClickListener((view, position) -> {
@@ -398,13 +449,9 @@ public abstract class CustomProfileListActivity extends BaseFragment {
                 case TYPE_INFO -> new TextInfoPrivacyCell(context);
                 default -> new TextSettingsCell(context);
             };
-            if (viewType != TYPE_SHADOW && viewType != TYPE_INFO) {
-                view.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
-            }
             RecyclerView.ViewHolder content = new RecyclerListView.Holder(view);
             if (viewType == TYPE_SHADOW || viewType == TYPE_INFO || viewType == TYPE_HEADER) return content;
             FrameLayout container = new FrameLayout(context);
-            container.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
             container.addView(view, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT,
                     android.view.Gravity.TOP, 40, 0, 0, 0));
             android.widget.ImageView icon = new android.widget.ImageView(context);
@@ -428,8 +475,16 @@ public abstract class CustomProfileListActivity extends BaseFragment {
                     && rows.get(position + 1).type != TYPE_HEADER;
             switch (row.type) {
                 case TYPE_HEADER -> ((HeaderCell) holder.itemView).setText(row.title);
-                case TYPE_CHECK -> ((TextCheckCell) holder.itemView)
-                        .setTextAndCheck(row.title, row.checked, divider);
+                case TYPE_CHECK -> {
+                    final TextCheckCell cell = (TextCheckCell) holder.itemView;
+                    final Object shown = cell.getTag(R.id.object_tag);
+                    if (shown != null && shown.equals(String.valueOf(row.title)) && cell.isChecked() != row.checked) {
+                        cell.setChecked(row.checked);
+                    } else {
+                        cell.setTextAndCheck(row.title, row.checked, divider);
+                    }
+                    cell.setTag(R.id.object_tag, String.valueOf(row.title));
+                }
                 case TYPE_INFO -> ((TextInfoPrivacyCell) holder.itemView).setText(row.title);
                 case TYPE_SLIDER -> ((SliderRow) holder.itemView).bind(row, divider);
                 case TYPE_SHADOW -> {

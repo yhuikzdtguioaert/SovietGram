@@ -334,7 +334,11 @@ public final class CustomProfileExtraRows {
         b.viewX = clamp(o.optInt("view_x"), -4096, 4096);
         b.viewY = clamp(o.optInt("view_y"), -4096, 4096);
         b.viewSpan = clamp(o.optInt("view_span", 32), 8, 256);
-        b.service = clamp(o.optInt("service"), 0, 6);
+        if (type == TYPE_INTEGRATION && o.optInt("service") > 5) {
+            // A service the app no longer supports (VK): the row has nothing left to show.
+            return null;
+        }
+        b.service = clamp(o.optInt("service"), 0, 5);
         b.mode = clamp(o.optInt("mode"), 0, CustomProfileIntegrations.modeCount(b.service) - 1);
         JSONArray modes = o.optJSONArray("parts");
         if (modes != null) {

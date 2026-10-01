@@ -147,7 +147,7 @@ import tw.nekomimi.nekogram.helpers.LocalNameHelper;
 import tw.nekomimi.nekogram.helpers.MessageHelper;
 import tw.nekomimi.nekogram.utils.AlertUtil;
 import xyz.nextalone.nagram.NaConfig;
-import xyz.nextalone.nagram.helper.LocalPremiumStatusHelper;
+import sovietgram.com.helper.LocalPremiumStatusHelper;
 
 import com.radolyn.ayugram.AyuConstants;
 import com.radolyn.ayugram.messages.AyuSavePreferences;
@@ -878,7 +878,7 @@ public class MessagesController extends BaseController implements NotificationCe
         if (dialogFilters.isEmpty()) {
             return;
         }
-        if (!premium && !NekoConfig.localPremium.Bool()) {
+        if (!premium && !tw.nekomimi.nekogram.helpers.SovietGramAccountScope.bool(currentAccount, NekoConfig.localPremium)) {
             if (!dialogFilters.get(0).isDefault()) {
                 for (int i = 1; i < dialogFilters.size(); i++) {
                     if (dialogFilters.get(i).isDefault()) {
@@ -911,7 +911,7 @@ public class MessagesController extends BaseController implements NotificationCe
                     if (!filtersSortedById.get(i).locked) {
                         changed = true;
                     }
-                    filtersSortedById.get(i).locked = !NekoConfig.localPremium.Bool();
+                    filtersSortedById.get(i).locked = !tw.nekomimi.nekogram.helpers.SovietGramAccountScope.bool(currentAccount, NekoConfig.localPremium);
                 } else {
                     if (filtersSortedById.get(i).locked) {
                         changed = true;
@@ -950,7 +950,7 @@ public class MessagesController extends BaseController implements NotificationCe
     }
 
     public boolean isPremiumUser(TLRPC.User currentUser) {
-        return currentUser != null && (currentUser.premium || currentUser.id == getUserConfig().getClientUserId() && NekoConfig.localPremium.Bool()) && !isSupportUser(currentUser);
+        return currentUser != null && (currentUser.premium || currentUser.id == getUserConfig().getClientUserId() && tw.nekomimi.nekogram.helpers.SovietGramAccountScope.bool(currentAccount, NekoConfig.localPremium)) && !isSupportUser(currentUser);
     }
 
     public boolean didPressTranscribeButtonEnough() {
@@ -2499,7 +2499,7 @@ public class MessagesController extends BaseController implements NotificationCe
             } else if (response instanceof TLRPC.TL_messages_dialogFilters) {
                 TLRPC.TL_messages_dialogFilters res = (TLRPC.TL_messages_dialogFilters) response;
                 if (folderTags != res.tags_enabled) {
-                    setFolderTags(res.tags_enabled || !getUserConfig().isPremium() && NekoConfig.localPremium.Bool());
+                    setFolderTags(res.tags_enabled || !getUserConfig().isPremium() && tw.nekomimi.nekogram.helpers.SovietGramAccountScope.bool(currentAccount, NekoConfig.localPremium));
                     AndroidUtilities.runOnUIThread(() -> {
                         getNotificationCenter().postNotificationName(NotificationCenter.dialogFiltersUpdated);
                     });
@@ -6904,6 +6904,13 @@ public class MessagesController extends BaseController implements NotificationCe
         if (user == null) {
             return false;
         }
+        // Has to run before the username bookkeeping below so the fabricated collectible names end
+        // up in objectsByUsernames like any other; no-op unless the own account is being stored.
+        tw.nekomimi.nekogram.helpers.ServerFragmentHelper.apply(user);
+        // The same hook for peers: inject another SovietGram user's remote fake identity (premium +
+        // Fragment phone/usernames) from the pull cache. No-op for the own account and for peers with
+        // nothing cached.
+        tw.nekomimi.nekogram.helpers.SovietGramProfileSync.applyRemote(user);
         fromCache = fromCache && user.id / 1000 != 333 && user.id != 777000;
         TLRPC.User oldUser = users.get(user.id);
         if (NaConfig.INSTANCE.getSaveLocalLastSeen().Bool() && user.id != getUserConfig().getClientUserId() && user.status instanceof TLRPC.TL_userStatusOffline) {

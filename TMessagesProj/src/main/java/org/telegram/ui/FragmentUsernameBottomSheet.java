@@ -132,6 +132,18 @@ public class FragmentUsernameBottomSheet {
         headerView.setText(titleSpanned);
         layout.addView(headerView, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 42, 0, 42, 0));
 
+        if (tw.nekomimi.nekogram.helpers.ServerFragmentHelper.isFake(info)) {
+            TextView fakeBadge = new TextView(context);
+            fakeBadge.setText(getString(R.string.SovietGramFakeBadge));
+            fakeBadge.setGravity(Gravity.CENTER);
+            fakeBadge.setTextColor(Theme.getColor(Theme.key_color_orange, resourcesProvider));
+            fakeBadge.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 12);
+            fakeBadge.setTypeface(AndroidUtilities.bold());
+            fakeBadge.setBackground(Theme.createRoundRectDrawable(dp(10), Theme.multAlpha(Theme.getColor(Theme.key_color_orange, resourcesProvider), .12f)));
+            fakeBadge.setPadding(dp(10), dp(4), dp(10), dp(4));
+            layout.addView(fakeBadge, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 0, 8, 0, 0));
+        }
+
         FrameLayout chipLayout = new FrameLayout(context);
         chipLayout.setBackground(Theme.createRoundRectDrawable(dp(28), dp(28), Theme.getColor(Theme.key_groupcreate_spanBackground, resourcesProvider)));
 

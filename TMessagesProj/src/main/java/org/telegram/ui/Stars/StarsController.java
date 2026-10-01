@@ -170,6 +170,13 @@ public class StarsController {
     }
 
     public TL_stars.StarsAmount getBalance(boolean withMinus, Runnable loaded, boolean force) {
+        final TL_stars.StarsAmount faked = fakeBalance();
+        if (faked != null) {
+            if (loaded != null) {
+                loaded.run();
+            }
+            return faked;
+        }
         if ((!balanceLoaded || System.currentTimeMillis() - lastBalanceLoaded > 1000 * 60) && !balanceLoading || force) {
             balanceLoading = true;
             TL_stars.TL_payments_getStarsStatus req = new TL_stars.TL_payments_getStarsStatus();
@@ -274,7 +281,40 @@ public class StarsController {
     }
 
     public boolean balanceAvailable() {
-        return balanceLoaded;
+        return fakeBalance() != null || balanceLoaded;
+    }
+
+    /**
+     * SovietGram "Server Stars" / "Server TON": swaps the reported balance for a locally configured
+     * number. Nothing is sent to the server, every purchase still fails server side: display only.
+     *
+     * @return the faked amount, or null when the feature is off (callers then use the real balance)
+     */
+    private TL_stars.StarsAmount fakeBalance() {
+        // Read per account, not off the config item: the fake balance belongs to the account it was
+        // configured on, and only one account's settings are live at a time.
+        if (ton) {
+            if (!tw.nekomimi.nekogram.helpers.SovietGramAccountScope.bool(currentAccount, tw.nekomimi.nekogram.NekoConfig.serverTon)) {
+                return null;
+            }
+            long nanotons;
+            try {
+                nanotons = (long) (Double.parseDouble(tw.nekomimi.nekogram.helpers.SovietGramAccountScope.str(currentAccount, tw.nekomimi.nekogram.NekoConfig.serverTonAmount).trim()) * 1_000_000_000L);
+            } catch (Exception e) {
+                nanotons = 0;
+            }
+            return AmountUtils.Amount.fromNano(Math.max(0, nanotons), AmountUtils.Currency.TON).toTl();
+        }
+        if (!tw.nekomimi.nekogram.helpers.SovietGramAccountScope.bool(currentAccount, tw.nekomimi.nekogram.NekoConfig.fakeStars)) {
+            return null;
+        }
+        long amount;
+        try {
+            amount = Long.parseLong(tw.nekomimi.nekogram.helpers.SovietGramAccountScope.str(currentAccount, tw.nekomimi.nekogram.NekoConfig.fakeStarsAmount).trim());
+        } catch (Exception e) {
+            amount = 0;
+        }
+        return TL_stars.StarsAmount.ofStars(Math.max(0, amount));
     }
 
     private boolean optionsLoading, optionsLoaded;

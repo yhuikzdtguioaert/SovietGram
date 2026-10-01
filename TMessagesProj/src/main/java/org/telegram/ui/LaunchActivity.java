@@ -768,6 +768,14 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
             EmojiHelper.getInstance().checkEmojiPacks();
             PagePreviewRulesHelper.getInstance().checkPagePreviewRules();
         });
+        AndroidUtilities.runOnUIThread(() -> {
+            // Every logged-in account needs its own token: the token IS the identity, so one account's
+            // does not authenticate another. This also picks the API server and installs the login
+            // observers that bootstrap an account added later in this session.
+            tw.nekomimi.nekogram.helpers.SovietGramAuthHelper.getInstance().ensureTokens();
+            // Returning accounts already hold a token, so pull any gifts that arrived while away.
+            tw.nekomimi.nekogram.helpers.SovietGramGiftSync.pollInbox();
+        });
         BackupAgent.requestBackup();
 
         RestrictedLanguagesSelectActivity.checkRestrictedLanguages(false);
@@ -7118,6 +7126,12 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         //FileLog.d("UI resume time = " + (SystemClock.elapsedRealtime() - ApplicationLoader.startTime));
         NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.startAllHeavyOperations, 4096);
         MediaController.getInstance().setFeedbackView(feedbackView = actionBarLayout.getView(), true);
+        if (ApplicationLoader.mainInterfacePaused) {
+            // Coming back from the background is the moment worth re-asking who wears a badge: the
+            // answer is about a hundred bytes, and a badge granted or taken away today would
+            // otherwise keep showing the old answer for as long as the process lives.
+            tw.nekomimi.nekogram.helpers.SovietGramBadges.sync(true);
+        }
         ApplicationLoader.mainInterfacePaused = false;
         MessagesController.getInstance(currentAccount).sortDialogs(null);
         showLanguageAlert(false);

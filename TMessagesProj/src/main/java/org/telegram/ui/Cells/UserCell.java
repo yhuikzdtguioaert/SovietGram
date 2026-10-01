@@ -538,6 +538,11 @@ public class UserCell extends FrameLayout implements NotificationCenter.Notifica
         isCommunity = false;
         if (currentObject instanceof TLRPC.User) {
             currentUser = (TLRPC.User) currentObject;
+            // This row draws a premium star straight off the user object, so a peer's fake premium
+            // only shows once their profile has been pulled. Coalesced and TTL-cached.
+            if (currentUser.id > 0 && !currentUser.self && !currentUser.bot) {
+                tw.nekomimi.nekogram.helpers.SovietGramProfileSync.sighted(currentAccount, currentUser.id);
+            }
             if (currentUser.photo != null) {
                 photo = currentUser.photo.photo_small;
             }

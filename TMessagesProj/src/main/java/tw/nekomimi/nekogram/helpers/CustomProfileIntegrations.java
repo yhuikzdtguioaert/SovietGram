@@ -16,16 +16,15 @@ import java.util.function.Consumer;
 
 /** Integration metadata travels with the profile; credentials never belong in a block. */
 public final class CustomProfileIntegrations {
-    private static final String[] KEYS = {"lastfm", "github", "steam", "yamusic", "spotify", "soundcloud", "vk"};
-    private static final String[] NAMES = {"Last.fm", "GitHub", "Steam", "Yandex Music", "Spotify", "SoundCloud", "VK"};
+    private static final String[] KEYS = {"lastfm", "github", "steam", "yamusic", "spotify", "soundcloud"};
+    private static final String[] NAMES = {"Last.fm", "GitHub", "Steam", "Yandex Music", "Spotify", "SoundCloud"};
     private static final int[][] MODES = {
         {R.string.CustomProfileIntegrationNow, R.string.CustomProfileIntegrationScrobbles, R.string.CustomProfileIntegrationArtist, R.string.CustomProfileIntegrationAlbum},
         {R.string.CustomProfileIntegrationRepos, R.string.CustomProfileIntegrationStars, R.string.CustomProfileIntegrationFollowers, R.string.CustomProfileIntegrationFollowing, R.string.CustomProfileIntegrationSince},
         {R.string.CustomProfileIntegrationPlaying, R.string.CustomProfileIntegrationSince, R.string.CustomProfileIntegrationHoursRecent, R.string.CustomProfileExtraRowTitle, R.string.CustomProfileIntegrationLevel, R.string.CustomProfileIntegrationGames, R.string.CustomProfileIntegrationHours, R.string.CustomProfileIntegrationLastGame},
         {R.string.CustomProfileIntegrationNow, R.string.CustomProfileIntegrationLastLike, R.string.CustomProfileIntegrationLikedTracks, R.string.CustomProfileIntegrationPlaylists},
         {R.string.CustomProfileIntegrationNow, R.string.CustomProfileIntegrationLastTrack, R.string.CustomProfileIntegrationArtist, R.string.CustomProfileIntegrationFollowers},
-        {R.string.CustomProfileIntegrationLastTrack, R.string.CustomProfileIntegrationFollowers, R.string.CustomProfileIntegrationTracks, R.string.CustomProfileIntegrationLikes},
-        {R.string.CustomProfileIntegrationNow, R.string.CustomProfileIntegrationFriends, R.string.CustomProfileIntegrationFollowers, R.string.CustomProfileIntegrationStatus}
+        {R.string.CustomProfileIntegrationLastTrack, R.string.CustomProfileIntegrationFollowers, R.string.CustomProfileIntegrationTracks, R.string.CustomProfileIntegrationLikes}
     };
     private record Held(String value, long until) { }
     // UI-thread only. Bounded, scoped by both Telegram identity and provider configuration.
@@ -33,11 +32,13 @@ public final class CustomProfileIntegrations {
     private static final Map<String, List<Consumer<String>>> PENDING = new HashMap<>();
     private static int cacheGeneration;
     private CustomProfileIntegrations() { }
-    public static String key(int service) { return KEYS[Math.max(0, Math.min(6, service))]; }
-    public static String serviceName(int service) { return NAMES[Math.max(0, Math.min(6, service))]; }
-    public static int modeCount(int service) { return MODES[Math.max(0, Math.min(6, service))].length; }
+    /** Services whose statistics come from the user's own signed-in account rather than a public name. */
+    public static boolean isConnected(int service) { return service == 3 || service == 4; }
+    public static String key(int service) { return KEYS[Math.max(0, Math.min(5, service))]; }
+    public static String serviceName(int service) { return NAMES[Math.max(0, Math.min(5, service))]; }
+    public static int modeCount(int service) { return MODES[Math.max(0, Math.min(5, service))].length; }
     public static String modeName(int service, int mode) {
-        int[] modes = MODES[Math.max(0, Math.min(6, service))];
+        int[] modes = MODES[Math.max(0, Math.min(5, service))];
         return LocaleController.getString(modes[Math.max(0, Math.min(modes.length - 1, mode))]);
     }
     public static String account(CustomProfileExtraRows.Block block) {
@@ -51,6 +52,8 @@ public final class CustomProfileIntegrations {
             if (block.service == 0 && (host.equals("last.fm") || host.equals("www.last.fm"))
                     && segments.size() == 2 && segments.get(0).equals("user")) return segments.get(1);
             if (block.service == 1 && host.equals("github.com") && segments.size() == 1) return segments.get(0);
+            if (block.service == 5 && (host.equals("soundcloud.com") || host.equals("www.soundcloud.com") || host.equals("m.soundcloud.com"))
+                    && segments.size() >= 1) return segments.get(0);
             if (block.service == 2 && host.equals("steamcommunity.com") && segments.size() == 2
                     && (segments.get(0).equals("id") || segments.get(0).equals("profiles"))) return segments.get(1);
             return "";
@@ -66,8 +69,7 @@ public final class CustomProfileIntegrations {
             case 2 -> "https://steamcommunity.com/" + (name.matches("[0-9]{17}") ? "profiles/" : "id/") + Uri.encode(name);
             case 3 -> "https://music.yandex.ru/";
             case 4 -> "https://open.spotify.com/user/" + Uri.encode(name);
-            case 5 -> "https://soundcloud.com/";
-            case 6 -> name.matches("[0-9]+") ? "https://vk.com/id" + name : "https://vk.com/";
+            case 5 -> "https://soundcloud.com/" + Uri.encode(name);
             default -> "";
         };
     }
@@ -95,7 +97,7 @@ public final class CustomProfileIntegrations {
         }
         if (modes.length() == 0) modes.append(block.mode);
         String path = "/v1/integrations?service=" + key(block.service) + "&account=" + Uri.encode(name) + "&modes=" + modes;
-        if (block.service > 2) {
+        if (isConnected(block.service)) {
             path = profileOwner == UserConfig.getInstance(account).getClientUserId()
                     ? "/v1/integrations/self?service=" + key(block.service) + "&modes=" + modes
                     : "/v1/profile-integrations/" + profileOwner + "/" + Uri.encode(block.id);
@@ -115,7 +117,7 @@ public final class CustomProfileIntegrations {
             String value = describe(service, body);
             if (CACHE.size() >= 256) CACHE.remove(CACHE.keySet().iterator().next());
             if (requestedGeneration == cacheGeneration) CACHE.put(cacheKey, new Held(value,
-                    android.os.SystemClock.elapsedRealtime() + (error == null ? (service > 2 ? 30000 : 60000) : 15000)));
+                    android.os.SystemClock.elapsedRealtime() + (error == null ? (isConnected(service) ? 30000 : 60000) : 15000)));
             List<Consumer<String>> listeners = PENDING.remove(cacheKey);
             if (listeners != null) for (Consumer<String> listener : listeners) listener.accept(value);
         }));

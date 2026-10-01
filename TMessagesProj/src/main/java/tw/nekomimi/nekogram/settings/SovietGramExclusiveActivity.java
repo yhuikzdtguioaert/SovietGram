@@ -23,7 +23,10 @@ import tw.nekomimi.nekogram.config.cell.ConfigCellTextInput;
 import tw.nekomimi.nekogram.helpers.CustomProfileHelper;
 import tw.nekomimi.nekogram.helpers.WorkshopHelper;
 import tw.nekomimi.nekogram.helpers.ServerFragmentHelper;
+import tw.nekomimi.nekogram.helpers.SovietGramApiClient;
+import tw.nekomimi.nekogram.helpers.SovietGramBadges;
 import tw.nekomimi.nekogram.helpers.SovietGramSync;
+import tw.nekomimi.nekogram.config.cell.ConfigCellColor;
 
 /**
  * Home for features that only exist between SovietGram users — things that have no
@@ -87,6 +90,21 @@ public class SovietGramExclusiveActivity extends BaseNekoXSettingsActivity {
     private final AbstractConfigCell glowSuiteRow = cellGroup.appendCell(new ConfigCellText("GlowSuiteTitle", () -> presentFragment(new GlowSuiteActivity())));
     private final AbstractConfigCell dividerCustomization = cellGroup.appendCell(new ConfigCellDivider());
 
+    // Only for people who wear a SovietGram supporter or developer badge. The rows are present only
+    // while the server has confirmed that: the options change what other people see, so the server
+    // checks the badge itself before it stores anything, whatever this screen shows.
+    private final AbstractConfigCell headerSupports = cellGroup.appendCell(new ConfigCellHeader(getString(R.string.SovietGramForSupports)));
+    private final AbstractConfigCell supportIconColorRow = cellGroup.appendCell(new ConfigCellText("SovietGramSupportIconColor", this::pickSupportIconColor));
+    private final AbstractConfigCell supportIconColorResetRow = cellGroup.appendCell(new ConfigCellText("SovietGramSupportIconColorReset", () -> saveSupportIconColor(null)));
+    private final AbstractConfigCell dividerSupports = cellGroup.appendCell(new ConfigCellDivider());
+    private boolean supportRowsVisible = true;
+    private int pendingSupportColor = -1;
+    private final Runnable pushSupportColor = () -> {
+        if (pendingSupportColor >= 0) {
+            saveSupportIconColor(pendingSupportColor);
+        }
+    };
+
     public SovietGramExclusiveActivity() {
         // The amount fields only make sense once their toggle is on, so they start out absent
         // and are inserted/removed by the callback below.
@@ -108,7 +126,86 @@ public class SovietGramExclusiveActivity extends BaseNekoXSettingsActivity {
             cellGroup.rows.remove(framesRow);
             cellGroup.rows.remove(frameStudioRow);
         }
+        // Hidden until the server says this account holds a badge (a cached list answers right away).
+        if (!SovietGramBadges.has(UserConfig.getInstance(UserConfig.selectedAccount).getClientUserId())) {
+            setSupportRows(false);
+        }
         addRowsToMap(cellGroup);
+    }
+
+    private void setSupportRows(boolean show) {
+        if (show == supportRowsVisible) {
+            return;
+        }
+        supportRowsVisible = show;
+        if (show) {
+            int index = cellGroup.rows.indexOf(dividerCustomization) + 1;
+            cellGroup.rows.add(index++, headerSupports);
+            cellGroup.rows.add(index++, supportIconColorRow);
+            cellGroup.rows.add(index++, supportIconColorResetRow);
+            cellGroup.rows.add(index, dividerSupports);
+        } else {
+            cellGroup.rows.remove(headerSupports);
+            cellGroup.rows.remove(supportIconColorRow);
+            cellGroup.rows.remove(supportIconColorResetRow);
+            cellGroup.rows.remove(dividerSupports);
+        }
+        addRowsToMap(cellGroup);
+        if (listAdapter != null) {
+            listAdapter.notifyDataSetChanged();
+        }
+    }
+
+    /** Asks the server, which is the authority on who holds a badge, whether to show the section. */
+    private void checkSupportEligibility() {
+        final int account = UserConfig.selectedAccount;
+        if (!SovietGramApiClient.isReady(account)) {
+            return;
+        }
+        SovietGramApiClient.get(account, "/v1/badge-prefs", (body, error) -> {
+            if (body == null || account != UserConfig.selectedAccount) {
+                return;
+            }
+            setSupportRows(body.optBoolean("eligible"));
+        });
+    }
+
+    private void pickSupportIconColor() {
+        if (getParentActivity() == null) {
+            return;
+        }
+        final long self = UserConfig.getInstance(UserConfig.selectedAccount).getClientUserId();
+        final int current = SovietGramBadges.colorOf(self);
+        final int start = 0xFF000000 | (current != 0 ? current : 0x4FA4E8);
+        ConfigCellColor.show(getParentActivity(), getString(R.string.SovietGramSupportIconColor), start, start, false, color -> {
+            // The wheel reports every frame of a drag; save once the finger has rested.
+            pendingSupportColor = color & 0xFFFFFF;
+            org.telegram.messenger.AndroidUtilities.cancelRunOnUIThread(pushSupportColor);
+            org.telegram.messenger.AndroidUtilities.runOnUIThread(pushSupportColor, 700);
+        });
+    }
+
+    /** @param color 0xRRGGBB, or null to go back to the default colour. */
+    private void saveSupportIconColor(Integer color) {
+        final int account = UserConfig.selectedAccount;
+        final long self = UserConfig.getInstance(account).getClientUserId();
+        pendingSupportColor = -1;
+        final org.json.JSONObject body = new org.json.JSONObject();
+        try {
+            body.put("icon_color", color == null ? org.json.JSONObject.NULL
+                    : String.format(java.util.Locale.US, "#%06X", color & 0xFFFFFF));
+        } catch (org.json.JSONException e) {
+            return;
+        }
+        SovietGramApiClient.putSigned(account, "/v1/badge-prefs", body, (response, error) -> {
+            if (response == null) {
+                if (error != null && error.contains("not_a_badge_holder")) {
+                    setSupportRows(false);
+                }
+                return;
+            }
+            SovietGramBadges.setColor(self, color == null ? 0 : color);
+        });
     }
 
     /**
@@ -176,6 +273,7 @@ public class SovietGramExclusiveActivity extends BaseNekoXSettingsActivity {
         listView.setAdapter(listAdapter);
 
         setupDefaultListeners();
+        checkSupportEligibility();
 
         cellGroup.callBackSettingsChanged = (key, newValue) -> {
             if (key.equals(NekoConfig.localPremium.getKey())) {

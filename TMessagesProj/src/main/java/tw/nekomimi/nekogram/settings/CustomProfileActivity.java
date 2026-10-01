@@ -262,9 +262,15 @@ public class CustomProfileActivity extends BaseNekoXSettingsActivity {
     private final AbstractConfigCell restoreCloudRow = new ConfigCellText("CustomProfileRestoreCloud", null,
             () -> tw.nekomimi.nekogram.helpers.CustomProfileCloud.restore(currentAccount, (body, error) -> {
                 if (isFinished) return;
-                if (body == null || body.optJSONObject("appearance") == null) {
+                if (body == null) {
+                    // Offline, signed out or an error: not the same as having no backup.
+                    BulletinFactory.of(this).createErrorBulletin(getString(R.string.CustomProfileRestoreFailed)).show();
+                } else if (body.optJSONObject("appearance") == null) {
                     BulletinFactory.of(this).createErrorBulletin(getString(R.string.CustomProfileNoCloudBackup)).show();
-                } else rebuild();
+                } else {
+                    rebuild();
+                    BulletinFactory.of(this).createSimpleBulletin(R.raw.done, getString(R.string.CustomProfileRestored)).show();
+                }
             }));
 
     public CustomProfileActivity() {
@@ -531,10 +537,39 @@ public class CustomProfileActivity extends BaseNekoXSettingsActivity {
 
     @SuppressLint("NotifyDataSetChanged")
     private void rebuild() {
-        buildRows();
-        if (listAdapter != null) {
-            listAdapter.notifyDataSetChanged();
+        if (listView != null && listView.isComputingLayout()) {
+            listView.post(this::rebuild);
+            return;
         }
+        final java.util.List<tw.nekomimi.nekogram.config.cell.AbstractConfigCell> before =
+                new java.util.ArrayList<>(cellGroup.rows);
+        buildRows();
+        if (listAdapter == null) {
+            return;
+        }
+        if (before.isEmpty() || listView == null || listView.getChildCount() == 0) {
+            listAdapter.notifyDataSetChanged();
+            return;
+        }
+        // Rows a switch reveals or hides slide in and out instead of the whole list being replaced
+        // at once. The rows that stay are bound again afterwards (without a change animation, see
+        // the item animator) because nearly any value here can have moved.
+        final java.util.List<tw.nekomimi.nekogram.config.cell.AbstractConfigCell> after =
+                new java.util.ArrayList<>(cellGroup.rows);
+        androidx.recyclerview.widget.DiffUtil.calculateDiff(
+                new androidx.recyclerview.widget.DiffUtil.Callback() {
+                    @Override public int getOldListSize() { return before.size(); }
+                    @Override public int getNewListSize() { return after.size(); }
+                    @Override public boolean areItemsTheSame(int oldPosition, int newPosition) {
+                        final tw.nekomimi.nekogram.config.cell.AbstractConfigCell a = before.get(oldPosition);
+                        final tw.nekomimi.nekogram.config.cell.AbstractConfigCell b = after.get(newPosition);
+                        return a == b || (a instanceof ConfigCellDivider && b instanceof ConfigCellDivider);
+                    }
+                    @Override public boolean areContentsTheSame(int oldPosition, int newPosition) {
+                        return true;
+                    }
+                }, false).dispatchUpdatesTo(listAdapter);
+        listAdapter.notifyItemRangeChanged(0, after.size());
     }
 
     private void pickMedia(int requestCode) {

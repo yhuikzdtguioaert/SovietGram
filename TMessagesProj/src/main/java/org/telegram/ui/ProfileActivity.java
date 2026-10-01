@@ -11896,15 +11896,26 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         return botVerificationDrawable[a];
     }
 
-    private Drawable getBadgeDrawable(int a) {
+    private final int[] sovietBadgeColor = new int[2];
+
+    private Drawable getBadgeDrawable(int a, long badgeUserId) {
+        final int color = SovietGramBadges.colorOf(badgeUserId);
+        if (sovietBadgeDrawable[a] != null && sovietBadgeColor[a] != color) {
+            // The holder picked (or changed) the mark's colour: draw it again, once.
+            sovietBadgeDrawable[a].set(SovietGramBadges.drawable(badgeUserId), false);
+            sovietBadgeColor[a] = color;
+        }
         if (sovietBadgeDrawable[a] == null) {
+            sovietBadgeColor[a] = color;
             sovietBadgeDrawable[a] = new AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable(nameTextView[a], AndroidUtilities.dp(18), a == 0 ? AnimatedEmojiDrawable.CACHE_TYPE_EMOJI_STATUS : AnimatedEmojiDrawable.CACHE_TYPE_KEYBOARD);
             if (fragmentViewAttached) {
                 sovietBadgeDrawable[a].attach();
             }
+            // Set once and without the swap animation: this runs on every profile refresh, and
+            // re-swapping the same mark each time made it pulse.
+            sovietBadgeDrawable[a].set(SovietGramBadges.drawable(badgeUserId), false);
+            sovietBadgeDrawable[a].setParticles(false, false);
         }
-        sovietBadgeDrawable[a].set(SovietGramBadges.drawable(), true);
-        sovietBadgeDrawable[a].setParticles(false, true);
         updateEmojiStatusDrawableColor();
         return sovietBadgeDrawable[a];
     }
@@ -12255,7 +12266,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         nameTextViewRightDrawable2ContentDescription = LocaleController.getString(R.string.AccDescrVerified);
                     } else if (hasSovietBadge) {
                         rightIconIsBadge = true;
-                        nameTextView[a].setRightDrawable2(getBadgeDrawable(a));
+                        nameTextView[a].setRightDrawable2(getBadgeDrawable(a, user.id));
                         nameTextViewRightDrawable2ContentDescription =
                                 SovietGramBadges.label(SovietGramBadges.badgeOf(user.id));
                     } else if (getMessagesController().isDialogMuted(dialogId != 0 ? dialogId : userId, topicId)) {
@@ -12293,7 +12304,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         nameTextView[a].setRightDrawable2(getVerifiedCrossfadeDrawable(a));
                     } else if (hasSovietBadge) {
                         rightIconIsBadge = true;
-                        nameTextView[a].setRightDrawable2(getBadgeDrawable(a));
+                        nameTextView[a].setRightDrawable2(getBadgeDrawable(a, user.id));
                     } else {
                         nameTextView[a].setRightDrawable2(null);
                     }
