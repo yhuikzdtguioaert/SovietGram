@@ -390,7 +390,14 @@ public final class CustomProfileHeaderLayout {
             if (Math.abs(child.getScaleY() - outY) > 0.002f) {
                 child.setScaleY(outY);
             }
-            contentScales.put(child, new float[]{outX, outY, baseX, baseY});
+            if (written == null || written.length < 4) {
+                contentScales.put(child, new float[]{outX, outY, baseX, baseY});
+            } else {
+                written[0] = outX;
+                written[1] = outY;
+                written[2] = baseX;
+                written[3] = baseY;
+            }
         }
     }
 
