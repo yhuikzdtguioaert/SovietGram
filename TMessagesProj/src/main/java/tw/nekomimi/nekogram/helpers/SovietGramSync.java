@@ -130,6 +130,7 @@ public final class SovietGramSync {
                 continue;
             }
             CustomProfileCloud.backup(account);
+            FrameProjects.synchronize(account);
             final long ownId = SovietGramTokenStore.ownId(account);
             if (ownId <= 0) {
                 continue;

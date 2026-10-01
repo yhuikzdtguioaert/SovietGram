@@ -39,6 +39,7 @@ public final class CustomProfileExtraRows {
     public static final int TYPE_NOTE = 4;
     public static final int TYPE_BUTTON = 5;
     public static final int TYPE_MEDIA = 10;
+    public static final int TYPE_INTEGRATION = 12;
 
     /** What tapping a row does. */
     public static final int ACTION_NONE = 0;
@@ -89,6 +90,14 @@ public final class CustomProfileExtraRows {
         public boolean divider = true;
         /** The author's own note to themselves: shown only on their own profile. */
         public boolean ownOnly;
+        public int service;
+        public int mode;
+        public JSONArray parts = new JSONArray();
+        public JSONObject accounts = new JSONObject();
+        public long emoji;
+        public int viewX;
+        public int viewY;
+        public int viewSpan = 32;
 
         /**
          * The picture a row draws.
@@ -121,9 +130,11 @@ public final class CustomProfileExtraRows {
 
         /** Whether this row is one of the six with a renderer. */
         public boolean drawable() {
-            return type == TYPE_LINK || type == TYPE_TEXT || type == TYPE_HEADER
+            boolean supported = type == TYPE_LINK || type == TYPE_TEXT || type == TYPE_HEADER
                     || type == TYPE_DIVIDER || type == TYPE_BUTTON || type == TYPE_MEDIA
-                    || type == TYPE_NOTE;
+                    || type == TYPE_NOTE || type == TYPE_INTEGRATION;
+            return supported && (type == TYPE_DIVIDER || !title.isEmpty() || !text.isEmpty()
+                    || !url.isEmpty() || !mediaPath.isEmpty() || !media.isEmpty());
         }
     }
 
@@ -131,7 +142,7 @@ public final class CustomProfileExtraRows {
 
     /** The look's own rows as stored, for the editor. A copy: editing one must not repaint anything. */
     public static List<Block> stored() {
-        return new ArrayList<>(parse(NekoConfig.customProfileExtraBlocks.String()));
+        return new ArrayList<>(parse(NekoConfig.customProfileExtraBlocks.String(), false));
     }
 
     /** Writes the whole list back and repaints. */
@@ -154,8 +165,14 @@ public final class CustomProfileExtraRows {
     public static Block create(int type) {
         final Block block = new Block();
         block.type = type;
-        block.id = Long.toHexString(System.currentTimeMillis()) + "_" + type;
+        block.id = java.util.UUID.randomUUID().toString();
         block.action = type == TYPE_LINK ? ACTION_OPEN : ACTION_NONE;
+        if (type == TYPE_INTEGRATION) {
+            block.action = ACTION_OPEN;
+            block.service = 1;
+            block.title = CustomProfileIntegrations.serviceName(1);
+            block.parts.put(0);
+        }
         return block;
     }
 
@@ -184,6 +201,16 @@ public final class CustomProfileExtraRows {
             o.put("media", block.media);
             o.put("divider", block.divider);
             o.put("own_only", block.ownOnly);
+            o.put("emoji", block.emoji);
+            o.put("view_x", block.viewX);
+            o.put("view_y", block.viewY);
+            o.put("view_span", block.viewSpan);
+            if (block.type == TYPE_INTEGRATION) {
+                o.put("service", block.service);
+                o.put("mode", block.mode);
+                o.put("parts", block.parts);
+                o.put("accounts", block.accounts);
+            }
             return o;
         } catch (Throwable e) {
             FileLog.e(e);
@@ -227,6 +254,10 @@ public final class CustomProfileExtraRows {
     }
 
     static List<Block> parse(@Nullable String json) {
+        return parse(json, true);
+    }
+
+    private static List<Block> parse(@Nullable String json, boolean onlyDrawable) {
         if (TextUtils.isEmpty(json)) {
             return Collections.emptyList();
         }
@@ -239,7 +270,7 @@ public final class CustomProfileExtraRows {
                     continue;
                 }
                 final Block block = read(item);
-                if (block != null && block.drawable()) {
+                if (block != null && (!onlyDrawable || block.drawable())) {
                     out.add(block);
                 }
             }
@@ -253,7 +284,7 @@ public final class CustomProfileExtraRows {
     @Nullable
     private static Block read(JSONObject o) {
         final int type = o.optInt("type", TYPE_LINK);
-        if (type < 0 || type > 10) {
+        if (type < 0 || type > TYPE_INTEGRATION) {
             return null;
         }
         final Block b = new Block();
@@ -276,13 +307,29 @@ public final class CustomProfileExtraRows {
         b.media = trim(o.optString("media", ""), 512);
         b.divider = o.optBoolean("divider", true);
         b.ownOnly = o.optBoolean("own_only", false);
-        // A row with nothing in it is not a row. A picture row counts as full when it has a picture
-        // in either field — dropping the ones that carry only an address threw away every picture
-        // row that could actually be drawn by somebody other than its author.
-        if (b.type != TYPE_DIVIDER && b.title.isEmpty() && b.text.isEmpty()
-                && b.url.isEmpty() && b.mediaPath.isEmpty() && b.media.isEmpty()) {
-            return null;
+        b.emoji = Math.max(0, o.optLong("emoji"));
+        b.viewX = clamp(o.optInt("view_x"), -4096, 4096);
+        b.viewY = clamp(o.optInt("view_y"), -4096, 4096);
+        b.viewSpan = clamp(o.optInt("view_span", 32), 8, 256);
+        b.service = clamp(o.optInt("service"), 0, 6);
+        b.mode = clamp(o.optInt("mode"), 0, CustomProfileIntegrations.modeCount(b.service) - 1);
+        JSONArray modes = o.optJSONArray("parts");
+        if (modes != null) {
+            java.util.Set<Integer> seen = new java.util.HashSet<>();
+            for (int i = 0; i < modes.length() && b.parts.length() < 8; i++) {
+                int mode = modes.optInt(i, -1);
+                if (mode >= 0 && mode < CustomProfileIntegrations.modeCount(b.service) && seen.add(mode)) b.parts.put(mode);
+            }
         }
+        if (b.parts.length() == 0) b.parts.put(b.mode);
+        JSONObject accounts = o.optJSONObject("accounts");
+        if (accounts != null) {
+            for (int i = 0; i < 7; i++) {
+                try { b.accounts.put(CustomProfileIntegrations.key(i), trim(accounts.optString(CustomProfileIntegrations.key(i)), 64)); }
+                catch (org.json.JSONException ignore) { }
+            }
+        }
+        // Drafts and imported types need to survive editing even before they can be drawn.
         return b;
     }
 

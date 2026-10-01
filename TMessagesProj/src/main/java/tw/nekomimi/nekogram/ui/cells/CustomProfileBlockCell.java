@@ -46,6 +46,7 @@ public class CustomProfileBlockCell extends FrameLayout {
     /** Whether this row's picture is one this phone can actually show. */
     private boolean mediaUsable;
     private final Theme.ResourcesProvider resourcesProvider;
+    private int binding;
 
     public CustomProfileBlockCell(Context context, Theme.ResourcesProvider resourcesProvider) {
         super(context);
@@ -74,13 +75,18 @@ public class CustomProfileBlockCell extends FrameLayout {
 
     /** Puts one block on screen. Everything not part of this block's type is simply hidden. */
     public void set(CustomProfileExtraRows.Block block) {
+        set(block, org.telegram.messenger.UserConfig.selectedAccount);
+    }
+
+    public void set(CustomProfileExtraRows.Block block, int account) {
+        final int generation = ++binding;
         this.block = block;
         final int type = block.type;
 
         final boolean showsTitle = !block.title.isEmpty()
                 && type != CustomProfileExtraRows.TYPE_DIVIDER
                 && type != CustomProfileExtraRows.TYPE_MEDIA;
-        final boolean showsValue = !block.text.isEmpty()
+        final boolean showsValue = type == CustomProfileExtraRows.TYPE_INTEGRATION || !block.text.isEmpty()
                 && (type == CustomProfileExtraRows.TYPE_TEXT
                 || type == CustomProfileExtraRows.TYPE_NOTE
                 || type == CustomProfileExtraRows.TYPE_LINK);
@@ -103,12 +109,20 @@ public class CustomProfileBlockCell extends FrameLayout {
             titleView.setLayoutParams(params);
         }
         if (showsValue) {
-            valueView.setText(block.text);
+            valueView.setText(type == CustomProfileExtraRows.TYPE_INTEGRATION
+                    ? org.telegram.messenger.LocaleController.getString(org.telegram.messenger.R.string.Loading) : block.text);
             valueView.setTextColor(block.valueColor != 0 ? block.valueColor
                     : Theme.getColor(Theme.key_windowBackgroundWhiteGrayText2, resourcesProvider));
             final FrameLayout.LayoutParams params = (LayoutParams) valueView.getLayoutParams();
             params.topMargin = AndroidUtilities.dp(showsTitle ? 32 : 12);
             valueView.setLayoutParams(params);
+        }
+        if (type == CustomProfileExtraRows.TYPE_INTEGRATION) {
+            tw.nekomimi.nekogram.helpers.CustomProfileIntegrations.load(account, block, text -> {
+                if (binding != generation || this.block != block) return;
+                valueView.setText(text);
+                requestLayout();
+            });
         }
         if (showsMedia) {
             final FrameLayout.LayoutParams params = (LayoutParams) imageView.getLayoutParams();
@@ -164,7 +178,7 @@ public class CustomProfileBlockCell extends FrameLayout {
                 case CustomProfileExtraRows.TYPE_BUTTON -> height = AndroidUtilities.dp(56);
                 default -> {
                     height = AndroidUtilities.dp(block.title.isEmpty() ? 4 : 26);
-                    if (!block.text.isEmpty()) {
+                    if (!block.text.isEmpty() || block.type == CustomProfileExtraRows.TYPE_INTEGRATION) {
                         valueView.measure(MeasureSpec.makeMeasureSpec(
                                         width - AndroidUtilities.dp(42), MeasureSpec.EXACTLY),
                                 MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED));

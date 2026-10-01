@@ -36,6 +36,8 @@ public final class FrameProjects {
     private static final Map<String, Runnable> pending = new HashMap<>();
     private static final Map<String, String> uploadedTextures = new HashMap<>();
     private static final Set<String> frameUploads = new HashSet<>();
+    private static final Map<Long, Long> lastRefresh = new HashMap<>();
+    private static final Set<Long> refreshing = new HashSet<>();
 
     /** Publish textures even when the active frame was not saved as a named project. */
     public static void ensureFramePublished() {
@@ -43,6 +45,8 @@ public final class FrameProjects {
         if (!SovietGramAccountScope.isLive(account) || !SovietGramApiClient.isReady(account)) return;
         final String graphText = NekoConfig.customProfileFrameGraph.String();
         final String specText = NekoConfig.customProfileFrameSpec.String();
+        // All publishable local textures live here; a remote-only frame needs no JSON parsing.
+        if (!graphText.contains("frame-assets") && !specText.contains("frame-assets")) return;
         FrameSpec spec = FrameSpec.parse(specText);
         FrameGraph graph = FrameGraph.parse(graphText);
         Set<String> assets = new HashSet<>(spec.assets());
@@ -127,9 +131,13 @@ public final class FrameProjects {
     private FrameProjects() { }
 
     public static List<Project> list() {
+        return list(UserConfig.selectedAccount);
+    }
+
+    private static List<Project> list(int account) {
         final List<Project> result = new ArrayList<>();
         try {
-            final JSONArray array = new JSONArray(NekoConfig.customProfileFrameProjects.String());
+            final JSONArray array = new JSONArray(SovietGramAccountScope.str(account, NekoConfig.customProfileFrameProjects));
             for (int i = 0; i < array.length() && i < LIMIT; i++) {
                 final JSONObject row = array.optJSONObject(i);
                 if (row == null) continue;
@@ -228,6 +236,7 @@ public final class FrameProjects {
             FileLog.e(e);
         }
         flushDeletes(UserConfig.selectedAccount);
+        SovietGramSync.scheduleProfilePush();
     }
 
     public static void detach() {
@@ -262,21 +271,51 @@ public final class FrameProjects {
 
     public static void refresh(@Nullable Runnable finished) {
         final int account = UserConfig.selectedAccount;
+        refresh(account, finished);
+    }
+
+    /** Reconcile the signed-in account's complete project library, also after offline edits. */
+    public static void synchronize(int account) {
+        long owner = SovietGramTokenStore.ownId(account);
+        long now = android.os.SystemClock.elapsedRealtime();
+        if (owner <= 0 || now - lastRefresh.getOrDefault(owner, -60000L) < 60000) return;
+        refresh(account, null);
+    }
+
+    private static void refresh(int account, @Nullable Runnable finished) {
+        final long owner = SovietGramTokenStore.ownId(account);
         if (!SovietGramApiClient.isReady(account)) {
             if (finished != null) finished.run();
             return;
         }
+        if (!refreshing.add(owner)) { if (finished != null) finished.run(); return; }
+        lastRefresh.put(owner, android.os.SystemClock.elapsedRealtime());
+        final Set<String> knownDeleted = deletedIds(account);
         flushDeletes(account);
         SovietGramApiClient.get(account, "/v1/frame-projects", (body, error) -> {
-            if (account != UserConfig.selectedAccount) return;
+            refreshing.remove(owner);
+            if (owner != SovietGramTokenStore.ownId(account)) return;
             if (body == null) {
+                lastRefresh.remove(owner);
+                AndroidUtilities.runOnUIThread(SovietGramSync::scheduleProfilePush, 12000);
                 if (error != null) FileLog.e("FrameProjects: load failed: " + error);
                 if (finished != null) finished.run();
                 return;
             }
-            final List<Project> local = list();
+            final List<Project> local = list(account);
             final JSONArray remote = body.optJSONArray("projects");
-            final Set<String> deleted = deletedIds();
+            final Set<String> deleted = knownDeleted;
+            deleted.addAll(deletedIds(account));
+            final JSONArray tombstones = body.optJSONArray("deleted");
+            for (int i = 0; tombstones != null && i < tombstones.length(); i++) deleted.add(tombstones.optString(i));
+            local.removeIf(project -> deleted.contains(project.id));
+            String active = SovietGramAccountScope.str(account, NekoConfig.customProfileFrameActiveProject);
+            if (deleted.contains(active)) {
+                try { SovietGramAccountScope.restoreItems(account,
+                        new JSONObject().put(NekoConfig.customProfileFrameActiveProject.getKey(), ""),
+                        new tw.nekomimi.nekogram.config.ConfigItem[]{NekoConfig.customProfileFrameActiveProject}); }
+                catch (Exception e) { FileLog.e(e); }
+            }
             final Set<String> seen = new HashSet<>();
             for (int i = 0; remote != null && i < remote.length(); i++) {
                 final JSONObject row = remote.optJSONObject(i);
@@ -295,7 +334,9 @@ public final class FrameProjects {
                             row.optString("graph", ""), row.optString("spec", ""), updated));
                 } else if (old != null && (updated > old.updated
                         || (updated == old.updated
-                        && !row.optString("spec", "").equals(old.spec)))) {
+                        && (!row.optString("spec", "").equals(old.spec)
+                        || !row.optString("graph", "").equals(old.graph)
+                        || !row.optString("name", "").equals(old.name))))) {
                     old.name = row.optString("name", old.name);
                     old.graph = row.optString("graph", old.graph);
                     old.spec = row.optString("spec", old.spec);
@@ -307,15 +348,19 @@ public final class FrameProjects {
             for (Project project : local) {
                 if (!seen.contains(project.id)) push(account, project);
             }
-            store(local);
+            store(account, local);
             if (finished != null) finished.run();
         });
     }
 
     private static Set<String> deletedIds() {
+        return deletedIds(UserConfig.selectedAccount);
+    }
+
+    private static Set<String> deletedIds(int account) {
         final Set<String> result = new HashSet<>();
         try {
-            final JSONArray array = new JSONArray(NekoConfig.customProfileFrameProjectDeletes.String());
+            final JSONArray array = new JSONArray(SovietGramAccountScope.str(account, NekoConfig.customProfileFrameProjectDeletes));
             for (int i = 0; i < array.length(); i++) result.add(array.optString(i));
         } catch (Exception e) {
             FileLog.e(e);
@@ -325,17 +370,22 @@ public final class FrameProjects {
 
     private static void flushDeletes(int account) {
         if (!SovietGramApiClient.isReady(account)) return;
-        for (String id : deletedIds()) {
+        final long owner = SovietGramTokenStore.ownId(account);
+        for (String id : deletedIds(account)) {
             SovietGramApiClient.deleteSigned(account, "/v1/frame-projects/" + id, (body, error) -> {
-                if (account != UserConfig.selectedAccount) return;
+                if (owner != SovietGramTokenStore.ownId(account)) return;
                 if (body == null) {
                     if (error != null) FileLog.e("FrameProjects: delete failed: " + error);
+                    lastRefresh.remove(owner);
+                    AndroidUtilities.runOnUIThread(SovietGramSync::scheduleProfilePush, 12000);
                     return;
                 }
                 final JSONArray remaining = new JSONArray();
-                for (String item : deletedIds()) if (!id.equals(item)) remaining.put(item);
-                NekoConfig.customProfileFrameProjectDeletes.setConfigString(remaining.toString());
-                SovietGramAccountScope.saveLive();
+                for (String item : deletedIds(account)) if (!id.equals(item)) remaining.put(item);
+                try { SovietGramAccountScope.restoreItems(account,
+                        new JSONObject().put(NekoConfig.customProfileFrameProjectDeletes.getKey(), remaining.toString()),
+                        new tw.nekomimi.nekogram.config.ConfigItem[]{NekoConfig.customProfileFrameProjectDeletes}); }
+                catch (Exception e) { FileLog.e(e); }
             });
         }
     }
@@ -357,6 +407,10 @@ public final class FrameProjects {
     }
 
     private static void store(List<Project> projects) {
+        store(UserConfig.selectedAccount, projects);
+    }
+
+    private static void store(int account, List<Project> projects) {
         final JSONArray array = new JSONArray();
         for (Project project : projects) {
             try {
@@ -367,18 +421,27 @@ public final class FrameProjects {
                 FileLog.e(e);
             }
         }
-        NekoConfig.customProfileFrameProjects.setConfigString(array.toString());
-        SovietGramAccountScope.saveLive();
+        if (SovietGramAccountScope.isLive(account)) {
+            NekoConfig.customProfileFrameProjects.setConfigString(array.toString());
+            SovietGramAccountScope.saveLive();
+        } else {
+            try { SovietGramAccountScope.restoreItems(account,
+                    new JSONObject().put(NekoConfig.customProfileFrameProjects.getKey(), array.toString()),
+                    new tw.nekomimi.nekogram.config.ConfigItem[]{NekoConfig.customProfileFrameProjects}); }
+            catch (Exception e) { FileLog.e(e); }
+        }
     }
 
     private static void push(int account, Project project) {
         if (!SovietGramApiClient.isReady(account)) return;
+        final long owner = SovietGramTokenStore.ownId(account);
         final String id = project.id;
         final String name = project.name;
         final String graphText = project.graph;
         final String specText = project.spec;
         final long updated = project.updated;
         Utilities.globalQueue.postRunnable(() -> {
+            if (owner != SovietGramTokenStore.ownId(account)) return;
             try {
                 final FrameGraph graph = FrameGraph.parse(graphText);
                 final FrameSpec spec = FrameSpec.parse(specText);
@@ -394,6 +457,10 @@ public final class FrameProjects {
                 SovietGramApiClient.putSigned(account, "/v1/frame-projects/" + id,
                         body, (result, error) -> {
                             if (error != null) FileLog.e("FrameProjects: save failed: " + error);
+                            if (result == null && owner == SovietGramTokenStore.ownId(account)) {
+                                lastRefresh.remove(owner);
+                                AndroidUtilities.runOnUIThread(SovietGramSync::scheduleProfilePush, 12000);
+                            }
                             if (result == null || remote.isEmpty() || account != UserConfig.selectedAccount
                                     || !id.equals(NekoConfig.customProfileFrameActiveProject.String())) return;
                             final List<Project> projects = list();
@@ -411,6 +478,10 @@ public final class FrameProjects {
                         });
             } catch (Exception e) {
                 FileLog.e("FrameProjects: save failed: " + e.getMessage());
+                AndroidUtilities.runOnUIThread(() -> {
+                    lastRefresh.remove(owner);
+                    AndroidUtilities.runOnUIThread(SovietGramSync::scheduleProfilePush, 12000);
+                });
             }
         });
     }

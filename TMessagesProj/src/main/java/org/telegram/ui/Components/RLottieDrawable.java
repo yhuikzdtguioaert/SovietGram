@@ -844,6 +844,13 @@ public class RLottieDrawable extends BitmapDrawable implements Animatable, Bitma
     }
 
     public final void setLayerColor(String layerName, int color) {
+        if (layerName == null || layerName.isEmpty()) return;
+        // Telegram's callers pass both layer names ("Arrow1") and full key paths
+        // ("Arrow.**"). rlottie's resolver stops at a bare layer; fill/stroke
+        // properties live in its child shapes. Preserve explicit key paths.
+        if (layerName.indexOf('.') < 0 && layerName.indexOf('*') < 0) {
+            layerName += ".**";
+        }
         newColorUpdates.put(layerName, color);
         requestRedrawColors();
     }

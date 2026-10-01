@@ -30,10 +30,18 @@ public class ProfileCommentsActivity extends CustomProfileListActivity {
     private boolean commentsPreview = true;
     private String error;
     private int refreshId;
+    private String nextBefore = "";
+    private boolean loadingMore;
+    private final long identity;
 
     public ProfileCommentsActivity(long profileId) {
+        this(profileId, UserConfig.selectedAccount);
+    }
+
+    public ProfileCommentsActivity(long profileId, int account) {
         this.profileId = profileId;
-        account = UserConfig.selectedAccount;
+        this.account = account;
+        identity = UserConfig.getInstance(account).getClientUserId();
         mine = profileId == UserConfig.getInstance(account).getClientUserId();
     }
 
@@ -75,12 +83,14 @@ public class ProfileCommentsActivity extends CustomProfileListActivity {
             final String value = comment.optString("body") + "  ·  ♥ " + comment.optInt("likes");
             final String name = comment.optString("author_name", author);
             final Row row = setting(prefix + (name.isEmpty() || "null".equals(name) ? author : name),
-                    value, () -> commentMenu(comment));
+                    value, () -> showComment(comment));
             row.onLongClick = () -> commentMenu(comment);
         }
         if (comments.length() == 0 && error == null) {
             info(getString(R.string.CustomProfileNoComments));
         }
+        if (!nextBefore.isEmpty()) setting(getString(loadingMore ? R.string.Loading : R.string.ShowMore),
+                null, loadingMore ? null : this::loadMore);
         if (mine) {
             shadow();
             header(getString(R.string.CustomProfileBlockedCommenters));
@@ -97,14 +107,16 @@ public class ProfileCommentsActivity extends CustomProfileListActivity {
     }
 
     private void refresh() {
+        if (!alive()) return;
         final int request = ++refreshId;
+        loadingMore = false;
         if (!SovietGramApiClient.isReady(account)) {
             error = getString(R.string.CustomProfileSocialUnavailable);
             rebuild();
             return;
         }
         SovietGramApiClient.get(account, "/v1/profile-social/" + profileId, (body, failure) -> {
-            if (isFinished || request != refreshId) return;
+            if (!alive() || request != refreshId) return;
             if (body == null) {
                 error = failure;
                 rebuild();
@@ -118,10 +130,11 @@ public class ProfileCommentsActivity extends CustomProfileListActivity {
             rebuild();
         });
         SovietGramApiClient.get(account, "/v1/profile-comments/" + profileId, (body, failure) -> {
-            if (isFinished || request != refreshId) return;
+            if (!alive() || request != refreshId) return;
             if (body != null) {
                 comments = body.optJSONArray("comments");
                 if (comments == null) comments = new JSONArray();
+                nextBefore = body.isNull("next_before") ? "" : body.optString("next_before", "");
                 rebuild();
             } else {
                 error = failure;
@@ -130,7 +143,7 @@ public class ProfileCommentsActivity extends CustomProfileListActivity {
         });
         if (mine) {
             SovietGramApiClient.get(account, "/v1/profile-comment-blocks", (body, failure) -> {
-                if (isFinished || request != refreshId) return;
+                if (!alive() || request != refreshId) return;
                 if (body != null) {
                     blockedUsers = body.optJSONArray("users");
                     if (blockedUsers == null) blockedUsers = new JSONArray();
@@ -138,6 +151,46 @@ public class ProfileCommentsActivity extends CustomProfileListActivity {
                 }
             });
         }
+    }
+
+    private boolean alive() {
+        return !isFinished && identity > 0 && identity == UserConfig.getInstance(account).getClientUserId();
+    }
+
+    private void loadMore() {
+        if (!alive() || loadingMore || nextBefore.isEmpty()) return;
+        loadingMore = true;
+        int request = refreshId;
+        String cursor = nextBefore;
+        rebuild();
+        SovietGramApiClient.get(account, "/v1/profile-comments/" + profileId + "?before=" + android.net.Uri.encode(cursor), (body, failure) -> {
+            if (!alive() || request != refreshId) return;
+            loadingMore = false;
+            if (body == null) { showError(failure); return; }
+            java.util.Set<String> ids = new java.util.HashSet<>();
+            for (int i = 0; i < comments.length(); i++) {
+                JSONObject comment = comments.optJSONObject(i);
+                if (comment != null) ids.add(comment.optString("id"));
+            }
+            JSONArray page = body.optJSONArray("comments");
+            for (int i = 0; page != null && i < page.length(); i++) {
+                JSONObject comment = page.optJSONObject(i);
+                if (comment != null && ids.add(comment.optString("id"))) comments.put(comment);
+            }
+            nextBefore = body.isNull("next_before") ? "" : body.optString("next_before", "");
+            rebuild();
+        });
+    }
+
+    private void showComment(JSONObject comment) {
+        if (getParentActivity() == null || !alive()) return;
+        String author = comment.optString("author_name", comment.optString("author_id"));
+        AlertDialog.Builder dialog = new AlertDialog.Builder(getParentActivity()).setTitle(author)
+                .setMessage(comment.optString("body"))
+                .setNegativeButton(getString(R.string.Close), null);
+        if (commentsEnabled) dialog.setPositiveButton(getString(R.string.CustomProfileReply),
+                (ignored, which) -> compose(comment.optString("id")));
+        dialog.show();
     }
 
     private void toggleLike() {
@@ -167,6 +220,9 @@ public class ProfileCommentsActivity extends CustomProfileListActivity {
     private void compose(String parentId) {
         if (getParentActivity() == null) return;
         final EditText input = new EditText(getParentActivity());
+        input.setTextColor(org.telegram.ui.ActionBar.Theme.getColor(org.telegram.ui.ActionBar.Theme.key_dialogTextBlack));
+        input.setHintTextColor(org.telegram.ui.ActionBar.Theme.getColor(org.telegram.ui.ActionBar.Theme.key_dialogTextHint));
+        input.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(1000)});
         input.setMinLines(2);
         input.setMaxLines(5);
         input.setHint(getString(R.string.CustomProfileWriteComment));
@@ -231,6 +287,7 @@ public class ProfileCommentsActivity extends CustomProfileListActivity {
     }
 
     private void showError(String message) {
+        if (!alive()) return;
         error = message == null ? getString(R.string.CustomProfileSocialUnavailable) : message;
         rebuild();
     }

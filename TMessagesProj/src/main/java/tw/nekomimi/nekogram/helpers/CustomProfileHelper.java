@@ -183,11 +183,7 @@ public final class CustomProfileHelper {
      */
     private static final int MAX_LOOK_BYTES = 1024 * 1024;
 
-    /**
-     * What is given up, in order, when a look will not fit. Only things a viewer never draws are on
-     * this list, and the graph is first because it is both the largest and the one that can be built
-     * again from the spec that stays behind.
-     */
+    /** Portable appearance fields included in both public styling and the private server backup. */
     public static ConfigItem[] portableItems() {
         return EXPORTED.clone();
     }
@@ -202,6 +198,8 @@ public final class CustomProfileHelper {
             for (int i = 0; i < source.length(); i++) {
                 JSONObject block = source.optJSONObject(i);
                 if (block == null || block.optBoolean("own_only")) continue;
+                String mediaPath = block.optString("media_path", "");
+                if (CustomProfileExtraRows.fetchable(mediaPath)) block.put("url", mediaPath);
                 block.remove("media_path");
                 visible.put(block);
             }

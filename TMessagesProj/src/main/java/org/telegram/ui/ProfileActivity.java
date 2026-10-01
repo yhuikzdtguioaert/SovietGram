@@ -11791,8 +11791,13 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     }
 
     private void onCustomBlockClick(@Nullable CustomProfileExtraRows.Block block) {
+        if (block != null && block.type == CustomProfileExtraRows.TYPE_INTEGRATION) {
+            String url = tw.nekomimi.nekogram.helpers.CustomProfileIntegrations.profileUrl(block);
+            if (!url.isEmpty()) Browser.openUrl(getParentActivity(), url);
+            return;
+        }
         if (block != null && block == profileCommentsBlock) {
-            presentFragment(new ProfileCommentsActivity(userId));
+            presentFragment(new ProfileCommentsActivity(userId, currentAccount));
             return;
         }
         if (block == null || block.action == CustomProfileExtraRows.ACTION_NONE
@@ -14654,7 +14659,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     final java.util.List<CustomProfileExtraRows.Block> blocks = customProfileBlocks();
                     final int index = position - customBlocksStartRow;
                     if (index >= 0 && index < blocks.size()) {
-                        ((CustomProfileBlockCell) holder.itemView).set(blocks.get(index));
+                        ((CustomProfileBlockCell) holder.itemView).set(blocks.get(index), currentAccount);
                     }
                     break;
                 }

@@ -332,7 +332,12 @@ public final class CustomProfileMedia {
     @WorkerThread
     @Nullable
     public static String publish(int slot, @Nullable byte[] data, @Nullable String mimeHint) {
-        final int account = liveAccount();
+        return publishForAccount(liveAccount(), slot, data, mimeHint);
+    }
+
+    @WorkerThread
+    @Nullable
+    public static String publishForAccount(int account, int slot, @Nullable byte[] data, @Nullable String mimeHint) {
         if (account < 0 || data == null || data.length == 0) {
             return null;
         }
@@ -423,14 +428,16 @@ public final class CustomProfileMedia {
         // one account's values at a time, so an account switch mid-upload would otherwise write this
         // descriptor into somebody else's look.
         final long owner = SovietGramAccountScope.owner();
+        final int account = liveAccount();
         Utilities.globalQueue.postRunnable(() -> {
+            if (account < 0 || owner != SovietGramTokenStore.ownId(account)) return;
             final File media = new File(path);
             // A large animated banner must not sit beside a second, larger base64 copy on the
             // phone's heap. Gallery files are stable, so the API client hashes and sends in blocks.
             final String descriptor = !isFont(slot) && media.length() > SovietGramApiClient.MAX_IMAGE_BYTES
                     && !stillFile(media)
-                    ? publishFile(slot, media)
-                    : publish(slot, read(media), null);
+                    ? publishFile(account, slot, media)
+                    : publishForAccount(account, slot, read(media), null);
             if (TextUtils.isEmpty(descriptor)) {
                 return;
             }
@@ -446,8 +453,7 @@ public final class CustomProfileMedia {
 
     @WorkerThread
     @Nullable
-    private static String publishFile(int slot, File file) {
-        final int account = liveAccount();
+    private static String publishFile(int account, int slot, File file) {
         if (account < 0 || !file.isFile() || file.length() > SovietGramApiClient.MAX_VIDEO_BYTES) {
             if (file.isFile() && file.length() > SovietGramApiClient.MAX_VIDEO_BYTES) {
                 reportTooLarge(file.length(), SovietGramApiClient.MAX_VIDEO_BYTES);
@@ -763,6 +769,13 @@ public final class CustomProfileMedia {
     @Nullable
     public static String publishLoose(@Nullable byte[] data, @Nullable String mimeHint) {
         final String descriptor = publish(SLOT_OTHER, data, mimeHint);
+        return TextUtils.isEmpty(descriptor) ? null : descriptor;
+    }
+
+    @WorkerThread
+    @Nullable
+    public static String publishLoose(int account, @Nullable byte[] data, @Nullable String mimeHint) {
+        final String descriptor = publishForAccount(account, SLOT_OTHER, data, mimeHint);
         return TextUtils.isEmpty(descriptor) ? null : descriptor;
     }
 

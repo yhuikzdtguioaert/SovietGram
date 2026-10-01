@@ -14,6 +14,7 @@ import tw.nekomimi.nekogram.config.cell.ConfigCellColor;
 import tw.nekomimi.nekogram.helpers.CustomProfileExtraRows;
 import tw.nekomimi.nekogram.helpers.CustomProfileHelper;
 import tw.nekomimi.nekogram.helpers.CustomProfileMedia;
+import tw.nekomimi.nekogram.helpers.CustomProfileIntegrations;
 import tw.nekomimi.nekogram.helpers.PopupHelper;
 
 /**
@@ -36,6 +37,7 @@ public class CustomProfileBlocksActivity extends CustomProfileListActivity {
             CustomProfileExtraRows.TYPE_BUTTON,
             CustomProfileExtraRows.TYPE_DIVIDER,
             CustomProfileExtraRows.TYPE_MEDIA,
+            CustomProfileExtraRows.TYPE_INTEGRATION,
     };
 
     private static final int[] ACTIONS = {
@@ -168,6 +170,45 @@ public class CustomProfileBlocksActivity extends CustomProfileListActivity {
                                 block.text = value;
                                 CustomProfileExtraRows.store(blocks);
                             }));
+        }
+        if (block.type == CustomProfileExtraRows.TYPE_INTEGRATION) {
+            setting(getString(R.string.CustomProfileIntegrationService), CustomProfileIntegrations.serviceName(block.service), () -> {
+                PopupHelper.show(java.util.Arrays.asList("Last.fm", "GitHub", "Steam"), getString(R.string.CustomProfileIntegrationService),
+                        block.service, getParentActivity(), service -> {
+                            try { block.accounts.put(CustomProfileIntegrations.key(block.service), block.url); }
+                            catch (org.json.JSONException ignore) { }
+                            block.service = service;
+                            block.url = block.accounts.optString(CustomProfileIntegrations.key(service));
+                            block.parts = new org.json.JSONArray(); block.parts.put(0); block.mode = 0;
+                            CustomProfileExtraRows.store(blocks);
+                            rebuild();
+                        });
+            });
+            setting(getString(R.string.CustomProfileIntegrationAccount), preview(block.url),
+                    () -> askText(getString(R.string.CustomProfileIntegrationAccount), block.url, 128, value -> {
+                        block.url = value;
+                        CustomProfileExtraRows.store(blocks);
+                    }));
+            for (int i = 0; i < CustomProfileIntegrations.modeCount(block.service); i++) {
+                int mode = i;
+                boolean selected = false;
+                for (int j = 0; j < block.parts.length(); j++) selected |= block.parts.optInt(j, -1) == mode;
+                boolean wasSelected = selected;
+                check(CustomProfileIntegrations.modeName(block.service, mode), selected, () -> {
+                    org.json.JSONArray parts = new org.json.JSONArray();
+                    for (int j = 0; j < block.parts.length(); j++) {
+                        int existing = block.parts.optInt(j, -1);
+                        if (existing != mode) parts.put(existing);
+                    }
+                    if (!wasSelected) parts.put(mode);
+                    if (parts.length() == 0) return;
+                    block.parts = parts; block.mode = parts.optInt(0);
+                    CustomProfileExtraRows.store(blocks);
+                    rebuild();
+                });
+            }
+            info(getString(R.string.CustomProfileIntegrationPrivacy));
+            if (block.service > 2) info(getString(R.string.CustomProfileIntegrationUnavailable));
         }
         if (block.type == CustomProfileExtraRows.TYPE_LINK
                 || block.type == CustomProfileExtraRows.TYPE_BUTTON) {
@@ -365,6 +406,11 @@ public class CustomProfileBlocksActivity extends CustomProfileListActivity {
             return;
         }
         pickingFor = at;
+        pickingAccount = org.telegram.messenger.UserConfig.selectedAccount;
+        pickingOwner = tw.nekomimi.nekogram.helpers.SovietGramTokenStore.ownId(pickingAccount);
+        final List<CustomProfileExtraRows.Block> blocks = CustomProfileExtraRows.stored();
+        if (at < 0 || at >= blocks.size()) return;
+        pickingBlock = blocks.get(at).id;
         final android.content.Intent intent =
                 new android.content.Intent(android.content.Intent.ACTION_GET_CONTENT);
         intent.setType("image/*");
@@ -376,6 +422,9 @@ public class CustomProfileBlocksActivity extends CustomProfileListActivity {
     }
 
     private int pickingFor = -1;
+    private int pickingAccount;
+    private long pickingOwner;
+    private String pickingBlock;
 
     @Override
     public void onActivityResultFragment(int requestCode, int resultCode, android.content.Intent data) {
@@ -384,7 +433,12 @@ public class CustomProfileBlocksActivity extends CustomProfileListActivity {
             return;
         }
         final int at = pickingFor;
+        final int account = pickingAccount;
+        final long owner = pickingOwner;
+        final String blockId = pickingBlock;
         pickingFor = -1;
+        if (isFinished || !tw.nekomimi.nekogram.helpers.SovietGramAccountScope.isOwner(owner)
+                || owner != tw.nekomimi.nekogram.helpers.SovietGramTokenStore.ownId(account)) return;
         final byte[] bytes = CustomProfileHelper.readUri(data.getData());
         if (bytes == null || bytes.length == 0) {
             org.telegram.ui.Components.BulletinFactory.of(this)
@@ -392,18 +446,20 @@ public class CustomProfileBlocksActivity extends CustomProfileListActivity {
             return;
         }
         org.telegram.messenger.Utilities.globalQueue.postRunnable(() -> {
-            final String descriptor = CustomProfileMedia.publishLoose(bytes, null);
+            if (owner != tw.nekomimi.nekogram.helpers.SovietGramTokenStore.ownId(account)) return;
+            final String descriptor = CustomProfileMedia.publishLoose(account, bytes, null);
             org.telegram.messenger.AndroidUtilities.runOnUIThread(() -> {
+                if (isFinished || !tw.nekomimi.nekogram.helpers.SovietGramAccountScope.isOwner(owner)
+                        || owner != tw.nekomimi.nekogram.helpers.SovietGramTokenStore.ownId(account)) return;
                 if (descriptor == null) {
                     org.telegram.ui.Components.BulletinFactory.of(this)
                             .createErrorBulletin(getString(R.string.UnknownError)).show();
                     return;
                 }
                 final List<CustomProfileExtraRows.Block> blocks = CustomProfileExtraRows.stored();
-                if (at >= blocks.size()) {
-                    return;
-                }
-                final CustomProfileExtraRows.Block block = blocks.get(at);
+                CustomProfileExtraRows.Block block = null;
+                for (CustomProfileExtraRows.Block candidate : blocks) if (candidate.id.equals(blockId)) { block = candidate; break; }
+                if (block == null || block.type != CustomProfileExtraRows.TYPE_MEDIA) return;
                 block.media = descriptor;
                 // The picked picture is what this row draws now; the other two sources would win
                 // over it and are no longer what the user asked for.
@@ -484,6 +540,7 @@ public class CustomProfileBlocksActivity extends CustomProfileListActivity {
             case CustomProfileExtraRows.TYPE_NOTE -> R.string.CustomProfileExtraRowTypeNote;
             case CustomProfileExtraRows.TYPE_BUTTON -> R.string.CustomProfileExtraRowTypeButton;
             case CustomProfileExtraRows.TYPE_MEDIA -> R.string.CustomProfileExtraRowTypeMedia;
+            case CustomProfileExtraRows.TYPE_INTEGRATION -> R.string.CustomProfileIntegration;
             default -> R.string.CustomProfileExtraRowTypeLink;
         });
     }
