@@ -180,17 +180,37 @@ public final class CustomProfileHelper {
      * room. A look this large is not a normal one — the graph alone can reach 64KB and everything
      * else together rarely passes 40KB — so this is a backstop, not a working limit.
      */
-    private static final int MAX_LOOK_BYTES = 180 * 1024;
+    private static final int MAX_LOOK_BYTES = 1024 * 1024;
 
     /**
      * What is given up, in order, when a look will not fit. Only things a viewer never draws are on
      * this list, and the graph is first because it is both the largest and the one that can be built
      * again from the spec that stays behind.
      */
-    private static final ConfigItem[] DROPPABLE = {
-            NekoConfig.customProfileFrameGraph,
-            NekoConfig.customProfileFrameCanvasCustom,
-    };
+    public static ConfigItem[] portableItems() {
+        return EXPORTED.clone();
+    }
+
+    /** Shared styling excludes private notes and local file names; the owner backup keeps the notes. */
+    public static JSONObject sharedProfileJson(int account) {
+        JSONObject json = exportProfileJson(account);
+        try {
+            String raw = json.optString(NekoConfig.customProfileExtraBlocks.getKey(), "");
+            JSONArray source = raw.isEmpty() ? new JSONArray() : new JSONArray(raw);
+            JSONArray visible = new JSONArray();
+            for (int i = 0; i < source.length(); i++) {
+                JSONObject block = source.optJSONObject(i);
+                if (block == null || block.optBoolean("own_only")) continue;
+                block.remove("media_path");
+                visible.put(block);
+            }
+            json.put(NekoConfig.customProfileExtraBlocks.getKey(), visible.length() == 0 ? "" : visible.toString());
+        } catch (Exception e) {
+            json.remove(NekoConfig.customProfileExtraBlocks.getKey());
+            FileLog.e(e);
+        }
+        return json;
+    }
 
     /**
      * Everything the look consists of, for {@link SovietGramAccountScope} to swap when the user
@@ -969,23 +989,14 @@ public final class CustomProfileHelper {
     }
 
     /**
-     * Trims a look until the server will take it.
+     * Checks the portable snapshot size without discarding editing data.
      *
-     * <p>Only the parts nobody draws are given up, so what a viewer sees is never quietly changed:
-     * a look that is too big loses its editing state rather than its banner. If it still does not
-     * fit after that, it is left alone and refused — silently dropping something that is drawn would
-     * be worse than the look not syncing at all, because it would look like it had.
+     * <p>A snapshot beyond the server limit is refused as a whole. No graph or canvas setting is
+     * silently removed from the backup.
      */
     private static JSONObject withinBudget(JSONObject json) {
         if (size(json) <= MAX_LOOK_BYTES) {
             return json;
-        }
-        for (ConfigItem item : DROPPABLE) {
-            json.remove(item.getKey());
-            if (size(json) <= MAX_LOOK_BYTES) {
-                FileLog.e("CustomProfile: look trimmed to fit, dropped " + item.getKey());
-                return json;
-            }
         }
         FileLog.e("CustomProfile: look is " + size(json) + " bytes and will not fit; "
                 + "the server will refuse it");

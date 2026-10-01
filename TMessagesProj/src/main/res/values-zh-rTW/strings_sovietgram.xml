@@ -666,4 +666,8 @@
     <string name="IosInputAppearance">iOS風格的輸入框</string>
     <string name="CompactInputSize">緊湊的輸入字段</string>
     <string name="customProfileBlocksJoin">連接相鄰區塊</string>
+    <string name="CustomProfileFrameCloudPicture">已上傳的圖片</string>
+    <string name="CustomProfileFrameLocalPicture">本機圖片</string>
+    <string name="CustomProfileRestoreCloud">從伺服器還原個人資料</string>
+    <string name="CustomProfileNoCloudBackup">沒有可用的個人資料備份</string>
 </resources>

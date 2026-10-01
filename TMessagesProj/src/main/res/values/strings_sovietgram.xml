@@ -741,4 +741,8 @@
     <string name="CustomProfileBlockedCommenters">Blocked commenters</string>
     <string name="CustomProfileUnblockCommenter">Unblock</string>
     <string name="customProfileBlocksJoin">Join nearby blocks</string>
+    <string name="CustomProfileFrameCloudPicture">Uploaded image</string>
+    <string name="CustomProfileFrameLocalPicture">Local image</string>
+    <string name="CustomProfileRestoreCloud">Restore profile from server</string>
+    <string name="CustomProfileNoCloudBackup">No profile backup is available</string>
 </resources>

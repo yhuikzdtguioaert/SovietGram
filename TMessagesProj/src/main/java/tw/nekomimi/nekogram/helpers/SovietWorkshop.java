@@ -127,7 +127,7 @@ public final class SovietWorkshop {
                 }
                 payload = new JSONObject().put("frame_spec", spec);
             } else {
-                payload = CustomProfileHelper.exportProfileJson(account);
+                payload = CustomProfileHelper.sharedProfileJson(account);
                 if (!shareableFrame(NekoConfig.customProfileFrameSpec.String())) {
                     callback.onResult(null, "Publish the frame project to the server first");
                     return;

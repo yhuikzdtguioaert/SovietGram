@@ -6,6 +6,21 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
 import android.view.View;
+import android.view.ViewGroup;
+import android.view.Gravity;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
+import android.text.Editable;
+import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.RecyclerView;
+import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.UserConfig;
+import org.telegram.ui.ActionBar.ActionBarMenuItem;
+import org.telegram.ui.ActionBar.Theme;
+import org.telegram.ui.Components.LayoutHelper;
+import tw.nekomimi.nekogram.config.cell.WithKey;
+import java.util.ArrayList;
+import java.util.Locale;
 
 import org.telegram.messenger.R;
 import org.telegram.ui.Components.BulletinFactory;
@@ -52,6 +67,7 @@ public class CustomProfileActivity extends BaseNekoXSettingsActivity {
     private static final int FONT_BUNDLED = 7;
 
     private ListAdapter listAdapter;
+    private String searchQuery = "";
 
     private final CellGroup cellGroup = new CellGroup(this);
 
@@ -241,6 +257,15 @@ public class CustomProfileActivity extends BaseNekoXSettingsActivity {
     private final AbstractConfigCell exportRow = new ConfigCellText("CustomProfileExport", null, this::exportSettings);
     private final AbstractConfigCell importRow = new ConfigCellText("CustomProfileImport", null, this::importSettings);
     private final AbstractConfigCell resetRow = new ConfigCellText("CustomProfileReset", null, this::resetSettings);
+    private final AbstractConfigCell commentsRow = new ConfigCellText("CustomProfileComments", null,
+            () -> presentFragment(new ProfileCommentsActivity(getUserConfig().getClientUserId())));
+    private final AbstractConfigCell restoreCloudRow = new ConfigCellText("CustomProfileRestoreCloud", null,
+            () -> tw.nekomimi.nekogram.helpers.CustomProfileCloud.restore(currentAccount, (body, error) -> {
+                if (isFinished) return;
+                if (body == null || body.optJSONObject("appearance") == null) {
+                    BulletinFactory.of(this).createErrorBulletin(getString(R.string.CustomProfileNoCloudBackup)).show();
+                } else rebuild();
+            }));
 
     public CustomProfileActivity() {
         buildRows();
@@ -402,14 +427,56 @@ public class CustomProfileActivity extends BaseNekoXSettingsActivity {
         cellGroup.appendCell(paletteRow);
         cellGroup.appendCell(extraRowsRow);
         cellGroup.appendCell(profileRowsRow);
+        cellGroup.appendCell(commentsRow);
         cellGroup.appendCell(new ConfigCellDivider());
 
         cellGroup.appendCell(exportRow);
         cellGroup.appendCell(importRow);
+        cellGroup.appendCell(restoreCloudRow);
         cellGroup.appendCell(resetRow);
         cellGroup.appendCell(new ConfigCellDivider());
 
+        filterRows();
         addRowsToMap(cellGroup);
+    }
+
+    private void filterRows() {
+        if (searchQuery.isEmpty()) return;
+        ArrayList<AbstractConfigCell> all = new ArrayList<>(cellGroup.rows);
+        cellGroup.rows.clear();
+        ConfigCellHeader section = null;
+        boolean sectionAdded = false;
+        for (AbstractConfigCell row : all) {
+            if (row instanceof ConfigCellHeader header) {
+                section = header;
+                sectionAdded = false;
+                continue;
+            }
+            if (row instanceof ConfigCellDivider) {
+                if (!cellGroup.rows.isEmpty()
+                        && !(cellGroup.rows.get(cellGroup.rows.size() - 1) instanceof ConfigCellDivider)) {
+                    cellGroup.rows.add(row);
+                }
+                section = null;
+                sectionAdded = false;
+                continue;
+            }
+            String key = row instanceof WithKey keyed ? keyed.getKey() : "";
+            String label = key == null || key.isEmpty() ? "" : getString(key);
+            String sectionLabel = section == null ? "" : section.getTitle();
+            String searchable = (key + " " + label + " " + sectionLabel).toLowerCase(Locale.ROOT);
+            boolean matches = true;
+            for (String word : searchQuery.split("\\s+")) {
+                if (!searchable.contains(word)) { matches = false; break; }
+            }
+            if (matches) {
+                if (section != null && !sectionAdded) {
+                    cellGroup.rows.add(section);
+                    sectionAdded = true;
+                }
+                cellGroup.rows.add(row);
+            }
+        }
     }
     /** The bubble's own section: its text first, then the two colours, then whose typeface it uses. */
     private void buildThoughtRows() {
@@ -616,6 +683,17 @@ public class CustomProfileActivity extends BaseNekoXSettingsActivity {
     @Override
     public View createView(Context context) {
         View superView = super.createView(context);
+        actionBar.createMenu().addItem(100, R.drawable.ic_ab_search).setIsSearchField(true)
+                .setActionBarMenuItemSearchListener(new ActionBarMenuItem.ActionBarMenuItemSearchListener() {
+                    @Override public void onSearchCollapse() {
+                        searchQuery = "";
+                        rebuild();
+                    }
+                    @Override public void onTextChanged(org.telegram.ui.Components.EditTextBoldCursor field) {
+                        searchQuery = field.getText().toString().trim().toLowerCase(Locale.ROOT);
+                        rebuild();
+                    }
+                }).setSearchFieldHint(getString(R.string.Search));
 
         listAdapter = new ListAdapter(context);
         listView.setAdapter(listAdapter);
@@ -658,5 +736,69 @@ public class CustomProfileActivity extends BaseNekoXSettingsActivity {
         public ListAdapter(Context context) {
             super(context);
         }
+
+        @Override
+        public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int type) {
+            RecyclerView.ViewHolder content = super.onCreateViewHolder(parent, type);
+            if (type == CellGroup.ITEM_TYPE_DIVIDER || type == CellGroup.ITEM_TYPE_HEADER) return content;
+            FrameLayout container = new FrameLayout(parent.getContext());
+            container.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+            container.addView(content.itemView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT,
+                    LayoutHelper.WRAP_CONTENT, Gravity.TOP, 40, 0, 0, 0));
+            ImageView icon = new ImageView(parent.getContext());
+            icon.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+            container.addView(icon, LayoutHelper.createFrame(24, 24, Gravity.LEFT | Gravity.TOP, 16, 16, 0, 0));
+            container.setLayoutParams(new RecyclerView.LayoutParams(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
+            return new IconHolder(container, content, icon);
+        }
+
+        @Override
+        public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
+            if (holder instanceof IconHolder iconHolder) {
+                super.onBindViewHolder(iconHolder.content, position);
+                AbstractConfigCell row = cellGroup.rows.get(position);
+                iconHolder.icon.setImageResource(iconFor(row));
+                iconHolder.icon.setColorFilter(Theme.getColor(Theme.key_windowBackgroundWhiteGrayIcon));
+                iconHolder.icon.setAlpha(row.isEnabled() ? 1f : 0.5f);
+            } else super.onBindViewHolder(holder, position);
+        }
+    }
+
+    private static class IconHolder extends RecyclerView.ViewHolder {
+        final RecyclerView.ViewHolder content;
+        final ImageView icon;
+        IconHolder(View view, RecyclerView.ViewHolder content, ImageView icon) {
+            super(view);
+            this.content = content;
+            this.icon = icon;
+        }
+    }
+
+    @Override
+    protected void handleCellClick(View view, int position, float x, float y) {
+        RecyclerView.ViewHolder holder = listView.getChildViewHolder(view);
+        if (holder instanceof IconHolder iconHolder) {
+            super.handleCellClick(iconHolder.content.itemView, position, x - AndroidUtilities.dp(40), y);
+        } else super.handleCellClick(view, position, x, y);
+    }
+
+    private static int iconFor(AbstractConfigCell row) {
+        String key = row instanceof WithKey keyed && keyed.getKey() != null
+                ? keyed.getKey().toLowerCase(Locale.ROOT) : "";
+        if (key.contains("comment") || key.contains("thought")) return R.drawable.msg_discussion;
+        if (key.contains("reset") || key.contains("clear")) return R.drawable.msg_delete;
+        if (key.contains("export")) return R.drawable.msg_share;
+        if (key.contains("import")) return R.drawable.msg_download;
+        if (key.contains("workshop") || key.contains("gallery")) return R.drawable.msg_media;
+        if (key.contains("color") || key.contains("palette") || key.contains("gradient")) return R.drawable.msg_colors;
+        if (key.contains("sound") || key.contains("volume")) return R.drawable.msg_voice;
+        if (key.contains("font") || key.contains("text") || key.contains("name")) return R.drawable.msg_photo_text_framed3;
+        if (key.contains("blur") || key.contains("fade") || key.contains("dim") || key.contains("alpha")) return R.drawable.msg_photo_blur;
+        if (key.contains("avatar") || key.contains("ring")) return R.drawable.msg_contacts;
+        if (key.contains("banner") || key.contains("background")) return R.drawable.msg_photos;
+        if (key.contains("frame")) return R.drawable.msg_photo_settings;
+        if (key.contains("hidden")) return R.drawable.msg_viewchats;
+        if (key.contains("layout") || key.contains("order") || key.contains("row") || key.contains("block")) return R.drawable.msg_list;
+        return R.drawable.msg_settings;
     }
 }

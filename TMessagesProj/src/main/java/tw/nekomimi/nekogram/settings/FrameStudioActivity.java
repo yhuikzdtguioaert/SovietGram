@@ -638,6 +638,12 @@ public class FrameStudioActivity extends CustomProfileListActivity {
         if (FrameBlanks.is(src)) {
             return getString("CustomProfileFrameBlank_" + FrameBlanks.name(src));
         }
+        if (src.startsWith("https://") || src.startsWith("http://")) {
+            return getString(R.string.CustomProfileFrameCloudPicture);
+        }
+        if (src.startsWith("file:") || src.contains("frame-assets")) {
+            return getString(R.string.CustomProfileFrameLocalPicture);
+        }
         final int slash = src.lastIndexOf('/');
         final String name = slash < 0 ? src : src.substring(slash + 1);
         return name.length() > 20 ? name.substring(0, 19) + "…" : name;

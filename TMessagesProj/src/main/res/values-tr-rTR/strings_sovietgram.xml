@@ -666,4 +666,8 @@
     <string name="IosInputAppearance">iOS tarzı Giriş Alanı</string>
     <string name="CompactInputSize">Kompakt Giriş Alanı</string>
     <string name="customProfileBlocksJoin">Yakın blokları birleştir</string>
+    <string name="CustomProfileFrameCloudPicture">Yüklenen görüntü</string>
+    <string name="CustomProfileFrameLocalPicture">Yerel görüntü</string>
+    <string name="CustomProfileRestoreCloud">Profili sunucudan geri yükle</string>
+    <string name="CustomProfileNoCloudBackup">Profil yedeği bulunmuyor</string>
 </resources>

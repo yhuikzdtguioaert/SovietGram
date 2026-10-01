@@ -603,29 +603,28 @@ public class AvatarDrawable extends Drawable {
             if (archivedAvatarProgress != 0) {
                 backgroundPaint.setColor(ColorUtils.setAlphaComponent(getThemedColor(Theme.key_avatar_backgroundArchived), alpha));
                 canvas.drawCircle(size / 2.0f, size / 2.0f, size / 2.0f * archivedAvatarProgress, backgroundPaint);
-                if (Theme.dialogs_archiveAvatarDrawableRecolored) {
-                    Theme.dialogs_archiveAvatarDrawable.beginApplyLayerColors();
-                    Theme.dialogs_archiveAvatarDrawable.setLayerColor("Arrow1", Theme.getNonAnimatedColor(Theme.key_avatar_backgroundArchived));
-                    Theme.dialogs_archiveAvatarDrawable.setLayerColor("Arrow2", Theme.getNonAnimatedColor(Theme.key_avatar_backgroundArchived));
-                    Theme.dialogs_archiveAvatarDrawable.commitApplyLayerColors();
-                    Theme.dialogs_archiveAvatarDrawableRecolored = false;
-                }
-            } else {
-                if (!Theme.dialogs_archiveAvatarDrawableRecolored) {
-                    Theme.dialogs_archiveAvatarDrawable.beginApplyLayerColors();
-                    Theme.dialogs_archiveAvatarDrawable.setLayerColor("Arrow1", color);
-                    Theme.dialogs_archiveAvatarDrawable.setLayerColor("Arrow2", color);
-                    Theme.dialogs_archiveAvatarDrawable.commitApplyLayerColors();
-                    Theme.dialogs_archiveAvatarDrawableRecolored = true;
-                }
             }
+            // This drawable is shared by all archive avatars. A boolean cannot cache the
+            // arrow colour across themes, resource providers and hidden/pinned states.
+            int arrowColor = archivedAvatarProgress != 0
+                    ? getThemedColor(Theme.key_avatar_backgroundArchived) : getColor();
+            if (Theme.dialogs_archiveAvatarDrawableArrowColor != arrowColor) {
+                Theme.dialogs_archiveAvatarDrawable.beginApplyLayerColors();
+                Theme.dialogs_archiveAvatarDrawable.setLayerColor("Arrow1", arrowColor);
+                Theme.dialogs_archiveAvatarDrawable.setLayerColor("Arrow2", arrowColor);
+                Theme.dialogs_archiveAvatarDrawable.commitApplyLayerColors();
+                Theme.dialogs_archiveAvatarDrawableArrowColor = arrowColor;
+            }
+            Theme.dialogs_archiveAvatarDrawableRecolored = archivedAvatarProgress == 0;
             int w = Theme.dialogs_archiveAvatarDrawable.getIntrinsicWidth();
             int h = Theme.dialogs_archiveAvatarDrawable.getIntrinsicHeight();
             int x = (size - w) / 2;
             int y = (size - h) / 2;
             canvas.save();
             Theme.dialogs_archiveAvatarDrawable.setBounds(x, y, x + w, y + h);
+            Theme.dialogs_archiveAvatarDrawable.setAlpha(alpha);
             Theme.dialogs_archiveAvatarDrawable.draw(canvas);
+            Theme.dialogs_archiveAvatarDrawable.setAlpha(255);
             canvas.restore();
         } else if (avatarType != 0 || customIconDrawable != null) {
             Drawable drawable;

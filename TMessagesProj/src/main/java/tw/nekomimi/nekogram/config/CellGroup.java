@@ -63,7 +63,9 @@ public class CellGroup {
     }
 
     public boolean needSetDivider(AbstractConfigCell cell) {
-        return !(rows.get(rows.indexOf(cell) + 1) instanceof ConfigCellDivider);
+        int index = rows.indexOf(cell);
+        return index >= 0 && index + 1 < rows.size()
+                && !(rows.get(index + 1) instanceof ConfigCellDivider);
     }
 
 }

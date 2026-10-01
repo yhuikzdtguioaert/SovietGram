@@ -666,4 +666,8 @@
     <string name="IosInputAppearance">iOS 스타일 입력 필드</string>
     <string name="CompactInputSize">컴팩트 입력 필드</string>
     <string name="customProfileBlocksJoin">인접한 블록 연결</string>
+    <string name="CustomProfileFrameCloudPicture">업로드한 이미지</string>
+    <string name="CustomProfileFrameLocalPicture">로컬 이미지</string>
+    <string name="CustomProfileRestoreCloud">서버에서 프로필 복원</string>
+    <string name="CustomProfileNoCloudBackup">프로필 백업이 없습니다</string>
 </resources>

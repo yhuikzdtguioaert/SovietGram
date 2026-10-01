@@ -666,4 +666,8 @@
     <string name="IosInputAppearance">Campo de entrada estilo iOS</string>
     <string name="CompactInputSize">Campo de entrada compacto</string>
     <string name="customProfileBlocksJoin">Unir blocos próximos</string>
+    <string name="CustomProfileFrameCloudPicture">Imagem enviada</string>
+    <string name="CustomProfileFrameLocalPicture">Imagem local</string>
+    <string name="CustomProfileRestoreCloud">Restaurar perfil do servidor</string>
+    <string name="CustomProfileNoCloudBackup">Nenhum backup de perfil disponível</string>
 </resources>

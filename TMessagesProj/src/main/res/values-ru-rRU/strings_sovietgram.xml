@@ -750,4 +750,8 @@
     <string name="CustomProfileBlockedCommenters">Заблокированные комментаторы</string>
     <string name="CustomProfileUnblockCommenter">Разблокировать</string>
     <string name="customProfileBlocksJoin">Соединить ближайшие блоки</string>
+    <string name="CustomProfileFrameCloudPicture">Загруженное изображение</string>
+    <string name="CustomProfileFrameLocalPicture">Локальное изображение</string>
+    <string name="CustomProfileRestoreCloud">Восстановить профиль с сервера</string>
+    <string name="CustomProfileNoCloudBackup">Резервная копия профиля отсутствует</string>
 </resources>

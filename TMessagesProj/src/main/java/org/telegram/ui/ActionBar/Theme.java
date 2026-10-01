@@ -2359,6 +2359,7 @@ public class Theme {
     public static boolean dialogs_archiveDrawableRecolored;
     public static boolean dialogs_hidePsaDrawableRecolored;
     public static boolean dialogs_archiveAvatarDrawableRecolored;
+    public static int dialogs_archiveAvatarDrawableArrowColor = Integer.MIN_VALUE;
     private static int dialogs_holidayDrawableOffsetX;
     private static int dialogs_holidayDrawableOffsetY;
     private static long lastHolidayCheckTime;
@@ -7844,6 +7845,7 @@ public class Theme {
         dialogs_archiveAvatarDrawable.setLayerColor("Box1", getNonAnimatedColor(key_avatar_text));
         dialogs_archiveAvatarDrawable.commitApplyLayerColors();
         dialogs_archiveAvatarDrawableRecolored = false;
+        dialogs_archiveAvatarDrawableArrowColor = getNonAnimatedColor(key_avatar_backgroundArchived);
         dialogs_archiveAvatarDrawable.setAllowDecodeSingleFrame(true);
 
         dialogs_pinArchiveDrawable.beginApplyLayerColors();

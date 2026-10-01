@@ -189,6 +189,26 @@ public final class SovietGramAccountScope {
         return ownId > 0 && ownId == loadedId();
     }
 
+    /** Restore a cloud backup into its owner's scope without switching the visible account. */
+    public static synchronized void restoreItems(int account, JSONObject appearance, ConfigItem[] items) {
+        long owner = SovietGramTokenStore.ownId(account);
+        if (owner <= 0 || appearance == null) return;
+        JSONObject root = root();
+        JSONObject snapshot = root.optJSONObject(String.valueOf(owner));
+        if (snapshot == null) snapshot = new JSONObject();
+        boolean live = isLive(account);
+        for (ConfigItem item : items) {
+            if (!appearance.has(item.getKey()) || appearance.isNull(item.getKey())) continue;
+            Object value = item.checkConfigFromString(String.valueOf(appearance.opt(item.getKey())));
+            if (value == null) continue;
+            try { snapshot.put(item.getKey(), value); } catch (Exception e) { FileLog.e(e); }
+            if (live) write(item, value);
+        }
+        put(root, owner, snapshot);
+        write(root);
+        if (live) afterSwap();
+    }
+
     /** Whether {@code userId} owns the live values. */
     public static synchronized boolean isOwner(long userId) {
         return userId > 0 && userId == loadedId();

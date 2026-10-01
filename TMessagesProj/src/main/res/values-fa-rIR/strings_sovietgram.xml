@@ -666,4 +666,8 @@
     <string name="IosInputAppearance">فیلد ورودی به سبک iOS</string>
     <string name="CompactInputSize">فیلد ورودی فشرده</string>
     <string name="customProfileBlocksJoin">اتصال بلوک‌های نزدیک</string>
+    <string name="CustomProfileFrameCloudPicture">تصویر بارگذاری‌شده</string>
+    <string name="CustomProfileFrameLocalPicture">تصویر محلی</string>
+    <string name="CustomProfileRestoreCloud">بازیابی پروفایل از سرور</string>
+    <string name="CustomProfileNoCloudBackup">نسخه پشتیبان پروفایل موجود نیست</string>
 </resources>

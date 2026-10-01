@@ -65,6 +65,7 @@ public final class SovietGramSync {
      * first account's successful push suppress every other account's first push.
      */
     private static final Map<Long, String> lastPushedBody = new ConcurrentHashMap<>();
+    private static final java.util.Set<Long> pushing = ConcurrentHashMap.newKeySet();
 
     private static final Runnable profilePushRunnable = SovietGramSync::pushProfileNow;
 
@@ -122,7 +123,13 @@ public final class SovietGramSync {
         // complete and still show a peer nothing, so this is the moment to fix it: the upload runs in
         // the background and schedules its own push once the descriptor exists.
         CustomProfileMedia.ensurePublished();
+        FrameProjects.ensureFramePublished();
         for (int account : accounts) {
+            if (!CustomProfileCloud.isReady(account)) {
+                CustomProfileCloud.reconcile(account, SovietGramSync::scheduleProfilePush);
+                continue;
+            }
+            CustomProfileCloud.backup(account);
             final long ownId = SovietGramTokenStore.ownId(account);
             if (ownId <= 0) {
                 continue;
@@ -134,9 +141,12 @@ public final class SovietGramSync {
             if (serialized.equals(lastPushedBody.get(ownId))) {
                 continue;
             }
+            if (!pushing.add(ownId)) continue;
             SovietGramApiClient.putSigned(account, "/v1/profile", body, (response, error) -> {
+                pushing.remove(ownId);
                 if (error == null) {
                     lastPushedBody.put(ownId, serialized);
+                    scheduleProfilePush();
                 } else {
                     FileLog.e("SovietGramSync: profile push failed for " + ownId + ": " + error);
                     scheduleRetry();
@@ -216,7 +226,7 @@ public final class SovietGramSync {
             // disabling the feature removes the look for everyone else.
             JSONObject customProfile = new JSONObject();
             if (SovietGramAccountScope.bool(account, NekoConfig.customProfileEnabled)) {
-                customProfile = CustomProfileHelper.exportProfileJson(account);
+                customProfile = CustomProfileHelper.sharedProfileJson(account);
                 if (!CustomProfileHelper.hasLocalProfileState(account)) {
                     final JSONObject preserved = SovietGramProfileSync.remoteCustomProfile(
                             SovietGramTokenStore.ownId(account));

@@ -670,4 +670,8 @@
     <string name="CompactInputSize">Compact invoerveld</string>
     <string name="Experimental">Experimenteel</string>
     <string name="customProfileBlocksJoin">Nabijgelegen blokken verbinden</string>
+    <string name="CustomProfileFrameCloudPicture">Geüploade afbeelding</string>
+    <string name="CustomProfileFrameLocalPicture">Lokale afbeelding</string>
+    <string name="CustomProfileRestoreCloud">Profiel herstellen vanaf server</string>
+    <string name="CustomProfileNoCloudBackup">Geen profielback-up beschikbaar</string>
 </resources>

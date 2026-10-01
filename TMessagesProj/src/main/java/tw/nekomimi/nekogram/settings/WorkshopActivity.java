@@ -65,6 +65,7 @@ public class WorkshopActivity extends BaseFragment {
     private ActionBarMenuItem sectionItem;
     private TextView profileTab;
     private TextView frameTab;
+    private LinearLayout controls;
     private String search = "";
     private String authorFilter;
     private Runnable pendingSearch;
@@ -150,8 +151,9 @@ public class WorkshopActivity extends BaseFragment {
         root.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundGray));
         fragmentView = root;
 
-        final LinearLayout controls = new LinearLayout(context);
+        controls = new LinearLayout(context);
         controls.setOrientation(LinearLayout.VERTICAL);
+        controls.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
         final LinearLayout tabs = new LinearLayout(context);
         profileTab = tab(context, R.string.CustomProfileWorkshop, WorkshopHelper.KIND_PROFILE);
         frameTab = tab(context, R.string.CustomProfileFrames, WorkshopHelper.KIND_FRAME);
@@ -161,6 +163,8 @@ public class WorkshopActivity extends BaseFragment {
         final EditText searchField = new EditText(context);
         searchField.setSingleLine(true);
         searchField.setTextSize(15);
+        searchField.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
+        searchField.setHintTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteHintText));
         searchField.setHint(getString(R.string.Search));
         searchField.setPadding(dp(16), 0, dp(16), 0);
         searchField.addTextChangedListener(new TextWatcher() {
@@ -177,7 +181,6 @@ public class WorkshopActivity extends BaseFragment {
         });
         controls.addView(searchField, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(48)));
-        root.addView(controls, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 92, Gravity.TOP));
         updateTabs();
 
         progressView = new FlickerLoadingView(context);
@@ -192,7 +195,11 @@ public class WorkshopActivity extends BaseFragment {
         root.addView(emptyView, contentParams());
 
         listView = new RecyclerListView(context);
-        listView.setLayoutManager(new GridLayoutManager(context, 2));
+        GridLayoutManager grid = new GridLayoutManager(context, 2);
+        grid.setSpanSizeLookup(new GridLayoutManager.SpanSizeLookup() {
+            @Override public int getSpanSize(int position) { return position == 0 ? 2 : 1; }
+        });
+        listView.setLayoutManager(grid);
         listView.setPadding(dp(8), dp(8), dp(8), dp(8));
         listView.setClipToPadding(false);
         listView.setVerticalScrollBarEnabled(false);
@@ -218,7 +225,6 @@ public class WorkshopActivity extends BaseFragment {
     private static FrameLayout.LayoutParams contentParams() {
         final FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
-        params.topMargin = dp(92);
         return params;
     }
 
@@ -439,7 +445,7 @@ public class WorkshopActivity extends BaseFragment {
         final boolean empty = !loading && works.isEmpty();
         emptyView.setVisibility(empty ? View.VISIBLE : View.GONE);
         emptyView.setText(error != null ? error : getString(R.string.WorkshopEmpty));
-        listView.setVisibility(loading || empty ? View.GONE : View.VISIBLE);
+        listView.setVisibility(View.VISIBLE);
     }
 
     /** Installing replaces every Custom Profile setting, so it is worth one confirmation. */
@@ -534,6 +540,11 @@ public class WorkshopActivity extends BaseFragment {
         @NonNull
         @Override
         public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            if (viewType == 1) {
+                if (controls.getParent() instanceof ViewGroup previous) previous.removeView(controls);
+                controls.setLayoutParams(new RecyclerView.LayoutParams(LayoutHelper.MATCH_PARENT, dp(92)));
+                return new RecyclerListView.Holder(controls);
+            }
             final WorkshopCell cell = new WorkshopCell(context);
             final RecyclerView.LayoutParams params = new RecyclerView.LayoutParams(
                     LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT);
@@ -544,8 +555,9 @@ public class WorkshopActivity extends BaseFragment {
 
         @Override
         public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
+            if (position == 0) return;
             final WorkshopCell cell = (WorkshopCell) holder.itemView;
-            final WorkshopHelper.Work work = works.get(position);
+            final WorkshopHelper.Work work = works.get(position - 1);
             cell.setWork(work);
             cell.setOnLikeClickListener(() -> {
                 final int account = UserConfig.selectedAccount;
@@ -570,7 +582,9 @@ public class WorkshopActivity extends BaseFragment {
 
         @Override
         public int getItemCount() {
-            return works.size();
+            return works.size() + 1;
         }
+
+        @Override public int getItemViewType(int position) { return position == 0 ? 1 : 0; }
     }
 }

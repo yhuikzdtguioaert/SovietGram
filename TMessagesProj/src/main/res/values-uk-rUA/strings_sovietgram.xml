@@ -666,4 +666,8 @@
     <string name="IosInputAppearance">Поле введення в стилі iOS</string>
     <string name="CompactInputSize">Компактне поле введення</string>
     <string name="customProfileBlocksJoin">З’єднати сусідні блоки</string>
+    <string name="CustomProfileFrameCloudPicture">Завантажене зображення</string>
+    <string name="CustomProfileFrameLocalPicture">Локальне зображення</string>
+    <string name="CustomProfileRestoreCloud">Відновити профіль із сервера</string>
+    <string name="CustomProfileNoCloudBackup">Резервна копія профілю відсутня</string>
 </resources>

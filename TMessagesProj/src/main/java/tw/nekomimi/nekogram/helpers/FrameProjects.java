@@ -35,6 +35,78 @@ public final class FrameProjects {
     public static final int LIMIT = 30;
     private static final Map<String, Runnable> pending = new HashMap<>();
     private static final Map<String, String> uploadedTextures = new HashMap<>();
+    private static final Set<String> frameUploads = new HashSet<>();
+
+    /** Publish textures even when the active frame was not saved as a named project. */
+    public static void ensureFramePublished() {
+        final int account = UserConfig.selectedAccount;
+        if (!SovietGramAccountScope.isLive(account) || !SovietGramApiClient.isReady(account)) return;
+        final String graphText = NekoConfig.customProfileFrameGraph.String();
+        final String specText = NekoConfig.customProfileFrameSpec.String();
+        FrameSpec spec = FrameSpec.parse(specText);
+        FrameGraph graph = FrameGraph.parse(graphText);
+        Set<String> assets = new HashSet<>(spec.assets());
+        assets.addAll(graph.sources());
+        boolean local = false;
+        for (String source : assets) {
+            if (source != null && !source.isEmpty() && !FrameBlanks.is(source)
+                    && !source.startsWith("https://") && !source.startsWith("http://")) {
+                local = true;
+                break;
+            }
+        }
+        if (!local) return;
+        final long owner = SovietGramTokenStore.ownId(account);
+        final String key = owner + ":" + graphText + ":" + specText;
+        if (!frameUploads.add(key)) return;
+        Utilities.globalQueue.postRunnable(() -> {
+            try {
+                Map<String, String> urls = textureUrls(account, assets);
+                String remoteGraph = graph.swap(urls).encode();
+                String remoteSpec = FrameSpec.swap(spec, urls).encode();
+                AndroidUtilities.runOnUIThread(() -> {
+                    frameUploads.remove(key);
+                    if (owner != SovietGramTokenStore.ownId(account)
+                            || account != UserConfig.selectedAccount || !SovietGramAccountScope.isLive(account)
+                            || !graphText.equals(NekoConfig.customProfileFrameGraph.String())
+                            || !specText.equals(NekoConfig.customProfileFrameSpec.String())) return;
+                    NekoConfig.customProfileFrameGraph.setConfigString(remoteGraph);
+                    NekoConfig.customProfileFrameSpec.setConfigString(remoteSpec);
+                    onFrameChanged(remoteGraph, remoteSpec);
+                    CustomProfileHelper.onSettingsChanged();
+                });
+            } catch (Exception e) {
+                FileLog.e("Frame texture publishing failed: " + e.getMessage());
+                AndroidUtilities.runOnUIThread(() -> frameUploads.remove(key));
+            }
+        });
+    }
+
+    private static Map<String, String> textureUrls(int account, Set<String> assets) throws Exception {
+        Map<String, String> remote = new HashMap<>();
+        File root = new File(org.telegram.messenger.ApplicationLoader.getFilesDirFixed(), "frame-assets").getCanonicalFile();
+        for (String source : assets) {
+            if (source == null || source.isEmpty() || FrameBlanks.is(source)
+                    || source.startsWith("https://") || source.startsWith("http://")) continue;
+            File file = source.startsWith("file:") ? new File(java.net.URI.create(source)) : new File(source);
+            file = file.getCanonicalFile();
+            if (!file.getPath().startsWith(root.getPath() + File.separator) || !file.isFile()) {
+                throw new IllegalArgumentException("Frame texture is not in the app library");
+            }
+            String key = account + ":" + file.getPath() + ":" + file.lastModified() + ":" + file.length();
+            String url = uploadedTextures.get(key);
+            if (url == null) {
+                JSONObject uploaded = SovietGramApiClient.uploadMediaFile(account, "frame", file);
+                String path = uploaded.optString("path", "");
+                if (!path.startsWith("/v1/media/")) throw new IllegalStateException("Frame texture upload failed");
+                url = ApiServersHelper.baseUrl() + path;
+                if (uploadedTextures.size() > 256) uploadedTextures.clear();
+                uploadedTextures.put(key, url);
+            }
+            remote.put(source, url);
+        }
+        return remote;
+    }
 
     public static final class Project {
         public String id;
@@ -312,31 +384,7 @@ public final class FrameProjects {
                 final FrameSpec spec = FrameSpec.parse(specText);
                 final Set<String> assets = new HashSet<>(spec.assets());
                 assets.addAll(graph.sources());
-                final Map<String, String> remote = new HashMap<>();
-                final File root = new File(org.telegram.messenger.ApplicationLoader.getFilesDirFixed(),
-                        "frame-assets").getCanonicalFile();
-                for (String source : assets) {
-                    if (source == null || source.isEmpty() || FrameBlanks.is(source)
-                            || source.startsWith("https://") || source.startsWith("http://")) continue;
-                    final File file = new File(source).getCanonicalFile();
-                    if (!file.getPath().startsWith(root.getPath() + File.separator) || !file.isFile()) {
-                        throw new IllegalArgumentException("Frame texture is not in the app library");
-                    }
-                    final String key = account + ":" + file.getPath() + ":"
-                            + file.lastModified() + ":" + file.length();
-                    String url = uploadedTextures.get(key);
-                    if (url == null) {
-                        final JSONObject uploaded = SovietGramApiClient.uploadMediaFile(account, "frame", file);
-                        final String path = uploaded.optString("path", "");
-                        if (!path.startsWith("/v1/media/")) {
-                            throw new IllegalStateException("Frame texture upload failed");
-                        }
-                        url = ApiServersHelper.baseUrl() + path;
-                        if (uploadedTextures.size() > 256) uploadedTextures.clear();
-                        uploadedTextures.put(key, url);
-                    }
-                    remote.put(source, url);
-                }
+                final Map<String, String> remote = textureUrls(account, assets);
                 final String remoteGraph = graph.swap(remote).encode();
                 final String remoteSpec = FrameSpec.swap(spec, remote).encode();
                 final JSONObject body = new JSONObject().put("name", name)

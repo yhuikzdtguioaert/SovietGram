@@ -29,6 +29,7 @@ public class ProfileCommentsActivity extends CustomProfileListActivity {
     private boolean commentsEnabled = true;
     private boolean commentsPreview = true;
     private String error;
+    private int refreshId;
 
     public ProfileCommentsActivity(long profileId) {
         this.profileId = profileId;
@@ -72,7 +73,9 @@ public class ProfileCommentsActivity extends CustomProfileListActivity {
             final String parent = comment.optString("parent_id", "");
             final String prefix = parent.isEmpty() || "null".equals(parent) ? "" : "↳ ";
             final String value = comment.optString("body") + "  ·  ♥ " + comment.optInt("likes");
-            final Row row = setting(prefix + author, value, () -> commentMenu(comment));
+            final String name = comment.optString("author_name", author);
+            final Row row = setting(prefix + (name.isEmpty() || "null".equals(name) ? author : name),
+                    value, () -> commentMenu(comment));
             row.onLongClick = () -> commentMenu(comment);
         }
         if (comments.length() == 0 && error == null) {
@@ -94,12 +97,14 @@ public class ProfileCommentsActivity extends CustomProfileListActivity {
     }
 
     private void refresh() {
+        final int request = ++refreshId;
         if (!SovietGramApiClient.isReady(account)) {
             error = getString(R.string.CustomProfileSocialUnavailable);
             rebuild();
             return;
         }
         SovietGramApiClient.get(account, "/v1/profile-social/" + profileId, (body, failure) -> {
+            if (isFinished || request != refreshId) return;
             if (body == null) {
                 error = failure;
                 rebuild();
@@ -113,6 +118,7 @@ public class ProfileCommentsActivity extends CustomProfileListActivity {
             rebuild();
         });
         SovietGramApiClient.get(account, "/v1/profile-comments/" + profileId, (body, failure) -> {
+            if (isFinished || request != refreshId) return;
             if (body != null) {
                 comments = body.optJSONArray("comments");
                 if (comments == null) comments = new JSONArray();
@@ -124,6 +130,7 @@ public class ProfileCommentsActivity extends CustomProfileListActivity {
         });
         if (mine) {
             SovietGramApiClient.get(account, "/v1/profile-comment-blocks", (body, failure) -> {
+                if (isFinished || request != refreshId) return;
                 if (body != null) {
                     blockedUsers = body.optJSONArray("users");
                     if (blockedUsers == null) blockedUsers = new JSONArray();

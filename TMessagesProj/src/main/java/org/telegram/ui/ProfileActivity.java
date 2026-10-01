@@ -679,6 +679,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     /** The rows a look invented for itself, as a range; -1 when it has none. See CustomProfileExtraRows. */
     private int customBlocksStartRow = -1;
     private int customBlocksEndRow = -1;
+    private CustomProfileExtraRows.Block profileCommentsBlock;
+    private int profileCommentsRequest;
     private int phoneSuggestionSectionRow;
     private int graceSuggestionRow;
     private int graceSuggestionSectionRow;
@@ -10135,6 +10137,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         // banner, colours and layout. A chat currently has no peer Custom Profile payload, so select
         // an empty remote look for it instead of leaking the local one.
         CustomProfileHelper.setDrawingLook(this, myProfile, currentAccount, userId);
+        refreshProfileComments();
         applyCustomProfileNameStyle();
         if (sharedMediaLayout != null) {
             sharedMediaLayout.onResume();
@@ -11700,7 +11703,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         // so a row numbered after it exists in the list and can never be scrolled to.
         customBlocksStartRow = -1;
         customBlocksEndRow = -1;
-        final int customBlocks = CustomProfileExtraRows.blocks().size();
+        final int customBlocks = customProfileBlocks().size();
         if (customBlocks > 0) {
             if (sharedMediaRow != -1) {
                 // Take the media row's number and hand it back out after ours.
@@ -11757,7 +11760,41 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
      * Acts on a tap on one of the look's own rows: open its address, copy it, or pass it to a share
      * sheet. A block that asks for nothing is simply not clickable.
      */
+    private java.util.List<CustomProfileExtraRows.Block> customProfileBlocks() {
+        java.util.List<CustomProfileExtraRows.Block> blocks = CustomProfileExtraRows.blocks();
+        if (profileCommentsBlock == null || userId <= 0 || !CustomProfileHelper.isEnabled()) return blocks;
+        java.util.ArrayList<CustomProfileExtraRows.Block> visible = new java.util.ArrayList<>(blocks);
+        visible.add(profileCommentsBlock);
+        return visible;
+    }
+
+    private void refreshProfileComments() {
+        if (userId <= 0 || !tw.nekomimi.nekogram.helpers.SovietGramApiClient.isReady(currentAccount)) return;
+        final int request = ++profileCommentsRequest;
+        tw.nekomimi.nekogram.helpers.SovietGramApiClient.get(currentAccount,
+                "/v1/profile-social/" + userId, (body, error) -> {
+                    if (isFinished || request != profileCommentsRequest || body == null) return;
+                    if (!body.optBoolean("comments_preview", true)) {
+                        profileCommentsBlock = null;
+                    } else {
+                        CustomProfileExtraRows.Block block = CustomProfileExtraRows.create(CustomProfileExtraRows.TYPE_LINK);
+                        block.title = LocaleController.getString(R.string.CustomProfileComments);
+                        block.text = body.optInt("comments") + " · " + LocaleController.getString(R.string.CustomProfileComments)
+                                + "    ♥ " + body.optInt("likes");
+                        block.action = CustomProfileExtraRows.ACTION_OPEN;
+                        block.url = "sovietgram://profile-comments/" + userId;
+                        profileCommentsBlock = block;
+                    }
+                    updateRowsIds();
+                    if (listAdapter != null) listAdapter.notifyDataSetChanged();
+                });
+    }
+
     private void onCustomBlockClick(@Nullable CustomProfileExtraRows.Block block) {
+        if (block != null && block == profileCommentsBlock) {
+            presentFragment(new ProfileCommentsActivity(userId));
+            return;
+        }
         if (block == null || block.action == CustomProfileExtraRows.ACTION_NONE
                 || TextUtils.isEmpty(block.url)) {
             return;
@@ -14614,7 +14651,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     }
                     break;
                 case VIEW_TYPE_CUSTOM_BLOCK: {
-                    final java.util.List<CustomProfileExtraRows.Block> blocks = CustomProfileExtraRows.blocks();
+                    final java.util.List<CustomProfileExtraRows.Block> blocks = customProfileBlocks();
                     final int index = position - customBlocksStartRow;
                     if (index >= 0 && index < blocks.size()) {
                         ((CustomProfileBlockCell) holder.itemView).set(blocks.get(index));
@@ -16747,7 +16784,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     put(++pointer, i, sparseIntArray);
                 }
             } else {
-                pointer += CustomProfileExtraRows.MAX_BLOCKS;
+                pointer += CustomProfileExtraRows.MAX_BLOCKS + 1;
             }
             put(++pointer, sharedMediaRow, sparseIntArray);
             put(++pointer, unblockRow, sparseIntArray);

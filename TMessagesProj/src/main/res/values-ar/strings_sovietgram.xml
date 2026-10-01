@@ -670,4 +670,8 @@
     <string name="CompactInputSize">حقل الإدخال المضغوط</string>
     <string name="Experimental">تجريبية</string>
     <string name="customProfileBlocksJoin">دمج الكتل المتجاورة</string>
+    <string name="CustomProfileFrameCloudPicture">صورة مرفوعة</string>
+    <string name="CustomProfileFrameLocalPicture">صورة محلية</string>
+    <string name="CustomProfileRestoreCloud">استعادة الملف الشخصي من الخادم</string>
+    <string name="CustomProfileNoCloudBackup">لا توجد نسخة احتياطية للملف الشخصي</string>
 </resources>

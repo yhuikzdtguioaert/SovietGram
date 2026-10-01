@@ -666,4 +666,8 @@
     <string name="IosInputAppearance">iOS スタイルの入力フィールド</string>
     <string name="CompactInputSize">コンパクトな入力フィールド</string>
     <string name="customProfileBlocksJoin">隣接するブロックを結合</string>
+    <string name="CustomProfileFrameCloudPicture">アップロード済みの画像</string>
+    <string name="CustomProfileFrameLocalPicture">ローカル画像</string>
+    <string name="CustomProfileRestoreCloud">サーバーからプロフィールを復元</string>
+    <string name="CustomProfileNoCloudBackup">プロフィールのバックアップがありません</string>
 </resources>

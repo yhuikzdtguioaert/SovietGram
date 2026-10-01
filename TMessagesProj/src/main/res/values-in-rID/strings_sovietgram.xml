@@ -666,4 +666,8 @@
     <string name="IosInputAppearance">Bidang Input bergaya iOS</string>
     <string name="CompactInputSize">Bidang Masukan Ringkas</string>
     <string name="customProfileBlocksJoin">Gabungkan blok yang berdekatan</string>
+    <string name="CustomProfileFrameCloudPicture">Gambar yang diunggah</string>
+    <string name="CustomProfileFrameLocalPicture">Gambar lokal</string>
+    <string name="CustomProfileRestoreCloud">Pulihkan profil dari server</string>
+    <string name="CustomProfileNoCloudBackup">Cadangan profil tidak tersedia</string>
 </resources>

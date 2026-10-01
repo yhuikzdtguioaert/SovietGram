@@ -670,4 +670,8 @@
     <string name="CompactInputSize">Kompaktes Eingabefeld</string>
     <string name="Experimental">Experimentell</string>
     <string name="customProfileBlocksJoin">Benachbarte Blöcke verbinden</string>
+    <string name="CustomProfileFrameCloudPicture">Hochgeladenes Bild</string>
+    <string name="CustomProfileFrameLocalPicture">Lokales Bild</string>
+    <string name="CustomProfileRestoreCloud">Profil vom Server wiederherstellen</string>
+    <string name="CustomProfileNoCloudBackup">Keine Profilsicherung verfügbar</string>
 </resources>

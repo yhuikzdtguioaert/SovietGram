@@ -21,6 +21,10 @@ public class ConfigCellHeader extends AbstractConfigCell {
         return false;
     }
 
+    public String getTitle() {
+        return title;
+    }
+
     public void onBindViewHolder(RecyclerView.ViewHolder holder) {
         HeaderCell headerCell = (HeaderCell) holder.itemView;
         headerCell.setText(title);
