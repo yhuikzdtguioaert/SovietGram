@@ -114,6 +114,7 @@ public class WorkshopActivity extends BaseFragment {
         names.add(getString(R.string.WorkshopSovietPopular));
         names.add(getString(R.string.WorkshopSovietMine));
         names.add(getString(R.string.WorkshopSovietFavorites));
+        names.add(getString(R.string.WorkshopTopAuthors));
         return names;
     }
 
@@ -266,6 +267,10 @@ public class WorkshopActivity extends BaseFragment {
         }
         PopupHelper.show(sectionNames(), getString(R.string.WorkshopSection), section,
                 getParentActivity(), which -> {
+                    if (which == SECTIONS.length) {
+                        showTopAuthors();
+                        return;
+                    }
                     if (which == section) {
                         return;
                     }
@@ -273,6 +278,44 @@ public class WorkshopActivity extends BaseFragment {
                     authorFilter = null;
                     actionBar.setSubtitle(sectionNames().get(section));
                     load();
+                });
+    }
+
+    private void showTopAuthors() {
+        if (getParentActivity() == null) return;
+        final ArrayList<String> modes = new ArrayList<>();
+        modes.add(getString(R.string.WorkshopTopByLikes));
+        modes.add(getString(R.string.WorkshopTopByRatio));
+        PopupHelper.show(modes, getString(R.string.WorkshopTopAuthors), -1,
+                getParentActivity(), which -> {
+                    if (which < 0 || which >= modes.size()) return;
+                    final int account = UserConfig.selectedAccount;
+                    SovietWorkshop.topAuthors(account, kind, which == 0 ? "likes" : "ratio",
+                            (authors, error) -> {
+                        if (account != UserConfig.selectedAccount) return;
+                        if (authors == null) { showError(error); return; }
+                        if (authors.isEmpty()) {
+                            showError(getString(R.string.WorkshopEmpty));
+                            return;
+                        }
+                        final ArrayList<String> labels = new ArrayList<>();
+                        for (int i = 0; i < authors.size(); i++) {
+                            final SovietWorkshop.Author author = authors.get(i);
+                            labels.add((i + 1) + ". " + author.name + " · "
+                                    + author.works + " / ♥ " + author.likes
+                                    + (which == 1 ? " (" + String.format(java.util.Locale.US,
+                                    "%.1f", author.ratio) + ")" : ""));
+                        }
+                        PopupHelper.show(labels, getString(R.string.WorkshopTopAuthors), -1,
+                                getParentActivity(), picked -> {
+                            if (picked < 0 || picked >= authors.size()) return;
+                            authorFilter = authors.get(picked).id;
+                            section = 5;
+                            actionBar.setSubtitle(getString(R.string.WorkshopAuthorWorks)
+                                    + " " + authors.get(picked).name);
+                            load();
+                        });
+                    });
                 });
     }
 

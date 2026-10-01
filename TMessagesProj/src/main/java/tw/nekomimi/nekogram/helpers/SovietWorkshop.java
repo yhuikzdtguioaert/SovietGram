@@ -22,6 +22,43 @@ import tw.nekomimi.nekogram.helpers.remote.ApiServersHelper;
 public final class SovietWorkshop {
     private SovietWorkshop() { }
 
+    public static final class Author {
+        public String id;
+        public String name;
+        public int works;
+        public int likes;
+        public double ratio;
+    }
+
+    public static void topAuthors(int account, String kind, String mode,
+                                  WorkshopHelper.Callback<List<Author>> callback) {
+        if (!SovietGramApiClient.isReady(account)) {
+            callback.onResult(null, "SovietGram server sign-in required");
+            return;
+        }
+        SovietGramApiClient.get(account, "/v1/work-authors?kind=" + enc(kind)
+                + "&mode=" + enc(mode), (body, error) -> {
+            if (body == null) {
+                callback.onResult(null, error);
+                return;
+            }
+            final List<Author> authors = new ArrayList<>();
+            final JSONArray rows = body.optJSONArray("authors");
+            for (int i = 0; rows != null && i < rows.length(); i++) {
+                final JSONObject row = rows.optJSONObject(i);
+                if (row == null) continue;
+                final Author author = new Author();
+                author.id = row.optString("id", "");
+                author.name = row.optString("name", author.id);
+                author.works = row.optInt("works");
+                author.likes = row.optInt("likes");
+                author.ratio = row.optDouble("ratio");
+                authors.add(author);
+            }
+            callback.onResult(authors, null);
+        });
+    }
+
     public static void list(int account, String kind, String mode, String query,
                             @Nullable String author,
                             WorkshopHelper.Callback<List<WorkshopHelper.Work>> callback) {

@@ -237,6 +237,9 @@
     <string name="WorkshopReportReason">Why are you reporting this work?</string>
     <string name="WorkshopDeleteConfirm">Delete this published work?</string>
     <string name="WorkshopAuthorWorks">More by author</string>
+    <string name="WorkshopTopAuthors">Top authors</string>
+    <string name="WorkshopTopByLikes">By likes</string>
+    <string name="WorkshopTopByRatio">By likes per work</string>
 
     <string name="CustomProfileHeaderBanner">Banner</string>
     <string name="customProfileBannerType">Banner type</string>
