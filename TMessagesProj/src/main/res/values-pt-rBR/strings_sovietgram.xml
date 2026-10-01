@@ -665,4 +665,5 @@
     <string name="IosButtonPlacement">Posicionamento de botão estilo iOS</string>
     <string name="IosInputAppearance">Campo de entrada estilo iOS</string>
     <string name="CompactInputSize">Campo de entrada compacto</string>
+    <string name="customProfileBlocksJoin">Unir blocos próximos</string>
 </resources>

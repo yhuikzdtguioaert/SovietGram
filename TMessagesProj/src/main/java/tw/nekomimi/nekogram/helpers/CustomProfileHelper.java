@@ -123,6 +123,7 @@ public final class CustomProfileHelper {
             NekoConfig.customProfileBlocksColor,
             NekoConfig.customProfileBlocksAlpha,
             NekoConfig.customProfileBlocksBlur,
+            NekoConfig.customProfileBlocksJoin,
             NekoConfig.customProfileBlocksRadiusEnabled,
             NekoConfig.customProfileBlocksRadius,
             NekoConfig.customProfileAvatarShape,

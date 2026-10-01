@@ -4383,6 +4383,12 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 }
                 super.dispatchDraw(canvas);
             }
+
+            @Override
+            public void drawSectionsBackgrounds(Canvas canvas) {
+                CustomProfileBlocks.beginFrame();
+                super.drawSectionsBackgrounds(canvas);
+            }
         };
         // Same cards as everywhere else, with the look's Blocks blur frosted in behind each one. It
         // has to be painted here rather than carried by the card's colour, since a blur is a property

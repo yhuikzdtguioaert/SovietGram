@@ -399,6 +399,7 @@ public final class WorkshopStyle {
         color(c, "blocks_color", NekoConfig.customProfileBlocksColor);
         set(NekoConfig.customProfileBlocksAlpha, clamp(c.optInt("blocks_alpha", 100), 0, 100));
         set(NekoConfig.customProfileBlocksBlur, clamp(c.optInt("blocks_blur"), 0, 100));
+        NekoConfig.customProfileBlocksJoin.setConfigBool(c.optBoolean("blocks_join", false));
         NekoConfig.customProfileBlocksRadiusEnabled.setConfigBool(c.optBoolean("blocks_radius_enabled", false));
         set(NekoConfig.customProfileBlocksRadius, clamp(c.optInt("blocks_radius", 12), 0, 30));
     }

@@ -749,4 +749,5 @@
     <string name="CustomProfileFrameFileError">Не удалось прочитать или записать файл рамки</string>
     <string name="CustomProfileBlockedCommenters">Заблокированные комментаторы</string>
     <string name="CustomProfileUnblockCommenter">Разблокировать</string>
+    <string name="customProfileBlocksJoin">Соединить ближайшие блоки</string>
 </resources>

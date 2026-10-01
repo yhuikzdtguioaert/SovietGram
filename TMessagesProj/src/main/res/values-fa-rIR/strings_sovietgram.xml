@@ -665,4 +665,5 @@
     <string name="IosButtonPlacement">قرار دادن دکمه به سبک iOS</string>
     <string name="IosInputAppearance">فیلد ورودی به سبک iOS</string>
     <string name="CompactInputSize">فیلد ورودی فشرده</string>
+    <string name="customProfileBlocksJoin">اتصال بلوک‌های نزدیک</string>
 </resources>

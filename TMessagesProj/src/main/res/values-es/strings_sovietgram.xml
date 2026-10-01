@@ -669,4 +669,5 @@
     <string name="IosInputAppearance">Campo de entrada estilo iOS</string>
     <string name="CompactInputSize">Campo de entrada compacto</string>
     <string name="Experimental">Experimental</string>
+    <string name="customProfileBlocksJoin">Unir bloques cercanos</string>
 </resources>

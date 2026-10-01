@@ -665,4 +665,5 @@
     <string name="IosButtonPlacement">iOS tarzı Düğme Yerleşimi</string>
     <string name="IosInputAppearance">iOS tarzı Giriş Alanı</string>
     <string name="CompactInputSize">Kompakt Giriş Alanı</string>
+    <string name="customProfileBlocksJoin">Yakın blokları birleştir</string>
 </resources>

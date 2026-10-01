@@ -665,4 +665,5 @@
     <string name="IosButtonPlacement">iOS 風格的按鈕放置</string>
     <string name="IosInputAppearance">iOS風格的輸入框</string>
     <string name="CompactInputSize">緊湊的輸入字段</string>
+    <string name="customProfileBlocksJoin">連接相鄰區塊</string>
 </resources>

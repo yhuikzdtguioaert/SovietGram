@@ -55,6 +55,14 @@ public final class CustomProfileBlocks {
     private static final Matrix matrix = new Matrix();
     private static final Path path = new Path();
     private static final float[] radii = new float[8];
+    private static final RectF cardRect = new RectF();
+    private static final RectF previousCard = new RectF();
+    private static final RectF cornerArc = new RectF();
+    private static final RectF patchRect = new RectF();
+    private static final Path joinPatch = new Path();
+    private static float previousRadius;
+    private static float previousAlpha;
+    private static boolean hasPrevious;
 
     @Nullable
     private static Bitmap backdrop;
@@ -65,11 +73,17 @@ public final class CustomProfileBlocks {
     private CustomProfileBlocks() {
     }
 
+    /** A section draw pass must never join against a card from an earlier frame/profile. */
+    public static void beginFrame() {
+        hasPrevious = false;
+    }
+
     /** Drops the frosted copy. Called whenever the look changes under it. */
     public static void invalidate() {
         backdrop = null;
         backdropShader = null;
         backdropKey = 0;
+        hasPrevious = false;
     }
 
     /**
@@ -97,17 +111,71 @@ public final class CustomProfileBlocks {
         if (CustomProfileHelper.cfgBool(NekoConfig.customProfileBlocksRadiusEnabled)) {
             final float radius = AndroidUtilities.dpf2(CustomProfileGfx.clamp(
                     CustomProfileHelper.cfgInt(NekoConfig.customProfileBlocksRadius), 0, 30));
-            topRadius = radius;
-            bottomRadius = radius;
+            // Zero denotes an interior edge of an existing card, not a default radius.
+            if (topRadius > 0) topRadius = radius;
+            if (bottomRadius > 0) bottomRadius = radius;
         }
-        drawBlur(canvas, rect, topRadius, bottomRadius, alpha, list);
+        cardRect.set(rect);
+        if (CustomProfileHelper.cfgBool(NekoConfig.customProfileBlocksJoin) && hasPrevious) {
+            final float gap = cardRect.top - previousCard.bottom;
+            if (gap >= 0 && gap <= AndroidUtilities.dpf2(16)
+                    && Math.abs(cardRect.left - previousCard.left) < 1
+                    && Math.abs(cardRect.right - previousCard.right) < 1
+                    && Math.abs(alpha - previousAlpha) < 0.01f) {
+                patchJoin(canvas, Math.min(alpha, previousAlpha), list);
+                cardRect.top = previousCard.bottom;
+                topRadius = 0;
+            }
+        }
+        drawBlur(canvas, cardRect, topRadius, bottomRadius, alpha, list);
         final int color = CustomProfileHelper.themedColor(Theme.key_windowBackgroundWhite,
                 Theme.getColor(Theme.key_windowBackgroundWhite));
         paint.setShader(null);
         paint.setColor(color);
         paint.setAlpha(CustomProfileGfx.clamp(Math.round(Color.alpha(color) * alpha), 0, 255));
-        fill(canvas, rect, topRadius, bottomRadius);
+        fill(canvas, cardRect, topRadius, bottomRadius);
+        previousCard.set(cardRect);
+        previousRadius = bottomRadius;
+        previousAlpha = alpha;
+        hasPrevious = true;
         return true;
+    }
+
+    /** Fill only the two missing corner wedges; repainting the whole translucent card doubles tint. */
+    private static void patchJoin(Canvas canvas, float alpha, View list) {
+        final float radius = Math.min(previousRadius,
+                Math.min(previousCard.width() / 2, previousCard.height()));
+        if (radius <= 0.5f) return;
+        joinPatch.rewind();
+        final float bottom = previousCard.bottom;
+        final float left = previousCard.left;
+        final float right = previousCard.right;
+        joinPatch.moveTo(left, bottom - radius);
+        joinPatch.lineTo(left, bottom);
+        joinPatch.lineTo(left + radius, bottom);
+        cornerArc.set(left, bottom - radius * 2, left + radius * 2, bottom);
+        joinPatch.arcTo(cornerArc, 90, 90);
+        joinPatch.close();
+        joinPatch.moveTo(right, bottom - radius);
+        joinPatch.lineTo(right, bottom);
+        joinPatch.lineTo(right - radius, bottom);
+        cornerArc.set(right - radius * 2, bottom - radius * 2, right, bottom);
+        joinPatch.arcTo(cornerArc, 90, -90);
+        joinPatch.close();
+        patchRect.set(left, bottom - radius, right, bottom);
+        int save = canvas.save();
+        try {
+            canvas.clipPath(joinPatch);
+            drawBlur(canvas, patchRect, 0, 0, alpha, list);
+            int color = CustomProfileHelper.themedColor(Theme.key_windowBackgroundWhite,
+                    Theme.getColor(Theme.key_windowBackgroundWhite));
+            paint.setShader(null);
+            paint.setColor(color);
+            paint.setAlpha(CustomProfileGfx.clamp(Math.round(Color.alpha(color) * alpha), 0, 255));
+            canvas.drawRect(patchRect, paint);
+        } finally {
+            canvas.restoreToCount(save);
+        }
     }
 
     /**

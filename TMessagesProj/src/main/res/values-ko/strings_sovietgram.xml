@@ -665,4 +665,5 @@
     <string name="IosButtonPlacement">iOS 스타일 버튼 배치</string>
     <string name="IosInputAppearance">iOS 스타일 입력 필드</string>
     <string name="CompactInputSize">컴팩트 입력 필드</string>
+    <string name="customProfileBlocksJoin">인접한 블록 연결</string>
 </resources>

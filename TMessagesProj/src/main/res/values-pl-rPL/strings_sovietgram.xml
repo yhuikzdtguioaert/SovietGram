@@ -665,4 +665,5 @@
     <string name="IosButtonPlacement">Rozmieszczenie przycisków w stylu iOS</string>
     <string name="IosInputAppearance">Pole wejściowe w stylu iOS</string>
     <string name="CompactInputSize">Kompaktowe pole wejściowe</string>
+    <string name="customProfileBlocksJoin">Połącz sąsiednie bloki</string>
 </resources>

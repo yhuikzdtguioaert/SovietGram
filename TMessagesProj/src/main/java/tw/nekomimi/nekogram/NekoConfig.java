@@ -342,6 +342,7 @@ public class NekoConfig {
     public static ConfigItem customProfileBlocksColor = addConfig("customProfileBlocksColor", configTypeInt, 0xFF1C1C1E);
     public static ConfigItem customProfileBlocksAlpha = addConfig("customProfileBlocksAlpha", configTypeInt, 100);
     public static ConfigItem customProfileBlocksBlur = addConfig("customProfileBlocksBlur", configTypeInt, 0);
+    public static ConfigItem customProfileBlocksJoin = addConfig("customProfileBlocksJoin", configTypeBool, false);
     public static ConfigItem customProfileBlocksRadiusEnabled = addConfig("customProfileBlocksRadiusEnabled", configTypeBool, false);
     public static ConfigItem customProfileBlocksRadius = addConfig("customProfileBlocksRadius", configTypeInt, 12);
 

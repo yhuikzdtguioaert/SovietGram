@@ -665,4 +665,5 @@
     <string name="IosButtonPlacement">Penempatan Tombol bergaya iOS</string>
     <string name="IosInputAppearance">Bidang Input bergaya iOS</string>
     <string name="CompactInputSize">Bidang Masukan Ringkas</string>
+    <string name="customProfileBlocksJoin">Gabungkan blok yang berdekatan</string>
 </resources>

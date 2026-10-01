@@ -665,4 +665,5 @@
     <string name="IosButtonPlacement">Розташування кнопок у стилі iOS</string>
     <string name="IosInputAppearance">Поле введення в стилі iOS</string>
     <string name="CompactInputSize">Компактне поле введення</string>
+    <string name="customProfileBlocksJoin">З’єднати сусідні блоки</string>
 </resources>

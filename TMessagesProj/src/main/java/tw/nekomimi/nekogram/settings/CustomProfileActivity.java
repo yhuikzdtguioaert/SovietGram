@@ -115,6 +115,7 @@ public class CustomProfileActivity extends BaseNekoXSettingsActivity {
     private final AbstractConfigCell blocksColorRow = new ConfigCellColor(NekoConfig.customProfileBlocksColor, 0xFF1C1C1E);
     private final AbstractConfigCell blocksAlphaRow = new ConfigCellSlider(NekoConfig.customProfileBlocksAlpha, 0, 100, "%");
     private final AbstractConfigCell blocksBlurRow = new ConfigCellSlider(NekoConfig.customProfileBlocksBlur, 0, 100, "%");
+    private final AbstractConfigCell blocksJoinRow = new ConfigCellTextCheck(NekoConfig.customProfileBlocksJoin);
     private final AbstractConfigCell blocksRadiusEnabledRow = new ConfigCellTextCheck(NekoConfig.customProfileBlocksRadiusEnabled);
     private final AbstractConfigCell blocksRadiusRow = new ConfigCellSlider(NekoConfig.customProfileBlocksRadius, 0, 30, "dp");
 
@@ -360,6 +361,7 @@ public class CustomProfileActivity extends BaseNekoXSettingsActivity {
             cellGroup.appendCell(blocksColorRow);
             cellGroup.appendCell(blocksAlphaRow);
             cellGroup.appendCell(blocksBlurRow);
+            cellGroup.appendCell(blocksJoinRow);
             cellGroup.appendCell(blocksRadiusEnabledRow);
             if (NekoConfig.customProfileBlocksRadiusEnabled.Bool()) {
                 cellGroup.appendCell(blocksRadiusRow);

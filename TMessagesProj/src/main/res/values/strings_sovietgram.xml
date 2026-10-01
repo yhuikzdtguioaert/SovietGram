@@ -740,4 +740,5 @@
     <string name="CustomProfileFrameFileError">Could not read or write the frame file</string>
     <string name="CustomProfileBlockedCommenters">Blocked commenters</string>
     <string name="CustomProfileUnblockCommenter">Unblock</string>
+    <string name="customProfileBlocksJoin">Join nearby blocks</string>
 </resources>

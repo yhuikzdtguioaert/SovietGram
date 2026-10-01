@@ -669,4 +669,5 @@
     <string name="IosInputAppearance">حقل الإدخال على نمط iOS</string>
     <string name="CompactInputSize">حقل الإدخال المضغوط</string>
     <string name="Experimental">تجريبية</string>
+    <string name="customProfileBlocksJoin">دمج الكتل المتجاورة</string>
 </resources>
