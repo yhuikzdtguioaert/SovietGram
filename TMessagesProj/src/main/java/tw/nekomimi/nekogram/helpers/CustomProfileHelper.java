@@ -1414,6 +1414,8 @@ public final class CustomProfileHelper {
         NekoConfig.customProfileBackgroundPath.setConfigString("");
         NekoConfig.customProfileNameFontPath.setConfigString("");
         NekoConfig.customProfileThoughtFontPath.setConfigString("");
+        // The author's own provider accounts stay with the author; the installer connects theirs.
+        CustomProfileExtraRows.releaseIntegrationAccounts();
         onSettingsChanged();
         return true;
     }

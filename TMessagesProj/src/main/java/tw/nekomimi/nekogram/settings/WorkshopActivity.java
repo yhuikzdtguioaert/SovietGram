@@ -5,9 +5,7 @@ import static org.telegram.messenger.LocaleController.getString;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
-import android.text.Editable;
 import android.text.TextUtils;
-import android.text.TextWatcher;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -57,12 +55,14 @@ public class WorkshopActivity extends BaseFragment {
 
     private static final int menu_section = 1;
     private static final int menu_publish = 2;
+    private static final int menu_search = 3;
 
     private RecyclerListView listView;
     private ListAdapter adapter;
     private FlickerLoadingView progressView;
     private TextView emptyView;
     private ActionBarMenuItem sectionItem;
+    private ActionBarMenuItem searchItem;
     private TextView profileTab;
     private TextView frameTab;
     private LinearLayout controls;
@@ -148,6 +148,14 @@ public class WorkshopActivity extends BaseFragment {
             }
         });
         final ActionBarMenu menu = actionBar.createMenu();
+        searchItem = menu.addItem(menu_search, R.drawable.outline_header_search).setIsSearchField(true);
+        searchItem.setSearchPaddingStart(12);
+        searchItem.setSearchFieldHint(getString(R.string.Search));
+        searchItem.setActionBarMenuItemSearchListener(new ActionBarMenuItem.ActionBarMenuItemSearchListener() {
+            @Override public void onSearchCollapse() { applySearch(""); }
+            @Override public void onTextChanged(EditText editText) { applySearch(editText.getText().toString()); }
+            @Override public void onSearchPressed(EditText editText) { applySearch(editText.getText().toString()); }
+        });
         sectionItem = menu.addItem(menu_section, R.drawable.msg_list);
         sectionItem.setContentDescription(getString(R.string.WorkshopSection));
         menu.addItem(menu_publish, R.drawable.msg_add)
@@ -166,27 +174,6 @@ public class WorkshopActivity extends BaseFragment {
         tabs.addView(profileTab, new LinearLayout.LayoutParams(0, dp(44), 1));
         tabs.addView(frameTab, new LinearLayout.LayoutParams(0, dp(44), 1));
         controls.addView(tabs);
-        final EditText searchField = new EditText(context);
-        searchField.setSingleLine(true);
-        searchField.setTextSize(15);
-        searchField.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
-        searchField.setHintTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteHintText));
-        searchField.setHint(getString(R.string.Search));
-        searchField.setPadding(dp(16), 0, dp(16), 0);
-        searchField.addTextChangedListener(new TextWatcher() {
-            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
-            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
-                search = s.toString().trim().toLowerCase(java.util.Locale.ROOT);
-                if (section >= 5) {
-                    if (pendingSearch != null) AndroidUtilities.cancelRunOnUIThread(pendingSearch);
-                    pendingSearch = WorkshopActivity.this::load;
-                    AndroidUtilities.runOnUIThread(pendingSearch, 300);
-                } else filter();
-            }
-            @Override public void afterTextChanged(Editable s) { }
-        });
-        controls.addView(searchField, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(48)));
         updateTabs();
 
         progressView = new FlickerLoadingView(context);
@@ -258,6 +245,17 @@ public class WorkshopActivity extends BaseFragment {
         if (frameTab != null) {
             frameTab.setAlpha(WorkshopHelper.KIND_FRAME.equals(kind) ? 1f : 0.55f);
         }
+    }
+
+    private void applySearch(String text) {
+        final String next = text == null ? "" : text.trim().toLowerCase(java.util.Locale.ROOT);
+        if (next.equals(search)) return;
+        search = next;
+        if (section >= 5) {
+            if (pendingSearch != null) AndroidUtilities.cancelRunOnUIThread(pendingSearch);
+            pendingSearch = WorkshopActivity.this::load;
+            AndroidUtilities.runOnUIThread(pendingSearch, 300);
+        } else filter();
     }
 
     @SuppressLint("NotifyDataSetChanged")
@@ -556,7 +554,7 @@ public class WorkshopActivity extends BaseFragment {
         public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
             if (viewType == 1) {
                 if (controls.getParent() instanceof ViewGroup previous) previous.removeView(controls);
-                controls.setLayoutParams(new RecyclerView.LayoutParams(LayoutHelper.MATCH_PARENT, dp(92)));
+                controls.setLayoutParams(new RecyclerView.LayoutParams(LayoutHelper.MATCH_PARENT, dp(44)));
                 return new RecyclerListView.Holder(controls);
             }
             final WorkshopCell cell = new WorkshopCell(context);

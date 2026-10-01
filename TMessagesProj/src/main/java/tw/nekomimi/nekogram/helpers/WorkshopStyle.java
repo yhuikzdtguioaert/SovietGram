@@ -473,6 +473,7 @@ public final class WorkshopStyle {
         final String json = blocks == null ? "" : blocks.toString();
         NekoConfig.customProfileExtraBlocks.setConfigString(
                 CustomProfileExtraRows.parse(json).isEmpty() ? "" : json);
+        CustomProfileExtraRows.releaseIntegrationAccounts();
         adoptBlockPictures();
     }
 

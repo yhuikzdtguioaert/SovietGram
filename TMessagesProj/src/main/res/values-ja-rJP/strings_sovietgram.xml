@@ -704,4 +704,11 @@
     <string name="CustomProfileIntegrationUseAccount">このアカウントを接続しますか？</string>
     <string name="CustomProfileIntegrationDisconnectInfo">このTelegramアカウントとすべてのプロフィールブロックからこのサービスを切断しますか？</string>
     <string name="CustomProfileIntegrationAvailability">サービスの権限により一部のデータを取得できない場合があります。接続の期限が切れたら再度ログインしてください。</string>
+    <string name="CustomProfileIntegrationNeedsBinding">This block has an integration. Connect your own account to show your data.</string>
+    <string name="CustomProfileIntegrationWaiting">Sign in on the service page that opened in your browser, then come back here.</string>
+    <string name="CustomProfileIntegrationNotConfigured">This service is not set up on the SovietGram server yet.</string>
+    <string name="CustomProfileIntegrationNoBrowser">No browser was found to open the sign-in page.</string>
+    <string name="CustomProfileIntegrationDenied">Access was not granted. Nothing was connected.</string>
+    <string name="CustomProfileIntegrationPasteToken">After signing in, copy the access token (or the address of the page that shows it) and paste it here.</string>
+    <string name="CustomProfileIntegrationPasteHint">Token or page address</string>
 </resources>

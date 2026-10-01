@@ -186,6 +186,7 @@ public class CustomProfileBlocksActivity extends CustomProfileListActivity {
                             rebuild();
                         });
             });
+            if (block.url.isEmpty()) info(getString(R.string.CustomProfileIntegrationNeedsBinding));
             if (block.service <= 2) {
                 setting(getString(R.string.CustomProfileIntegrationAccount), preview(block.url),
                         () -> askText(getString(R.string.CustomProfileIntegrationAccount), block.url, 128, value -> {
@@ -342,8 +343,8 @@ public class CustomProfileBlocksActivity extends CustomProfileListActivity {
         new AlertDialog.Builder(getParentActivity()).setTitle(CustomProfileIntegrations.serviceName(service))
                 .setMessage(getString(R.string.CustomProfileIntegrationConsent))
                 .setPositiveButton(getString(R.string.CustomProfileIntegrationConnect), (dialog, which) -> {
-                    if (sameOwner(owner)) presentFragment(new CustomProfileIntegrationLoginActivity(currentAccount, service,
-                            saved -> linkedBlock(id, service, owner, saved.optString("id"))));
+                    if (sameOwner(owner)) tw.nekomimi.nekogram.helpers.CustomProfileIntegrationOAuth.begin(this,
+                            currentAccount, service, saved -> linkedBlock(id, service, owner, saved.optString("id")));
                 })
                 .setNegativeButton(getString(R.string.Cancel), null).show();
     }

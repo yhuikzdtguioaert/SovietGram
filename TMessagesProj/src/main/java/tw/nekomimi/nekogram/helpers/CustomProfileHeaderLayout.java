@@ -266,6 +266,17 @@ public final class CustomProfileHeaderLayout {
     public static void apply(@Nullable View root, @Nullable View avatar, @Nullable View name,
                              @Nullable View status, @Nullable View actions,
                              float expand, float pull) {
+        apply(root, avatar, name, status, actions, expand, pull, 1f);
+    }
+
+    /**
+     * @param avatarFlight how much of the look's avatar offset to keep, 0..1. The profile's own
+     *                     open/close flight interpolates the avatar between two standard positions,
+     *                     so the offset fades with it instead of swinging the avatar aside and back.
+     */
+    public static void apply(@Nullable View root, @Nullable View avatar, @Nullable View name,
+                             @Nullable View status, @Nullable View actions,
+                             float expand, float pull, float avatarFlight) {
         if (!CustomProfileHelper.isEnabled() || !has() || root == null) {
             restoreAll();
             return;
@@ -281,7 +292,7 @@ public final class CustomProfileHeaderLayout {
             root.postOnAnimation(() -> {
                 measurementRetryPosted = false;
                 if (root.isAttachedToWindow()) {
-                    apply(root, avatar, name, status, actions, expand, pull);
+                    apply(root, avatar, name, status, actions, expand, pull, avatarFlight);
                 }
             });
         }
@@ -310,9 +321,11 @@ public final class CustomProfileHeaderLayout {
 
         applyAnchors(root, views, wantedX, wantedY, amount, pull);
         keepStatusClearOfAvatar(root, avatar, status, wantedX, wantedY, amount);
+        keepStatusClearOfName(root, name, status, wantedX, wantedY, amount);
 
         for (int i = 0; i < CustomProfileAnchors.COUNT; i++) {
-            transforms[i].apply(views[i], elements[i], wantedX[i], wantedY[i], amount);
+            transforms[i].apply(views[i], elements[i], wantedX[i], wantedY[i],
+                    i == CustomProfileAnchors.AVATAR ? amount * clampF(avatarFlight, 0f, 1f) : amount);
         }
         applyActionsContent(actions, amount);
     }
@@ -350,6 +363,51 @@ public final class CustomProfileHeaderLayout {
         // Transform.apply multiplies the target offset by amount. Compensate here so the
         // collision clears continuously during a gesture instead of snapping near its end.
         wantedX[CustomProfileAnchors.STATUS] += (avatarRight + gap - statusLeft) / amount;
+    }
+
+    /** Keep Last Seen from drawing over the name (and its badges) when a look stacks them side by side. */
+    private static void keepStatusClearOfName(View root, @Nullable View name,
+                                              @Nullable View status, float[] wantedX,
+                                              float[] wantedY, float amount) {
+        if (name == null || status == null || amount <= 0.01f || name.getVisibility() == View.GONE
+                || status.getVisibility() == View.GONE || name.getWidth() == 0 || status.getWidth() == 0) {
+            return;
+        }
+        final float nameBox = CustomProfileAnchors.drawnSize(root, name, false);
+        final float nameScale = CustomProfileAnchors.chainScale(root, name, false);
+        final float nameText = Math.min(nameBox, textWidth(name) * nameScale);
+        final float nameLeft = CustomProfileAnchors.textStart(
+                CustomProfileAnchors.drawnStart(root, name, false)
+                        - transforms[CustomProfileAnchors.NAME].appliedNowX()
+                        + wantedX[CustomProfileAnchors.NAME] * amount,
+                nameBox, nameText, CustomProfileAnchors.align(gravityOf(name)));
+        final float nameTop = CustomProfileAnchors.drawnStart(root, name, true)
+                - transforms[CustomProfileAnchors.NAME].appliedNowY()
+                + wantedY[CustomProfileAnchors.NAME] * amount;
+        final float nameBottom = nameTop + CustomProfileAnchors.drawnSize(root, name, true);
+        final float statusLeft = CustomProfileAnchors.drawnStart(root, status, false)
+                - transforms[CustomProfileAnchors.STATUS].appliedNowX()
+                + wantedX[CustomProfileAnchors.STATUS] * amount;
+        final float statusTop = CustomProfileAnchors.drawnStart(root, status, true)
+                - transforms[CustomProfileAnchors.STATUS].appliedNowY()
+                + wantedY[CustomProfileAnchors.STATUS] * amount;
+        final float statusWidth = Math.min(textWidth(status) * CustomProfileAnchors.chainScale(root, status, false),
+                CustomProfileAnchors.drawnSize(root, status, false));
+        final float statusBottom = statusTop + CustomProfileAnchors.drawnSize(root, status, true);
+        // Rows that merely touch are fine; only a real overlap in both directions is moved.
+        final float slack = AndroidUtilities.dpf2(3);
+        if (statusTop + slack >= nameBottom || statusBottom - slack <= nameTop
+                || statusLeft + slack >= nameLeft + nameText || statusLeft + statusWidth - slack <= nameLeft) {
+            return;
+        }
+        final float gap = AndroidUtilities.dpf2(8);
+        final float clearLeft = nameLeft + nameText + gap;
+        if (clearLeft + statusWidth <= root.getWidth() - gap) {
+            wantedX[CustomProfileAnchors.STATUS] += (clearLeft - statusLeft) / amount;
+        } else {
+            // No room beside the name: stack Last Seen under it instead of pushing it off screen.
+            wantedY[CustomProfileAnchors.STATUS] += (nameBottom - statusTop) / amount;
+        }
     }
 
     /**
@@ -461,8 +519,9 @@ public final class CustomProfileHeaderLayout {
             return 0f;
         }
         if (view instanceof org.telegram.ui.ActionBar.SimpleTextView simple) {
-            final float width = simple.getTextWidth();
-            if (width > 0f) {
+            // The badges and emoji status drawn beside a name are part of what a neighbour must clear.
+            final float width = simple.getTextWidth() + simple.getSideDrawablesSize();
+            if (simple.getTextWidth() > 0) {
                 return width;
             }
         } else if (view instanceof android.widget.TextView text && text.getLayout() != null) {

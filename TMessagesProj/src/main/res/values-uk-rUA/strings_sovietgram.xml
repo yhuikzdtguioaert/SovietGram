@@ -704,4 +704,11 @@
     <string name="CustomProfileIntegrationUseAccount">Підключити цей обліковий запис?</string>
     <string name="CustomProfileIntegrationDisconnectInfo">Відключити сервіс для цього облікового запису Telegram і всіх його блоків профілю?</string>
     <string name="CustomProfileIntegrationAvailability">Деякі дані можуть бути недоступні через обмеження сервісу. Увійдіть знову, коли термін підключення закінчиться.</string>
+    <string name="CustomProfileIntegrationNeedsBinding">У цьому блоці є інтеграція. Прив’яжіть свій акаунт, щоб показувалися ваші дані.</string>
+    <string name="CustomProfileIntegrationWaiting">Увійдіть на сторінці сервісу, що відкрилася в браузері, а потім поверніться сюди.</string>
+    <string name="CustomProfileIntegrationNotConfigured">Цей сервіс ще не налаштовано на сервері SovietGram.</string>
+    <string name="CustomProfileIntegrationNoBrowser">Не знайдено браузер для відкриття сторінки входу.</string>
+    <string name="CustomProfileIntegrationDenied">Доступ не надано. Нічого не підключено.</string>
+    <string name="CustomProfileIntegrationPasteToken">Після входу скопіюйте токен доступу (або адресу сторінки, на якій його показано) і вставте сюди.</string>
+    <string name="CustomProfileIntegrationPasteHint">Токен або адреса сторінки</string>
 </resources>

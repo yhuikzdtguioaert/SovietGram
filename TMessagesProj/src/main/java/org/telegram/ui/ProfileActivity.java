@@ -9297,11 +9297,16 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         // avatar's, the name's and the buttons' own positions and scales, and this adds a delta on
         // top of them. Run any earlier and the header would simply overwrite it a few lines later,
         // which is exactly what it did until it was moved here.
+        // While the profile flies to or from the chat header the avatar is interpolated between two
+        // standard positions; the look's offsets must fade with that flight or the avatar first swings
+        // to its custom spot, then back, and only then lands on the chat avatar.
+        final float flight = openAnimationInProgress && playProfileAnimation != 0
+                ? Utilities.clamp01(avatarAnimationProgress) : 1f;
         CustomProfileHeaderLayout.apply(avatarContainer2, avatarContainer,
                 nameTextView != null ? nameTextView[1] : null,
                 onlineTextView != null ? onlineTextView[1] : null,
                 actionsView,
-                calculateHeaderExtraDiff(), expandProgress);
+                calculateHeaderExtraDiff(), expandProgress, flight);
     }
 
     private void updateExtraViews(float newTop) {

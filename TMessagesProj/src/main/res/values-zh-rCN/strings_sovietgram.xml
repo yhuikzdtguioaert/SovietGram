@@ -704,4 +704,11 @@
     <string name="CustomProfileIntegrationUseAccount">连接此账号？</string>
     <string name="CustomProfileIntegrationDisconnectInfo">为此 Telegram 账号及其所有个人资料区块断开此服务？</string>
     <string name="CustomProfileIntegrationAvailability">部分数据可能因服务权限而无法获取。连接过期后请重新登录。</string>
+    <string name="CustomProfileIntegrationNeedsBinding">This block has an integration. Connect your own account to show your data.</string>
+    <string name="CustomProfileIntegrationWaiting">Sign in on the service page that opened in your browser, then come back here.</string>
+    <string name="CustomProfileIntegrationNotConfigured">This service is not set up on the SovietGram server yet.</string>
+    <string name="CustomProfileIntegrationNoBrowser">No browser was found to open the sign-in page.</string>
+    <string name="CustomProfileIntegrationDenied">Access was not granted. Nothing was connected.</string>
+    <string name="CustomProfileIntegrationPasteToken">After signing in, copy the access token (or the address of the page that shows it) and paste it here.</string>
+    <string name="CustomProfileIntegrationPasteHint">Token or page address</string>
 </resources>

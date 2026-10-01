@@ -161,6 +161,29 @@ public final class CustomProfileExtraRows {
         CustomProfileHelper.onSettingsChanged();
     }
 
+    /**
+     * Forgets every account an integration row names. A look installed from somebody else carries
+     * the author's accounts; showing them as the installer's own would hide that this row still has
+     * to be connected, and the connect step would look already done.
+     */
+    public static void releaseIntegrationAccounts() {
+        final List<Block> fresh = stored();
+        boolean changed = false;
+        for (Block block : fresh) {
+            if (block.type != TYPE_INTEGRATION) {
+                continue;
+            }
+            if (!block.url.isEmpty() || block.accounts.length() > 0) {
+                block.url = "";
+                block.accounts = new JSONObject();
+                changed = true;
+            }
+        }
+        if (changed) {
+            store(fresh);
+        }
+    }
+
     /** A fresh row of a type, with an id of its own so an order can name it. */
     public static Block create(int type) {
         final Block block = new Block();

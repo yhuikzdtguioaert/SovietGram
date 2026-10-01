@@ -77,6 +77,11 @@ public final class CustomProfileIntegrations {
     public static void clearCache() { cacheGeneration++; CACHE.clear(); }
     public static void load(int account, long profileOwner, CustomProfileExtraRows.Block block, Consumer<String> sink) {
         String name = account(block);
+        if (name.isEmpty() && profileOwner == UserConfig.getInstance(account).getClientUserId()) {
+            // Typically a look installed from the Workshop: the row is there, the account is not yet.
+            sink.accept(LocaleController.getString(R.string.CustomProfileIntegrationNeedsBinding));
+            return;
+        }
         if (!name.matches("[a-zA-Z0-9._-]{1,64}") || !SovietGramApiClient.isReady(account)) {
             sink.accept(LocaleController.getString(R.string.CustomProfileIntegrationUnavailable));
             return;
