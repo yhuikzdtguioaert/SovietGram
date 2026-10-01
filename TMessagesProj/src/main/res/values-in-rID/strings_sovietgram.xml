@@ -674,7 +674,7 @@
     <string name="CustomProfileIntegrationService">Layanan</string>
     <string name="CustomProfileIntegrationAccount">Akun atau tautan profil</string>
     <string name="CustomProfileIntegrationUnavailable">Data integrasi tidak tersedia</string>
-    <string name="CustomProfileIntegrationPrivacy">Hanya statistik profil publik yang ditampilkan. Data pribadi atau tidak tersedia tidak pernah diganti dengan nilai rekaan.</string>
+    <string name="CustomProfileIntegrationPrivacy">Hanya statistik yang dipilih untuk blok ini yang dibagikan. Data masuk tetap pribadi.</string>
     <string name="CustomProfileIntegrationNow">Sedang diputar</string>
     <string name="CustomProfileIntegrationScrobbles">Total scrobble</string>
     <string name="CustomProfileIntegrationArtist">Artis teratas</string>
@@ -698,4 +698,10 @@
     <string name="CustomProfileIntegrationLikes">Suka</string>
     <string name="CustomProfileIntegrationFriends">Teman</string>
     <string name="CustomProfileIntegrationStatus">Status</string>
+    <string name="CustomProfileIntegrationConnect">Hubungkan akun</string>
+    <string name="CustomProfileIntegrationDisconnect">Putuskan akun</string>
+    <string name="CustomProfileIntegrationConsent">Masuk di situs layanan. Token aksesnya akan dienkripsi di server SovietGram Anda untuk akun Telegram ini. Pengunjung profil hanya melihat statistik yang dipilih.</string>
+    <string name="CustomProfileIntegrationUseAccount">Hubungkan akun ini?</string>
+    <string name="CustomProfileIntegrationDisconnectInfo">Putuskan layanan ini untuk akun Telegram ini dan semua blok profilnya?</string>
+    <string name="CustomProfileIntegrationAvailability">Sebagian data mungkin tidak tersedia karena izin layanan. Masuk lagi saat koneksi kedaluwarsa.</string>
 </resources>

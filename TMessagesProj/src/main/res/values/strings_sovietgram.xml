@@ -749,7 +749,7 @@
     <string name="CustomProfileIntegrationService">Service</string>
     <string name="CustomProfileIntegrationAccount">Account or profile URL</string>
     <string name="CustomProfileIntegrationUnavailable">Integration data is unavailable</string>
-    <string name="CustomProfileIntegrationPrivacy">Only public profile statistics are displayed. Private or unavailable data is never replaced with invented values.</string>
+    <string name="CustomProfileIntegrationPrivacy">Only the statistics selected for this block are shared. Login details stay private.</string>
     <string name="CustomProfileIntegrationNow">Now playing</string>
     <string name="CustomProfileIntegrationScrobbles">Total scrobbles</string>
     <string name="CustomProfileIntegrationArtist">Top artist</string>
@@ -773,4 +773,10 @@
     <string name="CustomProfileIntegrationLikes">Likes</string>
     <string name="CustomProfileIntegrationFriends">Friends</string>
     <string name="CustomProfileIntegrationStatus">Status</string>
+    <string name="CustomProfileIntegrationConnect">Connect account</string>
+    <string name="CustomProfileIntegrationDisconnect">Disconnect account</string>
+    <string name="CustomProfileIntegrationConsent">Sign in on the service website. Its access token will be encrypted on your SovietGram server for this Telegram account. Only the selected statistics will be shared with profile visitors.</string>
+    <string name="CustomProfileIntegrationUseAccount">Link this account?</string>
+    <string name="CustomProfileIntegrationDisconnectInfo">Disconnect this service for this Telegram account and all its profile blocks?</string>
+    <string name="CustomProfileIntegrationAvailability">Some statistics may be unavailable because of service permissions. Sign in again when the connection expires.</string>
 </resources>

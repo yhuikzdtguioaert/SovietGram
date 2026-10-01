@@ -173,22 +173,29 @@ public class CustomProfileBlocksActivity extends CustomProfileListActivity {
         }
         if (block.type == CustomProfileExtraRows.TYPE_INTEGRATION) {
             setting(getString(R.string.CustomProfileIntegrationService), CustomProfileIntegrations.serviceName(block.service), () -> {
-                PopupHelper.show(java.util.Arrays.asList("Last.fm", "GitHub", "Steam"), getString(R.string.CustomProfileIntegrationService),
+                PopupHelper.show(new ArrayList<>(java.util.Arrays.asList("Last.fm", "GitHub", "Steam", "Yandex Music", "Spotify", "SoundCloud", "VK")), getString(R.string.CustomProfileIntegrationService),
                         block.service, getParentActivity(), service -> {
+                            boolean defaultTitle = block.title.equals(CustomProfileIntegrations.serviceName(block.service));
                             try { block.accounts.put(CustomProfileIntegrations.key(block.service), block.url); }
                             catch (org.json.JSONException ignore) { }
                             block.service = service;
+                            if (defaultTitle) block.title = CustomProfileIntegrations.serviceName(service);
                             block.url = block.accounts.optString(CustomProfileIntegrations.key(service));
                             block.parts = new org.json.JSONArray(); block.parts.put(0); block.mode = 0;
                             CustomProfileExtraRows.store(blocks);
                             rebuild();
                         });
             });
-            setting(getString(R.string.CustomProfileIntegrationAccount), preview(block.url),
-                    () -> askText(getString(R.string.CustomProfileIntegrationAccount), block.url, 128, value -> {
-                        block.url = value;
-                        CustomProfileExtraRows.store(blocks);
-                    }));
+            if (block.service <= 2) {
+                setting(getString(R.string.CustomProfileIntegrationAccount), preview(block.url),
+                        () -> askText(getString(R.string.CustomProfileIntegrationAccount), block.url, 128, value -> {
+                            block.url = value;
+                            CustomProfileExtraRows.store(blocks);
+                        }));
+            } else {
+                setting(getString(R.string.CustomProfileIntegrationConnect), preview(block.url), () -> connect(block));
+                if (!block.url.isEmpty()) setting(getString(R.string.CustomProfileIntegrationDisconnect), null, () -> disconnect(block));
+            }
             for (int i = 0; i < CustomProfileIntegrations.modeCount(block.service); i++) {
                 int mode = i;
                 boolean selected = false;
@@ -208,7 +215,7 @@ public class CustomProfileBlocksActivity extends CustomProfileListActivity {
                 });
             }
             info(getString(R.string.CustomProfileIntegrationPrivacy));
-            if (block.service > 2) info(getString(R.string.CustomProfileIntegrationUnavailable));
+            if (block.service > 2) info(getString(R.string.CustomProfileIntegrationAvailability));
         }
         if (block.type == CustomProfileExtraRows.TYPE_LINK
                 || block.type == CustomProfileExtraRows.TYPE_BUTTON) {
@@ -300,6 +307,76 @@ public class CustomProfileBlocksActivity extends CustomProfileListActivity {
 
         setting(getString(R.string.Delete), null, () -> confirmDelete(blocks));
         shadow();
+    }
+
+    private boolean sameOwner(long owner) {
+        return !isFinished && org.telegram.messenger.UserConfig.selectedAccount == currentAccount
+                && org.telegram.messenger.UserConfig.getInstance(currentAccount).getClientUserId() == owner;
+    }
+
+    private void linkedBlock(String id, int service, long owner, String providerId) {
+        if (!sameOwner(owner)) return;
+        List<CustomProfileExtraRows.Block> fresh = CustomProfileExtraRows.stored();
+        for (CustomProfileExtraRows.Block block : fresh) {
+            if (!block.id.equals(id) || block.service != service || block.type != CustomProfileExtraRows.TYPE_INTEGRATION) continue;
+            block.url = providerId;
+            try { block.accounts.put(CustomProfileIntegrations.key(service), providerId); }
+            catch (org.json.JSONException ignored) { }
+            CustomProfileExtraRows.store(fresh);
+            rebuild();
+            break;
+        }
+    }
+
+    private void connect(CustomProfileExtraRows.Block block) {
+        if (getParentActivity() == null) return;
+        final long owner = org.telegram.messenger.UserConfig.getInstance(currentAccount).getClientUserId();
+        final String id = block.id;
+        final int service = block.service;
+        if (!tw.nekomimi.nekogram.helpers.SovietGramApiClient.isReady(currentAccount)) {
+            new AlertDialog.Builder(getParentActivity()).setTitle(CustomProfileIntegrations.serviceName(service))
+                    .setMessage(getString(R.string.CustomProfileIntegrationUnavailable))
+                    .setPositiveButton(getString(R.string.OK), null).show();
+            return;
+        }
+        new AlertDialog.Builder(getParentActivity()).setTitle(CustomProfileIntegrations.serviceName(service))
+                .setMessage(getString(R.string.CustomProfileIntegrationConsent))
+                .setPositiveButton(getString(R.string.CustomProfileIntegrationConnect), (dialog, which) -> {
+                    if (sameOwner(owner)) presentFragment(new CustomProfileIntegrationLoginActivity(currentAccount, service,
+                            saved -> linkedBlock(id, service, owner, saved.optString("id"))));
+                })
+                .setNegativeButton(getString(R.string.Cancel), null).show();
+    }
+
+    private void disconnect(CustomProfileExtraRows.Block block) {
+        if (getParentActivity() == null) return;
+        final long owner = org.telegram.messenger.UserConfig.getInstance(currentAccount).getClientUserId();
+        final int service = block.service;
+        new AlertDialog.Builder(getParentActivity()).setTitle(CustomProfileIntegrations.serviceName(service))
+                .setMessage(getString(R.string.CustomProfileIntegrationDisconnectInfo))
+                .setPositiveButton(getString(R.string.CustomProfileIntegrationDisconnect), (dialog, which) -> {
+                    if (!sameOwner(owner)) return;
+                    tw.nekomimi.nekogram.helpers.SovietGramApiClient.deleteSigned(currentAccount,
+                            "/v1/integration-accounts/" + CustomProfileIntegrations.key(service), (body, error) ->
+                            org.telegram.messenger.AndroidUtilities.runOnUIThread(() -> {
+                                if (!sameOwner(owner)) return;
+                                if (error != null) {
+                                    new AlertDialog.Builder(getParentActivity()).setTitle(CustomProfileIntegrations.serviceName(service))
+                                            .setMessage(getString(R.string.CustomProfileIntegrationUnavailable))
+                                            .setPositiveButton(getString(R.string.OK), null).show();
+                                    return;
+                                }
+                                List<CustomProfileExtraRows.Block> fresh = CustomProfileExtraRows.stored();
+                                for (CustomProfileExtraRows.Block item : fresh) {
+                                    item.accounts.remove(CustomProfileIntegrations.key(service));
+                                    if (item.type == CustomProfileExtraRows.TYPE_INTEGRATION && item.service == service) item.url = "";
+                                }
+                                CustomProfileIntegrations.clearCache();
+                                CustomProfileExtraRows.store(fresh);
+                                rebuild();
+                            }));
+                })
+                .setNegativeButton(getString(R.string.Cancel), null).show();
     }
 
     private void colorRow(int titleRes, int current, java.util.function.IntConsumer sink) {

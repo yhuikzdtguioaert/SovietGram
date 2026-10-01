@@ -31,6 +31,7 @@ public final class CustomProfileIntegrations {
     // UI-thread only. Bounded, scoped by both Telegram identity and provider configuration.
     private static final LinkedHashMap<String, Held> CACHE = new LinkedHashMap<>();
     private static final Map<String, List<Consumer<String>>> PENDING = new HashMap<>();
+    private static int cacheGeneration;
     private CustomProfileIntegrations() { }
     public static String key(int service) { return KEYS[Math.max(0, Math.min(6, service))]; }
     public static String serviceName(int service) { return NAMES[Math.max(0, Math.min(6, service))]; }
@@ -58,17 +59,25 @@ public final class CustomProfileIntegrations {
     }
     public static String profileUrl(CustomProfileExtraRows.Block block) {
         String name = account(block);
-        if (!name.matches("[a-zA-Z0-9_-]{1,64}")) return "";
+        if (!name.matches("[a-zA-Z0-9._-]{1,64}")) return "";
         return switch (block.service) {
             case 0 -> "https://www.last.fm/user/" + Uri.encode(name);
             case 1 -> "https://github.com/" + Uri.encode(name);
             case 2 -> "https://steamcommunity.com/" + (name.matches("[0-9]{17}") ? "profiles/" : "id/") + Uri.encode(name);
+            case 3 -> "https://music.yandex.ru/";
+            case 4 -> "https://open.spotify.com/user/" + Uri.encode(name);
+            case 5 -> "https://soundcloud.com/";
+            case 6 -> name.matches("[0-9]+") ? "https://vk.com/id" + name : "https://vk.com/";
             default -> "";
         };
     }
     public static void load(int account, CustomProfileExtraRows.Block block, Consumer<String> sink) {
+        load(account, UserConfig.getInstance(account).getClientUserId(), block, sink);
+    }
+    public static void clearCache() { cacheGeneration++; CACHE.clear(); }
+    public static void load(int account, long profileOwner, CustomProfileExtraRows.Block block, Consumer<String> sink) {
         String name = account(block);
-        if (block.service > 2 || !name.matches("[a-zA-Z0-9_-]{1,64}") || !SovietGramApiClient.isReady(account)) {
+        if (!name.matches("[a-zA-Z0-9._-]{1,64}") || !SovietGramApiClient.isReady(account)) {
             sink.accept(LocaleController.getString(R.string.CustomProfileIntegrationUnavailable));
             return;
         }
@@ -81,7 +90,13 @@ public final class CustomProfileIntegrations {
         }
         if (modes.length() == 0) modes.append(block.mode);
         String path = "/v1/integrations?service=" + key(block.service) + "&account=" + Uri.encode(name) + "&modes=" + modes;
-        String cacheKey = UserConfig.getInstance(account).getClientUserId() + ":" + path + ":" + LocaleController.getInstance().getCurrentLocaleInfo().shortName;
+        if (block.service > 2) {
+            path = profileOwner == UserConfig.getInstance(account).getClientUserId()
+                    ? "/v1/integrations/self?service=" + key(block.service) + "&modes=" + modes
+                    : "/v1/profile-integrations/" + profileOwner + "/" + Uri.encode(block.id);
+        }
+        String cacheKey = cacheGeneration + ":" + UserConfig.getInstance(account).getClientUserId() + ":" + path
+                + ":" + block.service + ":" + name + ":" + modes + ":" + LocaleController.getInstance().getCurrentLocaleInfo().shortName;
         Held held = CACHE.get(cacheKey);
         if (held != null && held.until > android.os.SystemClock.elapsedRealtime()) { sink.accept(held.value); return; }
         if (held != null) sink.accept(held.value);
@@ -90,10 +105,12 @@ public final class CustomProfileIntegrations {
         if (PENDING.size() >= 16) { sink.accept(LocaleController.getString(R.string.CustomProfileIntegrationUnavailable)); return; }
         waiters = new ArrayList<>(); waiters.add(sink); PENDING.put(cacheKey, waiters);
         int service = block.service;
+        int requestedGeneration = cacheGeneration;
         SovietGramApiClient.get(account, path, (body, error) -> AndroidUtilities.runOnUIThread(() -> {
             String value = describe(service, body);
             if (CACHE.size() >= 256) CACHE.remove(CACHE.keySet().iterator().next());
-            CACHE.put(cacheKey, new Held(value, android.os.SystemClock.elapsedRealtime() + (error == null ? 60000 : 15000)));
+            if (requestedGeneration == cacheGeneration) CACHE.put(cacheKey, new Held(value,
+                    android.os.SystemClock.elapsedRealtime() + (error == null ? (service > 2 ? 30000 : 60000) : 15000)));
             List<Consumer<String>> listeners = PENDING.remove(cacheKey);
             if (listeners != null) for (Consumer<String> listener : listeners) listener.accept(value);
         }));

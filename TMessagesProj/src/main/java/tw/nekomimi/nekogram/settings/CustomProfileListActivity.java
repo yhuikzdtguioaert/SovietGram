@@ -140,6 +140,33 @@ public abstract class CustomProfileListActivity extends BaseFragment {
         return add(new Row(TYPE_INFO, text));
     }
 
+    private static int rowIcon(Row row) {
+        String title = String.valueOf(row.title);
+        int[][] groups = {
+                {R.drawable.msg_delete, R.string.Delete},
+                {R.drawable.msg_colors, R.string.CustomProfileExtraRowTitleColor, R.string.CustomProfileExtraRowValueColor, R.string.CustomProfileExtraRowFill},
+                {R.drawable.msg_photos, R.string.CustomProfileExtraRowPick, R.string.CustomProfileExtraRowMedia},
+                {R.drawable.msg_share, R.string.CustomProfileExtraRowUrl, R.string.CustomProfileIntegrationAccount},
+                {R.drawable.msg_photo_text_framed3, R.string.CustomProfileExtraRowTitle, R.string.CustomProfileExtraRowText},
+                {R.drawable.msg_contacts, R.string.CustomProfileIntegrationService, R.string.CustomProfileIntegrationConnect, R.string.CustomProfileIntegrationDisconnect},
+                {R.drawable.msg_viewchats, R.string.CustomProfileExtraRowOwnOnly},
+                {R.drawable.msg_list, R.string.CustomProfileExtraRowType, R.string.CustomProfileExtraRowAdd, R.string.CustomProfileRowUp, R.string.CustomProfileRowDown},
+                {R.drawable.msg_photo_settings, R.string.CustomProfileExtraRowHeight, R.string.CustomProfileExtraRowRadius}
+        };
+        for (int[] group : groups) for (int i = 1; i < group.length; i++) {
+            if (title.equals(org.telegram.messenger.LocaleController.getString(group[i]))) return group[0];
+        }
+        return R.drawable.msg_settings;
+    }
+
+    private static final class IconHolder extends RecyclerView.ViewHolder {
+        final RecyclerView.ViewHolder content;
+        final android.widget.ImageView icon;
+        IconHolder(View view, RecyclerView.ViewHolder content, android.widget.ImageView icon) {
+            super(view); this.content = content; this.icon = icon;
+        }
+    }
+
     private Row add(Row row) {
         rows.add(row);
         return row;
@@ -367,12 +394,27 @@ public abstract class CustomProfileListActivity extends BaseFragment {
             if (viewType != TYPE_SHADOW && viewType != TYPE_INFO) {
                 view.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
             }
-            return new RecyclerListView.Holder(view);
+            RecyclerView.ViewHolder content = new RecyclerListView.Holder(view);
+            if (viewType == TYPE_SHADOW || viewType == TYPE_INFO || viewType == TYPE_HEADER) return content;
+            FrameLayout container = new FrameLayout(context);
+            container.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+            container.addView(view, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT,
+                    android.view.Gravity.TOP, 40, 0, 0, 0));
+            android.widget.ImageView icon = new android.widget.ImageView(context);
+            icon.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+            container.addView(icon, LayoutHelper.createFrame(24, 24, android.view.Gravity.TOP | android.view.Gravity.LEFT, 16, 16, 0, 0));
+            container.setLayoutParams(new RecyclerView.LayoutParams(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
+            return new IconHolder(container, content, icon);
         }
 
         @Override
         public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
             final Row row = rows.get(position);
+            if (holder instanceof IconHolder iconHolder) {
+                iconHolder.icon.setImageResource(rowIcon(row));
+                iconHolder.icon.setColorFilter(Theme.getColor(Theme.key_windowBackgroundWhiteGrayIcon));
+                holder = iconHolder.content;
+            }
             final boolean divider = position + 1 < rows.size()
                     && rows.get(position + 1).type != TYPE_SHADOW
                     && rows.get(position + 1).type != TYPE_INFO

@@ -674,7 +674,7 @@
     <string name="CustomProfileIntegrationService">Сервіс</string>
     <string name="CustomProfileIntegrationAccount">Обліковий запис або посилання на профіль</string>
     <string name="CustomProfileIntegrationUnavailable">Дані інтеграції недоступні</string>
-    <string name="CustomProfileIntegrationPrivacy">Показується лише загальнодоступна статистика профілю. Закриті або недоступні дані не замінюються вигаданими значеннями.</string>
+    <string name="CustomProfileIntegrationPrivacy">Публікується лише статистика, вибрана для цього блоку. Дані входу залишаються приватними.</string>
     <string name="CustomProfileIntegrationNow">Зараз слухаю</string>
     <string name="CustomProfileIntegrationScrobbles">Усього прослуховувань</string>
     <string name="CustomProfileIntegrationArtist">Улюблений виконавець</string>
@@ -698,4 +698,10 @@
     <string name="CustomProfileIntegrationLikes">Вподобайки</string>
     <string name="CustomProfileIntegrationFriends">Друзі</string>
     <string name="CustomProfileIntegrationStatus">Статус</string>
+    <string name="CustomProfileIntegrationConnect">Підключити обліковий запис</string>
+    <string name="CustomProfileIntegrationDisconnect">Відключити обліковий запис</string>
+    <string name="CustomProfileIntegrationConsent">Увійдіть на сайті сервісу. Токен доступу буде зашифровано на сервері SovietGram для цього облікового запису Telegram. Відвідувачам профілю доступна лише вибрана статистика.</string>
+    <string name="CustomProfileIntegrationUseAccount">Підключити цей обліковий запис?</string>
+    <string name="CustomProfileIntegrationDisconnectInfo">Відключити сервіс для цього облікового запису Telegram і всіх його блоків профілю?</string>
+    <string name="CustomProfileIntegrationAvailability">Деякі дані можуть бути недоступні через обмеження сервісу. Увійдіть знову, коли термін підключення закінчиться.</string>
 </resources>

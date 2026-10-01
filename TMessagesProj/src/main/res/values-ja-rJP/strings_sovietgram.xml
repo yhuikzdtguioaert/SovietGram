@@ -674,7 +674,7 @@
     <string name="CustomProfileIntegrationService">サービス</string>
     <string name="CustomProfileIntegrationAccount">アカウントまたはプロフィールURL</string>
     <string name="CustomProfileIntegrationUnavailable">連携データを利用できません</string>
-    <string name="CustomProfileIntegrationPrivacy">公開プロフィールの統計のみ表示します。非公開または利用できないデータを架空の値で置き換えることはありません。</string>
+    <string name="CustomProfileIntegrationPrivacy">このブロックで選択した統計だけが共有されます。ログイン情報は非公開です。</string>
     <string name="CustomProfileIntegrationNow">再生中</string>
     <string name="CustomProfileIntegrationScrobbles">合計再生回数</string>
     <string name="CustomProfileIntegrationArtist">トップアーティスト</string>
@@ -698,4 +698,10 @@
     <string name="CustomProfileIntegrationLikes">いいね</string>
     <string name="CustomProfileIntegrationFriends">友達</string>
     <string name="CustomProfileIntegrationStatus">ステータス</string>
+    <string name="CustomProfileIntegrationConnect">アカウントを接続</string>
+    <string name="CustomProfileIntegrationDisconnect">アカウントを切断</string>
+    <string name="CustomProfileIntegrationConsent">サービスのサイトでログインしてください。アクセストークンはこのTelegramアカウント用にSovietGramサーバーで暗号化されます。プロフィールの閲覧者には選択した統計だけが公開されます。</string>
+    <string name="CustomProfileIntegrationUseAccount">このアカウントを接続しますか？</string>
+    <string name="CustomProfileIntegrationDisconnectInfo">このTelegramアカウントとすべてのプロフィールブロックからこのサービスを切断しますか？</string>
+    <string name="CustomProfileIntegrationAvailability">サービスの権限により一部のデータを取得できない場合があります。接続の期限が切れたら再度ログインしてください。</string>
 </resources>

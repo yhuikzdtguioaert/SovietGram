@@ -47,6 +47,35 @@ public class CustomProfileBlockCell extends FrameLayout {
     private boolean mediaUsable;
     private final Theme.ResourcesProvider resourcesProvider;
     private int binding;
+    private int integrationAccount;
+    private long integrationOwner;
+    private final Runnable refreshIntegration = new Runnable() {
+        @Override public void run() {
+            if (!isAttachedToWindow() || block == null || block.type != CustomProfileExtraRows.TYPE_INTEGRATION) return;
+            loadIntegration();
+            AndroidUtilities.runOnUIThread(this, 31000);
+        }
+    };
+
+    private void loadIntegration() {
+        final int generation = binding;
+        final CustomProfileExtraRows.Block expected = block;
+        tw.nekomimi.nekogram.helpers.CustomProfileIntegrations.load(integrationAccount, integrationOwner, expected, text -> {
+            if (binding != generation || block != expected) return;
+            if (!text.contentEquals(valueView.getText())) { valueView.setText(text); requestLayout(); }
+        });
+    }
+
+    @Override protected void onAttachedToWindow() {
+        super.onAttachedToWindow();
+        AndroidUtilities.cancelRunOnUIThread(refreshIntegration);
+        refreshIntegration.run();
+    }
+
+    @Override protected void onDetachedFromWindow() {
+        AndroidUtilities.cancelRunOnUIThread(refreshIntegration);
+        super.onDetachedFromWindow();
+    }
 
     public CustomProfileBlockCell(Context context, Theme.ResourcesProvider resourcesProvider) {
         super(context);
@@ -79,7 +108,14 @@ public class CustomProfileBlockCell extends FrameLayout {
     }
 
     public void set(CustomProfileExtraRows.Block block, int account) {
-        final int generation = ++binding;
+        set(block, account, org.telegram.messenger.UserConfig.getInstance(account).getClientUserId());
+    }
+
+    public void set(CustomProfileExtraRows.Block block, int account, long profileOwner) {
+        ++binding;
+        AndroidUtilities.cancelRunOnUIThread(refreshIntegration);
+        integrationAccount = account;
+        integrationOwner = profileOwner;
         this.block = block;
         final int type = block.type;
 
@@ -118,11 +154,8 @@ public class CustomProfileBlockCell extends FrameLayout {
             valueView.setLayoutParams(params);
         }
         if (type == CustomProfileExtraRows.TYPE_INTEGRATION) {
-            tw.nekomimi.nekogram.helpers.CustomProfileIntegrations.load(account, block, text -> {
-                if (binding != generation || this.block != block) return;
-                valueView.setText(text);
-                requestLayout();
-            });
+            loadIntegration();
+            if (isAttachedToWindow()) AndroidUtilities.runOnUIThread(refreshIntegration, 31000);
         }
         if (showsMedia) {
             final FrameLayout.LayoutParams params = (LayoutParams) imageView.getLayoutParams();

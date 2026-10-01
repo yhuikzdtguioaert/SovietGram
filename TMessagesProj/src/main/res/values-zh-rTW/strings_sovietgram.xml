@@ -674,7 +674,7 @@
     <string name="CustomProfileIntegrationService">服務</string>
     <string name="CustomProfileIntegrationAccount">帳號或個人檔案連結</string>
     <string name="CustomProfileIntegrationUnavailable">無法取得整合資料</string>
-    <string name="CustomProfileIntegrationPrivacy">僅顯示公開的個人檔案統計資訊。私密或無法取得的資料絕不會替換為虛構值。</string>
+    <string name="CustomProfileIntegrationPrivacy">僅分享此區塊所選的統計資料。登入資訊保持私密。</string>
     <string name="CustomProfileIntegrationNow">正在播放</string>
     <string name="CustomProfileIntegrationScrobbles">總播放次數</string>
     <string name="CustomProfileIntegrationArtist">最常聽的藝人</string>
@@ -698,4 +698,10 @@
     <string name="CustomProfileIntegrationLikes">按讚</string>
     <string name="CustomProfileIntegrationFriends">好友</string>
     <string name="CustomProfileIntegrationStatus">狀態</string>
+    <string name="CustomProfileIntegrationConnect">連接帳號</string>
+    <string name="CustomProfileIntegrationDisconnect">中斷帳號連線</string>
+    <string name="CustomProfileIntegrationConsent">請在服務網站登入。存取權杖將針對此 Telegram 帳號在你的 SovietGram 伺服器上加密。個人檔案訪客只能看到所選統計資料。</string>
+    <string name="CustomProfileIntegrationUseAccount">連接此帳號？</string>
+    <string name="CustomProfileIntegrationDisconnectInfo">為此 Telegram 帳號及其所有個人檔案區塊中斷此服務連線？</string>
+    <string name="CustomProfileIntegrationAvailability">部分資料可能因服務權限而無法取得。連線過期後請重新登入。</string>
 </resources>

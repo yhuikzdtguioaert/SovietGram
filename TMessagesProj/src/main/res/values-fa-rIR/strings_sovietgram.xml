@@ -674,7 +674,7 @@
     <string name="CustomProfileIntegrationService">سرویس</string>
     <string name="CustomProfileIntegrationAccount">حساب یا پیوند نمایه</string>
     <string name="CustomProfileIntegrationUnavailable">داده‌های یکپارچه‌سازی در دسترس نیست</string>
-    <string name="CustomProfileIntegrationPrivacy">فقط آمار عمومی نمایه نمایش داده می‌شود. داده‌های خصوصی یا غیرقابل دسترس هرگز با مقادیر ساختگی جایگزین نمی‌شوند.</string>
+    <string name="CustomProfileIntegrationPrivacy">فقط آمار انتخاب‌شده برای این بلوک به اشتراک گذاشته می‌شود. اطلاعات ورود خصوصی می‌ماند.</string>
     <string name="CustomProfileIntegrationNow">در حال پخش</string>
     <string name="CustomProfileIntegrationScrobbles">کل دفعات شنیدن</string>
     <string name="CustomProfileIntegrationArtist">هنرمند محبوب</string>
@@ -698,4 +698,10 @@
     <string name="CustomProfileIntegrationLikes">پسندیدن‌ها</string>
     <string name="CustomProfileIntegrationFriends">دوستان</string>
     <string name="CustomProfileIntegrationStatus">وضعیت</string>
+    <string name="CustomProfileIntegrationConnect">اتصال حساب</string>
+    <string name="CustomProfileIntegrationDisconnect">قطع اتصال حساب</string>
+    <string name="CustomProfileIntegrationConsent">در وب‌سایت سرویس وارد شوید. توکن دسترسی برای این حساب تلگرام در سرور SovietGram شما رمزگذاری می‌شود. بازدیدکنندگان نمایه فقط آمار انتخاب‌شده را می‌بینند.</string>
+    <string name="CustomProfileIntegrationUseAccount">این حساب متصل شود؟</string>
+    <string name="CustomProfileIntegrationDisconnectInfo">اتصال این سرویس برای این حساب تلگرام و تمام بلوک‌های نمایه آن قطع شود؟</string>
+    <string name="CustomProfileIntegrationAvailability">برخی داده‌ها ممکن است به دلیل مجوزهای سرویس در دسترس نباشند. پس از پایان اعتبار اتصال دوباره وارد شوید.</string>
 </resources>

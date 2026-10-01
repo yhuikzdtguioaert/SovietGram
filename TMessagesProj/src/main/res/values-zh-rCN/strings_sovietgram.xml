@@ -674,7 +674,7 @@
     <string name="CustomProfileIntegrationService">服务</string>
     <string name="CustomProfileIntegrationAccount">账号或个人资料链接</string>
     <string name="CustomProfileIntegrationUnavailable">集成数据不可用</string>
-    <string name="CustomProfileIntegrationPrivacy">仅显示公开的个人资料统计信息。私密或不可用的数据绝不会替换为虚构值。</string>
+    <string name="CustomProfileIntegrationPrivacy">仅共享此区块所选的统计数据。登录信息保持私密。</string>
     <string name="CustomProfileIntegrationNow">正在播放</string>
     <string name="CustomProfileIntegrationScrobbles">总播放次数</string>
     <string name="CustomProfileIntegrationArtist">最常听的艺人</string>
@@ -698,4 +698,10 @@
     <string name="CustomProfileIntegrationLikes">点赞</string>
     <string name="CustomProfileIntegrationFriends">好友</string>
     <string name="CustomProfileIntegrationStatus">状态</string>
+    <string name="CustomProfileIntegrationConnect">连接账号</string>
+    <string name="CustomProfileIntegrationDisconnect">断开账号</string>
+    <string name="CustomProfileIntegrationConsent">请在服务网站上登录。访问令牌将针对此 Telegram 账号在你的 SovietGram 服务器上加密。个人资料访客只能看到所选统计数据。</string>
+    <string name="CustomProfileIntegrationUseAccount">连接此账号？</string>
+    <string name="CustomProfileIntegrationDisconnectInfo">为此 Telegram 账号及其所有个人资料区块断开此服务？</string>
+    <string name="CustomProfileIntegrationAvailability">部分数据可能因服务权限而无法获取。连接过期后请重新登录。</string>
 </resources>

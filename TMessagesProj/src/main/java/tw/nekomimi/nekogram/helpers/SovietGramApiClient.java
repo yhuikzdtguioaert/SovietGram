@@ -57,17 +57,19 @@ import tw.nekomimi.nekogram.utils.HttpClient;
 public final class SovietGramApiClient {
 
     /**
-     * Shared pool for all API traffic. Core size 0 so an idle client keeps no threads alive, max 4
-     * so a burst (profile push for several accounts plus a gift poll) still overlaps instead of
-     * queueing behind one socket.
+     * Four workers allow reads for different accounts to overlap. Core threads time out when idle.
+     * With core size zero and an unbounded queue, ThreadPoolExecutor only starts one worker,
+     * serializing all these requests despite a maximum pool size of four.
      */
     private static final ThreadPoolExecutor EXECUTOR = new ThreadPoolExecutor(
-            0, 4, 30L, TimeUnit.SECONDS, new LinkedBlockingQueue<>(),
+            4, 4, 30L, TimeUnit.SECONDS, new LinkedBlockingQueue<>(),
             r -> {
                 final Thread t = new Thread(r, "SovietGramApi");
                 t.setDaemon(true);
                 return t;
             });
+
+    static { EXECUTOR.allowCoreThreadTimeOut(true); }
 
     private SovietGramApiClient() {
     }

@@ -678,7 +678,7 @@
     <string name="CustomProfileIntegrationService">Dienst</string>
     <string name="CustomProfileIntegrationAccount">Konto oder Profillink</string>
     <string name="CustomProfileIntegrationUnavailable">Integrationsdaten nicht verfügbar</string>
-    <string name="CustomProfileIntegrationPrivacy">Es werden nur öffentliche Profilstatistiken angezeigt. Private oder nicht verfügbare Daten werden niemals durch erfundene Werte ersetzt.</string>
+    <string name="CustomProfileIntegrationPrivacy">Nur die für diesen Block ausgewählten Statistiken werden geteilt. Anmeldedaten bleiben privat.</string>
     <string name="CustomProfileIntegrationNow">Wird gerade gespielt</string>
     <string name="CustomProfileIntegrationScrobbles">Scrobbles insgesamt</string>
     <string name="CustomProfileIntegrationArtist">Top-Künstler</string>
@@ -702,4 +702,10 @@
     <string name="CustomProfileIntegrationLikes">Likes</string>
     <string name="CustomProfileIntegrationFriends">Freunde</string>
     <string name="CustomProfileIntegrationStatus">Status</string>
+    <string name="CustomProfileIntegrationConnect">Konto verbinden</string>
+    <string name="CustomProfileIntegrationDisconnect">Konto trennen</string>
+    <string name="CustomProfileIntegrationConsent">Melde dich auf der Website des Dienstes an. Das Zugriffstoken wird für dieses Telegram-Konto verschlüsselt auf deinem SovietGram-Server gespeichert. Profilbesucher sehen nur die ausgewählten Statistiken.</string>
+    <string name="CustomProfileIntegrationUseAccount">Dieses Konto verbinden?</string>
+    <string name="CustomProfileIntegrationDisconnectInfo">Diesen Dienst für dieses Telegram-Konto und alle seine Profilblöcke trennen?</string>
+    <string name="CustomProfileIntegrationAvailability">Einige Daten können wegen Dienstberechtigungen fehlen. Melde dich erneut an, wenn die Verbindung abläuft.</string>
 </resources>

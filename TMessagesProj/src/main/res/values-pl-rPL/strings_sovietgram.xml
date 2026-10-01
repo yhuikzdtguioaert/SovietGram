@@ -674,7 +674,7 @@
     <string name="CustomProfileIntegrationService">Usługa</string>
     <string name="CustomProfileIntegrationAccount">Konto lub link do profilu</string>
     <string name="CustomProfileIntegrationUnavailable">Dane integracji są niedostępne</string>
-    <string name="CustomProfileIntegrationPrivacy">Wyświetlane są tylko publiczne statystyki profilu. Prywatne lub niedostępne dane nigdy nie są zastępowane zmyślonymi wartościami.</string>
+    <string name="CustomProfileIntegrationPrivacy">Udostępniane są tylko statystyki wybrane dla tego bloku. Dane logowania pozostają prywatne.</string>
     <string name="CustomProfileIntegrationNow">Teraz odtwarzane</string>
     <string name="CustomProfileIntegrationScrobbles">Łącznie scrobbli</string>
     <string name="CustomProfileIntegrationArtist">Ulubiony wykonawca</string>
@@ -698,4 +698,10 @@
     <string name="CustomProfileIntegrationLikes">Polubienia</string>
     <string name="CustomProfileIntegrationFriends">Znajomi</string>
     <string name="CustomProfileIntegrationStatus">Status</string>
+    <string name="CustomProfileIntegrationConnect">Połącz konto</string>
+    <string name="CustomProfileIntegrationDisconnect">Odłącz konto</string>
+    <string name="CustomProfileIntegrationConsent">Zaloguj się na stronie usługi. Token dostępu zostanie zaszyfrowany na serwerze SovietGram dla tego konta Telegram. Odwiedzający zobaczą tylko wybrane statystyki.</string>
+    <string name="CustomProfileIntegrationUseAccount">Połączyć to konto?</string>
+    <string name="CustomProfileIntegrationDisconnectInfo">Odłączyć tę usługę dla tego konta Telegram i wszystkich jego bloków profilu?</string>
+    <string name="CustomProfileIntegrationAvailability">Niektóre dane mogą być niedostępne z powodu uprawnień usługi. Zaloguj się ponownie po wygaśnięciu połączenia.</string>
 </resources>

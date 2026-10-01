@@ -678,7 +678,7 @@
     <string name="CustomProfileIntegrationService">الخدمة</string>
     <string name="CustomProfileIntegrationAccount">الحساب أو رابط الملف الشخصي</string>
     <string name="CustomProfileIntegrationUnavailable">بيانات التكامل غير متاحة</string>
-    <string name="CustomProfileIntegrationPrivacy">تُعرض إحصاءات الملف الشخصي العامة فقط. لا تُستبدل البيانات الخاصة أو غير المتاحة بقيم مختلقة.</string>
+    <string name="CustomProfileIntegrationPrivacy">تُشارك فقط الإحصاءات المحددة لهذه الكتلة. تظل بيانات الدخول خاصة.</string>
     <string name="CustomProfileIntegrationNow">يُشغَّل الآن</string>
     <string name="CustomProfileIntegrationScrobbles">إجمالي مرات الاستماع</string>
     <string name="CustomProfileIntegrationArtist">الفنان المفضل</string>
@@ -702,4 +702,10 @@
     <string name="CustomProfileIntegrationLikes">الإعجابات</string>
     <string name="CustomProfileIntegrationFriends">الأصدقاء</string>
     <string name="CustomProfileIntegrationStatus">الحالة</string>
+    <string name="CustomProfileIntegrationConnect">ربط الحساب</string>
+    <string name="CustomProfileIntegrationDisconnect">فصل الحساب</string>
+    <string name="CustomProfileIntegrationConsent">سجّل الدخول في موقع الخدمة. سيُشفّر رمز الوصول على خادم SovietGram لهذا الحساب في Telegram. لن يرى زوار الملف الشخصي سوى الإحصاءات المحددة.</string>
+    <string name="CustomProfileIntegrationUseAccount">هل تريد ربط هذا الحساب؟</string>
+    <string name="CustomProfileIntegrationDisconnectInfo">هل تريد فصل هذه الخدمة لهذا الحساب في Telegram وجميع كتل ملفه الشخصي؟</string>
+    <string name="CustomProfileIntegrationAvailability">قد لا تتوفر بعض البيانات بسبب أذونات الخدمة. سجّل الدخول مجددًا عند انتهاء الاتصال.</string>
 </resources>

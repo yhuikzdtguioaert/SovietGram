@@ -678,7 +678,7 @@
     <string name="CustomProfileIntegrationService">Dienst</string>
     <string name="CustomProfileIntegrationAccount">Account of profiellink</string>
     <string name="CustomProfileIntegrationUnavailable">Integratiegegevens niet beschikbaar</string>
-    <string name="CustomProfileIntegrationPrivacy">Alleen openbare profielstatistieken worden getoond. Privégegevens of ontbrekende gegevens worden nooit door verzonnen waarden vervangen.</string>
+    <string name="CustomProfileIntegrationPrivacy">Alleen de voor dit blok gekozen statistieken worden gedeeld. Inloggegevens blijven privé.</string>
     <string name="CustomProfileIntegrationNow">Speelt nu</string>
     <string name="CustomProfileIntegrationScrobbles">Totaal aantal scrobbles</string>
     <string name="CustomProfileIntegrationArtist">Favoriete artiest</string>
@@ -702,4 +702,10 @@
     <string name="CustomProfileIntegrationLikes">Vind-ik-leuks</string>
     <string name="CustomProfileIntegrationFriends">Vrienden</string>
     <string name="CustomProfileIntegrationStatus">Status</string>
+    <string name="CustomProfileIntegrationConnect">Account verbinden</string>
+    <string name="CustomProfileIntegrationDisconnect">Account ontkoppelen</string>
+    <string name="CustomProfileIntegrationConsent">Log in op de website van de dienst. Het toegangstoken wordt voor dit Telegram-account versleuteld op je SovietGram-server opgeslagen. Profielbezoekers zien alleen de gekozen statistieken.</string>
+    <string name="CustomProfileIntegrationUseAccount">Dit account verbinden?</string>
+    <string name="CustomProfileIntegrationDisconnectInfo">Deze dienst voor dit Telegram-account en alle bijbehorende profielblokken ontkoppelen?</string>
+    <string name="CustomProfileIntegrationAvailability">Sommige gegevens kunnen door dienstmachtigingen ontbreken. Log opnieuw in wanneer de verbinding verloopt.</string>
 </resources>

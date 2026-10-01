@@ -674,7 +674,7 @@
     <string name="CustomProfileIntegrationService">서비스</string>
     <string name="CustomProfileIntegrationAccount">계정 또는 프로필 링크</string>
     <string name="CustomProfileIntegrationUnavailable">연동 데이터를 사용할 수 없습니다</string>
-    <string name="CustomProfileIntegrationPrivacy">공개 프로필 통계만 표시합니다. 비공개 또는 사용할 수 없는 데이터를 가상의 값으로 대체하지 않습니다.</string>
+    <string name="CustomProfileIntegrationPrivacy">이 블록에서 선택한 통계만 공유됩니다. 로그인 정보는 비공개로 유지됩니다.</string>
     <string name="CustomProfileIntegrationNow">지금 재생 중</string>
     <string name="CustomProfileIntegrationScrobbles">총 스크로블</string>
     <string name="CustomProfileIntegrationArtist">인기 아티스트</string>
@@ -698,4 +698,10 @@
     <string name="CustomProfileIntegrationLikes">좋아요</string>
     <string name="CustomProfileIntegrationFriends">친구</string>
     <string name="CustomProfileIntegrationStatus">상태</string>
+    <string name="CustomProfileIntegrationConnect">계정 연결</string>
+    <string name="CustomProfileIntegrationDisconnect">계정 연결 해제</string>
+    <string name="CustomProfileIntegrationConsent">서비스 웹사이트에서 로그인하세요. 액세스 토큰은 이 Telegram 계정용으로 SovietGram 서버에서 암호화됩니다. 프로필 방문자에게는 선택한 통계만 공개됩니다.</string>
+    <string name="CustomProfileIntegrationUseAccount">이 계정을 연결할까요?</string>
+    <string name="CustomProfileIntegrationDisconnectInfo">이 Telegram 계정과 모든 프로필 블록에서 이 서비스 연결을 해제할까요?</string>
+    <string name="CustomProfileIntegrationAvailability">서비스 권한으로 인해 일부 데이터를 사용할 수 없을 수 있습니다. 연결이 만료되면 다시 로그인하세요.</string>
 </resources>

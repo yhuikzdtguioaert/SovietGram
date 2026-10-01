@@ -14659,7 +14659,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     final java.util.List<CustomProfileExtraRows.Block> blocks = customProfileBlocks();
                     final int index = position - customBlocksStartRow;
                     if (index >= 0 && index < blocks.size()) {
-                        ((CustomProfileBlockCell) holder.itemView).set(blocks.get(index), currentAccount);
+                        ((CustomProfileBlockCell) holder.itemView).set(blocks.get(index), currentAccount, userId);
                     }
                     break;
                 }

@@ -674,7 +674,7 @@
     <string name="CustomProfileIntegrationService">Hizmet</string>
     <string name="CustomProfileIntegrationAccount">Hesap veya profil bağlantısı</string>
     <string name="CustomProfileIntegrationUnavailable">Entegrasyon verileri kullanılamıyor</string>
-    <string name="CustomProfileIntegrationPrivacy">Yalnızca herkese açık profil istatistikleri gösterilir. Özel veya kullanılamayan veriler asla uydurma değerlerle değiştirilmez.</string>
+    <string name="CustomProfileIntegrationPrivacy">Yalnızca bu blok için seçilen istatistikler paylaşılır. Giriş bilgileri gizli kalır.</string>
     <string name="CustomProfileIntegrationNow">Şimdi çalıyor</string>
     <string name="CustomProfileIntegrationScrobbles">Toplam dinleme</string>
     <string name="CustomProfileIntegrationArtist">Favori sanatçı</string>
@@ -698,4 +698,10 @@
     <string name="CustomProfileIntegrationLikes">Beğeniler</string>
     <string name="CustomProfileIntegrationFriends">Arkadaşlar</string>
     <string name="CustomProfileIntegrationStatus">Durum</string>
+    <string name="CustomProfileIntegrationConnect">Hesabı bağla</string>
+    <string name="CustomProfileIntegrationDisconnect">Hesabın bağlantısını kes</string>
+    <string name="CustomProfileIntegrationConsent">Hizmetin web sitesinde oturum açın. Erişim belirteci, bu Telegram hesabı için SovietGram sunucunuzda şifrelenir. Profil ziyaretçileri yalnızca seçilen istatistikleri görür.</string>
+    <string name="CustomProfileIntegrationUseAccount">Bu hesap bağlansın mı?</string>
+    <string name="CustomProfileIntegrationDisconnectInfo">Bu hizmetin bu Telegram hesabı ve tüm profil blokları için bağlantısı kesilsin mi?</string>
+    <string name="CustomProfileIntegrationAvailability">Hizmet izinleri nedeniyle bazı veriler kullanılamayabilir. Bağlantı süresi dolduğunda tekrar oturum açın.</string>
 </resources>
