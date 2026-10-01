@@ -1230,7 +1230,13 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
     }
 
     public void switchToAccount(int account, boolean removeAll, GenericProvider<Void, MainTabsActivity> dialogsActivityProvider) {
-        if (account == UserConfig.selectedAccount || !UserConfig.isValidAccount(account)) {
+        if (!UserConfig.isValidAccount(account)) {
+            return;
+        }
+        if (account == UserConfig.selectedAccount && account == currentAccount
+                && actionBarLayout != null && !actionBarLayout.getFragmentStack().isEmpty()
+                && actionBarLayout.getFragmentStack().get(0).getCurrentAccount() == account) {
+            setupSideDrawer();
             return;
         }
         switchingAccount = true;
@@ -1244,6 +1250,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         tw.nekomimi.nekogram.helpers.SovietGramSync.scheduleProfilePush();
 
         checkCurrentAccount();
+        setupSideDrawer();
         NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.activeAccountChanged, account);
         if (AndroidUtilities.isTablet()) {
             layersActionBarLayout.removeAllFragments();
@@ -1262,6 +1269,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
             actionBarLayout.removeFragmentFromStack(0);
         }
         MainTabsActivity mainTabsActivity = dialogsActivityProvider.provide(null);
+        mainTabsActivity.setCurrentAccount(account);
         actionBarLayout.addFragmentToStack(mainTabsActivity, INavigationLayout.FORCE_ATTACH_VIEW_AS_FIRST);
         actionBarLayout.rebuildFragments(INavigationLayout.REBUILD_FLAG_REBUILD_LAST);
         if (AndroidUtilities.isTablet()) {
@@ -8898,6 +8906,61 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         legacyDrawerAdapter = new org.telegram.ui.Adapters.DrawerLayoutAdapter(
                 this, animator, drawerLayoutContainer);
         legacyDrawerList.setAdapter(legacyDrawerAdapter);
+        androidx.recyclerview.widget.ItemTouchHelper accountDragHelper =
+                new androidx.recyclerview.widget.ItemTouchHelper(new androidx.recyclerview.widget.ItemTouchHelper.SimpleCallback(
+                        androidx.recyclerview.widget.ItemTouchHelper.UP | androidx.recyclerview.widget.ItemTouchHelper.DOWN, 0) {
+                    @Override
+                    public int getMovementFlags(androidx.recyclerview.widget.RecyclerView recyclerView,
+                                                androidx.recyclerview.widget.RecyclerView.ViewHolder holder) {
+                        if (!(holder.itemView instanceof org.telegram.ui.Cells.DrawerUserCell)
+                                || legacyDrawerAdapter == null || !legacyDrawerAdapter.isAccountsShown()) {
+                            return 0;
+                        }
+                        return super.getMovementFlags(recyclerView, holder);
+                    }
+
+                    @Override
+                    public boolean onMove(androidx.recyclerview.widget.RecyclerView recyclerView,
+                                          androidx.recyclerview.widget.RecyclerView.ViewHolder source,
+                                          androidx.recyclerview.widget.RecyclerView.ViewHolder target) {
+                        if (!(source.itemView instanceof org.telegram.ui.Cells.DrawerUserCell)
+                                || !(target.itemView instanceof org.telegram.ui.Cells.DrawerUserCell)
+                                || legacyDrawerAdapter == null) {
+                            return false;
+                        }
+                        int from = source.getAdapterPosition();
+                        int to = target.getAdapterPosition();
+                        if (from == androidx.recyclerview.widget.RecyclerView.NO_POSITION
+                                || to == androidx.recyclerview.widget.RecyclerView.NO_POSITION) {
+                            return false;
+                        }
+                        legacyDrawerAdapter.swapElements(from, to);
+                        return true;
+                    }
+
+                    @Override
+                    public void onSwiped(androidx.recyclerview.widget.RecyclerView.ViewHolder holder, int direction) {
+                    }
+
+                    @Override
+                    public boolean isLongPressDragEnabled() {
+                        return false;
+                    }
+                });
+        accountDragHelper.attachToRecyclerView(legacyDrawerList);
+        legacyDrawerList.setOnItemLongClickListener((view, position) -> {
+            if (!(view instanceof org.telegram.ui.Cells.DrawerUserCell)
+                    || legacyDrawerAdapter == null || !legacyDrawerAdapter.isAccountsShown()) {
+                return false;
+            }
+            androidx.recyclerview.widget.RecyclerView.ViewHolder holder = legacyDrawerList.getChildViewHolder(view);
+            if (holder.getAdapterPosition() == androidx.recyclerview.widget.RecyclerView.NO_POSITION) {
+                return false;
+            }
+            legacyDrawerList.cancelClickRunnables(true);
+            accountDragHelper.startDrag(holder);
+            return true;
+        });
         legacyDrawer.addView(legacyDrawerList,
                 LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
         drawerLayoutContainer.setDrawerLayout(legacyDrawer);
@@ -8924,8 +8987,9 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                     legacyDrawerAdapter.setAccountsShown(!legacyDrawerAdapter.isAccountsShown(), true);
                 }
             } else if (view instanceof org.telegram.ui.Cells.DrawerUserCell user) {
-                switchToAccount(user.getAccountNumber(), true);
+                final int account = user.getAccountNumber();
                 drawerLayoutContainer.closeDrawer(false);
+                switchToAccount(account, true);
             } else if (view instanceof org.telegram.ui.Cells.DrawerAddCell) {
                 for (int account = 0; account < UserConfig.MAX_ACCOUNT_COUNT; account++) {
                     if (!UserConfig.getInstance(account).isClientActivated()) {
@@ -8942,6 +9006,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
     }
 
     public void openSideDrawer() {
+        setupSideDrawer();
         if (drawerLayoutContainer != null && drawerLayoutContainer.hasDrawer()) {
             drawerLayoutContainer.openDrawer(false);
         }

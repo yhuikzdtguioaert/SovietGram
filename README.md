@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="TMessagesProj/src/main/res/mipmap-xxxhdpi/ic_launcher.png" width="128" alt="SovietGram" />
+<img src="artwork/sovietgram-app-icon-master.png" width="128" alt="SovietGram" />
 
 # SovietGram
 

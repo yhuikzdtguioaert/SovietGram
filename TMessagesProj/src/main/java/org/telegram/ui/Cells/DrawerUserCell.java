@@ -104,6 +104,8 @@ public class DrawerUserCell extends FrameLayout implements NotificationCenter.No
             NotificationCenter.getInstance(i).addObserver(this, NotificationCenter.updateInterfaces);
         }
         NotificationCenter.getGlobalInstance().addObserver(this, NotificationCenter.emojiLoaded);
+        NotificationCenter.getGlobalInstance().addObserver(this, NotificationCenter.activeAccountChanged);
+        checkBox.setVisibility(accountNumber == UserConfig.selectedAccount ? VISIBLE : INVISIBLE);
     }
 
     @Override
@@ -116,6 +118,7 @@ public class DrawerUserCell extends FrameLayout implements NotificationCenter.No
             NotificationCenter.getInstance(i).removeObserver(this, NotificationCenter.updateInterfaces);
         }
         NotificationCenter.getGlobalInstance().removeObserver(this, NotificationCenter.emojiLoaded);
+        NotificationCenter.getGlobalInstance().removeObserver(this, NotificationCenter.activeAccountChanged);
 
         if (textView.getRightDrawable() instanceof AnimatedEmojiDrawable.WrapSizeDrawable) {
             Drawable drawable = ((AnimatedEmojiDrawable.WrapSizeDrawable) textView.getRightDrawable()).getDrawable();
@@ -127,7 +130,10 @@ public class DrawerUserCell extends FrameLayout implements NotificationCenter.No
 
     @Override
     public void didReceivedNotification(int id, int account, Object... args) {
-        if (id == NotificationCenter.currentUserPremiumStatusChanged) {
+        if (id == NotificationCenter.activeAccountChanged) {
+            setAccount(accountNumber);
+            invalidate();
+        } else if (id == NotificationCenter.currentUserPremiumStatusChanged) {
             if (account == accountNumber) {
                 setAccount(accountNumber);
             }

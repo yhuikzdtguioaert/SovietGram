@@ -243,14 +243,22 @@ public class DrawerLayoutAdapter extends RecyclerListView.SelectionAdapter imple
         if (idx1 < 0 || idx2 < 0 || idx1 >= accountNumbers.size() || idx2 >= accountNumbers.size()) {
             return;
         }
-        final UserConfig userConfig1 = UserConfig.getInstance(accountNumbers.get(idx1));
-        final UserConfig userConfig2 = UserConfig.getInstance(accountNumbers.get(idx2));
-        final int tempLoginTime = userConfig1.loginTime;
-        userConfig1.loginTime = userConfig2.loginTime;
-        userConfig2.loginTime = tempLoginTime;
-        userConfig1.saveConfig(false);
-        userConfig2.saveConfig(false);
-        Collections.swap(accountNumbers, idx1, idx2);
+        if (idx1 == idx2) {
+            return;
+        }
+        // RecyclerView's move shifts intervening rows; swapping only the endpoints would
+        // leave the displayed rows and click targets out of sync for a non-adjacent drop.
+        int firstTime = Integer.MAX_VALUE;
+        for (int account : accountNumbers) {
+            firstTime = Math.min(firstTime, UserConfig.getInstance(account).loginTime);
+        }
+        firstTime = Math.min(firstTime, Integer.MAX_VALUE - accountNumbers.size());
+        accountNumbers.add(idx2, accountNumbers.remove(idx1));
+        for (int i = 0; i < accountNumbers.size(); i++) {
+            UserConfig config = UserConfig.getInstance(accountNumbers.get(i));
+            config.loginTime = firstTime + i;
+            config.saveConfig(false);
+        }
         notifyItemMoved(fromIndex, toIndex);
     }
 
