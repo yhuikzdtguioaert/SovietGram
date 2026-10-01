@@ -683,13 +683,13 @@ public class CustomProfileActivity extends BaseNekoXSettingsActivity {
     @Override
     public View createView(Context context) {
         View superView = super.createView(context);
-        actionBar.createMenu().addItem(100, R.drawable.ic_ab_search).setIsSearchField(true)
+        actionBar.createMenu().addItem(100, R.drawable.outline_header_search).setIsSearchField(true)
                 .setActionBarMenuItemSearchListener(new ActionBarMenuItem.ActionBarMenuItemSearchListener() {
                     @Override public void onSearchCollapse() {
                         searchQuery = "";
                         rebuild();
                     }
-                    @Override public void onTextChanged(org.telegram.ui.Components.EditTextBoldCursor field) {
+                    @Override public void onTextChanged(android.widget.EditText field) {
                         searchQuery = field.getText().toString().trim().toLowerCase(Locale.ROOT);
                         rebuild();
                     }
@@ -791,7 +791,7 @@ public class CustomProfileActivity extends BaseNekoXSettingsActivity {
         if (key.contains("import")) return R.drawable.msg_download;
         if (key.contains("workshop") || key.contains("gallery")) return R.drawable.msg_media;
         if (key.contains("color") || key.contains("palette") || key.contains("gradient")) return R.drawable.msg_colors;
-        if (key.contains("sound") || key.contains("volume")) return R.drawable.msg_voice;
+        if (key.contains("sound") || key.contains("volume")) return R.drawable.profile_audio;
         if (key.contains("font") || key.contains("text") || key.contains("name")) return R.drawable.msg_photo_text_framed3;
         if (key.contains("blur") || key.contains("fade") || key.contains("dim") || key.contains("alpha")) return R.drawable.msg_photo_blur;
         if (key.contains("avatar") || key.contains("ring")) return R.drawable.msg_contacts;
