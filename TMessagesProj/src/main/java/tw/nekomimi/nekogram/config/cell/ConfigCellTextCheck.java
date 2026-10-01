@@ -63,10 +63,13 @@ public class ConfigCellTextCheck extends AbstractConfigCell implements WithBindC
     public void onBindViewHolder(RecyclerView.ViewHolder holder) {
         TextCheckCell cell = (TextCheckCell) holder.itemView;
         this.cell = cell;
+        // A setting whose string is missing in the current language must still bind (crash reports show a
+        // null title here), so it shows its key until the string exists.
+        final CharSequence shown = title != null ? title : String.valueOf(getKey());
         if (subtitle == null) {
-            cell.setTextAndCheck(title, bindConfig.Bool(), cellGroup.needSetDivider(this), true);
+            cell.setTextAndCheck(shown, bindConfig.Bool(), cellGroup.needSetDivider(this), true);
         } else {
-            cell.setTextAndValueAndCheck(title.toString(), subtitle, bindConfig.Bool(), true, cellGroup.needSetDivider(this), true);
+            cell.setTextAndValueAndCheck(shown.toString(), subtitle, bindConfig.Bool(), true, cellGroup.needSetDivider(this), true);
         }
         cell.setEnabled(enabled, null);
     }

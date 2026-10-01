@@ -352,8 +352,9 @@ public class AndroidUtil {
 
     @SuppressWarnings("ConstantValue")
     public static boolean shouldEnableCrashlytics() {
+        // Release builds of SovietGram report to its own Firebase project (sovietgram.com); the user can
+        // still switch collection off in the general settings.
         return !BuildConfig.DEBUG
-                && "nu.gpu.nagram".equals(BuildConfig.APPLICATION_ID)
                 && !NaConfig.INSTANCE.getDisableCrashlyticsCollection().Bool();
     }
 }

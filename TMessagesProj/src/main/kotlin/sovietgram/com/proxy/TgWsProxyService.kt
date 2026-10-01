@@ -86,6 +86,13 @@ class TgWsProxyService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val action = intent?.action
         FileLog.e("TgWsProxyService onStartCommand action=$action startId=$startId")
+        // Every start arrives through startForegroundService(), so whatever the action is, the service
+        // has to call startForeground() within a few seconds or Android kills the app. START and
+        // UPDATE do it themselves; a bare STOP, RESTART or re-delivery used to skip it (Crashlytics:
+        // ForegroundServiceDidNotStartInTimeException).
+        if (action != ACTION_START && action != ACTION_UPDATE_NOTIFICATION && !foregroundStarted) {
+            ensureForeground(lastNotificationText.ifBlank { getString(R.string.TgWsProxyNotificationStarting) })
+        }
         when (action) {
             ACTION_START -> {
                 val port = intent.getIntExtra(EXTRA_PORT, 1488)

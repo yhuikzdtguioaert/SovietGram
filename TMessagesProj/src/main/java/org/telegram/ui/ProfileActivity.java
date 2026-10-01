@@ -4494,7 +4494,14 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     return 0;
                 }
 
-                return super.scrollVerticallyBy(dy, recycler, state);
+                try {
+                    return super.scrollVerticallyBy(dy, recycler, state);
+                } catch (RuntimeException e) {
+                    // RecyclerView occasionally trips over a child it hid during a pull ("trying to unhide a
+                    // view that was not hidden"); skipping this one scroll step beats losing the screen.
+                    FileLog.e(e);
+                    return 0;
+                }
             }
         };
         layoutManager.setOrientation(LinearLayoutManager.VERTICAL);

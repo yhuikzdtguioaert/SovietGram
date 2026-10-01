@@ -165,7 +165,7 @@ public class ProfileGalleryBlurView extends View {
             currentFrame[to] = tmp2;
 
             if (from == 2) {
-                if (currentFrame[to].hasContent) {
+                if (currentFrame[to] != null && currentFrame[to].hasContent) {
                     applyShader(currentFrame[to].bitmap, to);
                 }
             } else {

@@ -133,13 +133,33 @@ public class BaseNekoXSettingsActivity extends BaseFragment {
     protected void onActionBarItemClick(int id) {
     }
 
+    /**
+     * notifyDataSetChanged, but never while the list is computing a layout or scrolling: RecyclerView
+     * throws IllegalStateException then, and a toggle tapped during a fling used to crash the screen.
+     */
     @SuppressLint("NotifyDataSetChanged")
+    protected void notifyAllRowsChanged() {
+        final RecyclerListView.SelectionAdapter adapter = getListAdapter();
+        if (adapter == null) {
+            return;
+        }
+        if (listView != null && listView.isComputingLayout()) {
+            listView.post(this::notifyAllRowsChanged);
+            return;
+        }
+        try {
+            adapter.notifyDataSetChanged();
+        } catch (IllegalStateException e) {
+            if (listView != null) {
+                listView.post(this::notifyAllRowsChanged);
+            }
+        }
+    }
+
     @Override
     public void onResume() {
         super.onResume();
-        if (getListAdapter() != null) {
-            getListAdapter().notifyDataSetChanged();
-        }
+        notifyAllRowsChanged();
     }
 
     @Override
@@ -156,11 +176,8 @@ public class BaseNekoXSettingsActivity extends BaseFragment {
         tooltip.setLayoutParams(layoutParams);
     }
 
-    @SuppressLint("NotifyDataSetChanged")
     protected void updateRows() {
-        if (getListAdapter() != null) {
-            getListAdapter().notifyDataSetChanged();
-        }
+        notifyAllRowsChanged();
     }
 
     public int getBaseGuid() {

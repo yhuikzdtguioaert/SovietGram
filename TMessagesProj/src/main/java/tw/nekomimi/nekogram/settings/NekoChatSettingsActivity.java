@@ -662,7 +662,7 @@ public class NekoChatSettingsActivity extends BaseNekoXSettingsActivity implemen
                 } else {
                     cellGroup.rows.remove(compactInputSizeRow);
                 }
-                listAdapter.notifyDataSetChanged();
+                notifyAllRowsChanged();
             }
         };
 
