@@ -42,6 +42,7 @@ public class CustomProfileIntegrationLoginActivity extends BaseFragment {
     private WebView web;
     private boolean closed, busy, paused;
     private int generation;
+    private String lastCandidate;
 
     public CustomProfileIntegrationLoginActivity(int account, int service, Consumer<JSONObject> connected) {
         currentAccount = account;
@@ -58,8 +59,17 @@ public class CustomProfileIntegrationLoginActivity extends BaseFragment {
         actionBar.setBackButtonImage(R.drawable.ic_ab_back);
         actionBar.setTitle(CustomProfileIntegrations.serviceName(service));
         actionBar.setActionBarMenuOnItemClick(new ActionBar.ActionBarMenuOnItemClick() {
-            @Override public void onItemClick(int id) { if (id == -1) finishFragment(); }
+            @Override public void onItemClick(int id) {
+                if (id == -1) finishFragment();
+                else if (id == 1 && !busy) {
+                    tried.clear();
+                    if (lastCandidate != null) offer(lastCandidate);
+                    else error();
+                }
+            }
         });
+        actionBar.createMenu().addItem(1, R.drawable.ic_ab_done)
+                .setContentDescription(getString(R.string.CustomProfileIntegrationConnect));
         FrameLayout root = new FrameLayout(context);
         fragmentView = root;
         try {
@@ -166,7 +176,9 @@ public class CustomProfileIntegrationLoginActivity extends BaseFragment {
     };
 
     private void offer(String token) {
-        if (!alive() || busy || token == null || !token.matches("[A-Za-z0-9._~+/-]{16,8192}={0,2}")) return;
+        if (!alive() || token == null || !token.matches("[A-Za-z0-9._~+/-]{16,8192}={0,2}")) return;
+        lastCandidate = token;
+        if (busy) return;
         if (tried.size() >= 64 || !tried.add(token.hashCode())) return;
         busy = true;
         int request = ++generation;
@@ -176,6 +188,7 @@ public class CustomProfileIntegrationLoginActivity extends BaseFragment {
         SovietGramApiClient.postSigned(currentAccount, path + "/preview", payload, (body, failure) -> AndroidUtilities.runOnUIThread(() -> {
             if (!alive() || request != generation) return;
             if (failure != null || body == null || body.optString("id").isEmpty()) { busy = false; return; }
+            if (getParentActivity() == null) { busy = false; return; }
             new AlertDialog.Builder(getParentActivity())
                     .setTitle(CustomProfileIntegrations.serviceName(service))
                     .setMessage(getString(R.string.CustomProfileIntegrationUseAccount) + "\n\n" + body.optString("name") + "\n" + body.optString("id"))
@@ -215,8 +228,14 @@ public class CustomProfileIntegrationLoginActivity extends BaseFragment {
     }
     @Override public void onFragmentDestroy() {
         closed = true; generation++;
+        lastCandidate = null;
         AndroidUtilities.cancelRunOnUIThread(poll);
-        if (web != null) { web.stopLoading(); web.setWebViewClient(new WebViewClient()); web.destroy(); web = null; }
+        if (web != null) {
+            web.stopLoading();
+            web.setWebViewClient(new WebViewClient());
+            if (web.getParent() instanceof android.view.ViewGroup parent) parent.removeView(web);
+            web.destroy(); web = null;
+        }
         tried.clear();
         super.onFragmentDestroy();
     }

@@ -140,8 +140,15 @@ public abstract class CustomProfileListActivity extends BaseFragment {
         return add(new Row(TYPE_INFO, text));
     }
 
+    private static final java.util.Map<String, Integer> rowIcons = new java.util.HashMap<>();
+    private static String iconLocale;
+
     private static int rowIcon(Row row) {
         String title = String.valueOf(row.title);
+        String locale = org.telegram.messenger.LocaleController.getInstance().getCurrentLocaleInfo().shortName;
+        if (locale.equals(iconLocale)) return rowIcons.getOrDefault(title, R.drawable.msg_settings);
+        iconLocale = locale;
+        rowIcons.clear();
         int[][] groups = {
                 {R.drawable.msg_delete, R.string.Delete},
                 {R.drawable.msg_colors, R.string.CustomProfileExtraRowTitleColor, R.string.CustomProfileExtraRowValueColor, R.string.CustomProfileExtraRowFill},
@@ -154,9 +161,9 @@ public abstract class CustomProfileListActivity extends BaseFragment {
                 {R.drawable.msg_photo_settings, R.string.CustomProfileExtraRowHeight, R.string.CustomProfileExtraRowRadius}
         };
         for (int[] group : groups) for (int i = 1; i < group.length; i++) {
-            if (title.equals(org.telegram.messenger.LocaleController.getString(group[i]))) return group[0];
+            rowIcons.put(org.telegram.messenger.LocaleController.getString(group[i]), group[0]);
         }
-        return R.drawable.msg_settings;
+        return rowIcons.getOrDefault(title, R.drawable.msg_settings);
     }
 
     private static final class IconHolder extends RecyclerView.ViewHolder {

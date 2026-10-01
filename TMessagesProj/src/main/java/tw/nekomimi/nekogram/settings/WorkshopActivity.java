@@ -70,6 +70,12 @@ public class WorkshopActivity extends BaseFragment {
     private String authorFilter;
     private Runnable pendingSearch;
 
+    @Override public void onFragmentDestroy() {
+        if (pendingSearch != null) AndroidUtilities.cancelRunOnUIThread(pendingSearch);
+        requestId++;
+        super.onFragmentDestroy();
+    }
+
     private final List<WorkshopHelper.Work> works = new ArrayList<>();
     private final List<WorkshopHelper.Work> allWorks = new ArrayList<>();
 
@@ -400,6 +406,7 @@ public class WorkshopActivity extends BaseFragment {
 
     @SuppressLint("NotifyDataSetChanged")
     private void load() {
+        if (isFinished) return;
         final int id = ++requestId;
         loading = true;
         allWorks.clear();
@@ -409,8 +416,10 @@ public class WorkshopActivity extends BaseFragment {
         }
         updateEmptyState(null);
         final int account = UserConfig.selectedAccount;
+        final long owner = UserConfig.getInstance(account).getClientUserId();
         final WorkshopHelper.Callback<List<WorkshopHelper.Work>> finished = (result, error) -> {
-            if (id != requestId || account != UserConfig.selectedAccount) {
+            if (isFinished || id != requestId || account != UserConfig.selectedAccount
+                    || owner != UserConfig.getInstance(account).getClientUserId()) {
                 return;
             }
             loading = false;
@@ -462,12 +471,15 @@ public class WorkshopActivity extends BaseFragment {
     }
 
     private void install(WorkshopHelper.Work work) {
+        if (isFinished || getParentActivity() == null) return;
         final int account = UserConfig.selectedAccount;
+        final long owner = UserConfig.getInstance(account).getClientUserId();
         final AlertDialog progress = new AlertDialog(getParentActivity(), AlertDialog.ALERT_TYPE_SPINNER);
         progress.showDelayed(300);
         // The list only carries a summary; the style itself arrives with the full record.
         WorkshopHelper.load(work, (loaded, error) -> {
-            if (account != UserConfig.selectedAccount) {
+            if (isFinished || account != UserConfig.selectedAccount
+                    || owner != UserConfig.getInstance(account).getClientUserId()) {
                 progress.dismiss();
                 return;
             }
@@ -478,6 +490,8 @@ public class WorkshopActivity extends BaseFragment {
             }
             final WorkshopHelper.Callback<Boolean> done0 = (done, installError) -> {
                 progress.dismiss();
+                if (isFinished || account != UserConfig.selectedAccount
+                        || owner != UserConfig.getInstance(account).getClientUserId()) return;
                 if (done == null) {
                     showError(installError);
                     return;

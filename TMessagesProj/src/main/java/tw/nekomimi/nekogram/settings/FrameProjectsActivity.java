@@ -31,6 +31,7 @@ public class FrameProjectsActivity extends CustomProfileListActivity {
     private static final int REQUEST_EXPORT = 1618;
     private FrameProjects.Project exporting;
     private int fileAccount = -1;
+    private long fileOwner;
     @Override
     protected String title() {
         return getString(R.string.CustomProfileFrameProjects);
@@ -93,6 +94,7 @@ public class FrameProjectsActivity extends CustomProfileListActivity {
 
     private void importFile() {
         fileAccount = UserConfig.selectedAccount;
+        fileOwner = UserConfig.getInstance(fileAccount).getClientUserId();
         final Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
         intent.setType("*/*");
@@ -101,6 +103,7 @@ public class FrameProjectsActivity extends CustomProfileListActivity {
 
     private void exportFile(FrameProjects.Project project) {
         fileAccount = UserConfig.selectedAccount;
+        fileOwner = UserConfig.getInstance(fileAccount).getClientUserId();
         exporting = project;
         final Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
@@ -113,7 +116,10 @@ public class FrameProjectsActivity extends CustomProfileListActivity {
     @Override
     public void onActivityResultFragment(int requestCode, int resultCode, Intent data) {
         if (resultCode != Activity.RESULT_OK || data == null || data.getData() == null
-                || getParentActivity() == null || fileAccount != UserConfig.selectedAccount) return;
+                || getParentActivity() == null || isFinished || fileAccount != UserConfig.selectedAccount
+                || fileOwner != UserConfig.getInstance(fileAccount).getClientUserId()) return;
+        final int originalAccount = fileAccount;
+        final long originalOwner = fileOwner;
         final Context context = getParentActivity();
         if (requestCode == REQUEST_IMPORT) {
             Utilities.globalQueue.postRunnable(() -> {
@@ -121,7 +127,8 @@ public class FrameProjectsActivity extends CustomProfileListActivity {
                     if (input == null) throw new IllegalArgumentException("Cannot open frame file");
                     final FramePackage.Document document = FramePackage.read(context, input);
                     AndroidUtilities.runOnUIThread(() -> {
-                        if (fileAccount != UserConfig.selectedAccount) return;
+                        if (isFinished || originalAccount != UserConfig.selectedAccount
+                                || originalOwner != UserConfig.getInstance(originalAccount).getClientUserId()) return;
                         if (FrameProjects.importDocument(document.name, document.graph,
                                 document.spec) == null) {
                             showError(getString(R.string.CustomProfileFrameProjectLimit));
@@ -147,7 +154,7 @@ public class FrameProjectsActivity extends CustomProfileListActivity {
     }
 
     private void showError(String message) {
-        if (getParentActivity() == null) return;
+        if (isFinished || getParentActivity() == null) return;
         BulletinFactory.of(this).createErrorBulletin(message == null
                 ? getString(R.string.CustomProfileFrameFileError) : message).show();
     }
