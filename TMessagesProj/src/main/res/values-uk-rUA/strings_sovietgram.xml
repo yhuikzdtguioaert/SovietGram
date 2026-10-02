@@ -716,4 +716,5 @@
     <string name="SovietGramSupportIconColorReset">Скинути колір іконки</string>
     <string name="CustomProfileRestoreFailed">Не вдалося зв’язатися із сервером SovietGram. Перевірте з’єднання та повторіть.</string>
     <string name="CustomProfileRestored">Профіль відновлено із сервера</string>
+    <string name="WorkshopGalleryDown">Спільна галерея зараз недоступна. Показано роботи SovietGram.</string>
 </resources>

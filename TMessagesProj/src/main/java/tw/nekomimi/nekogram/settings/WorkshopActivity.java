@@ -76,7 +76,7 @@ public class WorkshopActivity extends BaseFragment {
     private final List<WorkshopHelper.Work> allWorks = new ArrayList<>();
 
     /** First five sections are the reference gallery; the last four use SovietGram's server. */
-    private int section = 5;
+    private int section;
     /**
      * Which of the workshop's two galleries this screen shows — looks or avatar frames. Both are the
      * same endpoints, the same sections and the same grid; only what installing a work does differs.
@@ -389,7 +389,25 @@ public class WorkshopActivity extends BaseFragment {
             SovietWorkshop.list(account, kind, SECTIONS[section][0].substring(7),
                     search, authorFilter, finished);
         } else {
-            WorkshopHelper.list(SECTIONS[section][0], SECTIONS[section][1], kind, finished);
+            final int shown = section;
+            WorkshopHelper.list(SECTIONS[section][0], SECTIONS[section][1], kind, (result, error) -> {
+                if (result != null || isFinished || id != requestId) {
+                    finished.onResult(result, error);
+                    return;
+                }
+                // The community gallery is somebody else's server and is sometimes down. Rather than an
+                // error with an empty screen, the section is filled from SovietGram's own works.
+                SovietWorkshop.list(account, kind, shown == 0 ? "new" : "popular", "", null,
+                        (own, ownError) -> {
+                            if (own != null && !own.isEmpty() && !isFinished && id == requestId) {
+                                BulletinFactory.of(this).createSimpleBulletin(R.raw.info,
+                                        getString(R.string.WorkshopGalleryDown)).show();
+                                finished.onResult(own, null);
+                            } else {
+                                finished.onResult(null, error);
+                            }
+                        });
+            });
         }
     }
 

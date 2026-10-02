@@ -595,7 +595,7 @@ public final class WorkshopHelper {
         return new String(readOnce(url, MAX_JSON_BYTES, LIST_TIMEOUT), StandardCharsets.UTF_8);
     }
 
-    private static final int LIST_TIMEOUT = 7000;
+    private static final int LIST_TIMEOUT = 10000;
 
     /** Answers are small JSON documents; a listing of 40 works is a few tens of KB. */
     private static final long MAX_JSON_BYTES = 8L * 1024 * 1024;

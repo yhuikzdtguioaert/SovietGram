@@ -800,4 +800,5 @@
     <string name="SovietGramSupportIconColorReset">Сбросить цвет иконки</string>
     <string name="CustomProfileRestoreFailed">Не удалось связаться с сервером SovietGram. Проверьте соединение и повторите.</string>
     <string name="CustomProfileRestored">Профиль восстановлен с сервера</string>
+    <string name="WorkshopGalleryDown">Общая галерея сейчас недоступна. Показаны работы SovietGram.</string>
 </resources>
