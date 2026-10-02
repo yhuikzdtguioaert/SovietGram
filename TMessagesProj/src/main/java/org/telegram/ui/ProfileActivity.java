@@ -8628,6 +8628,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     };
 
     private float[] backwardInitialValues = null;
+    /** True while the profile's own open/close animation (the back button, the system back) runs. */
+    private boolean customFlight;
 
     private void captureBackwardInitialValues() {
         if (backwardInitialValues == null) {
@@ -9307,13 +9309,19 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         // While the profile flies to or from the chat header the avatar is interpolated between two
         // standard positions; the look's offsets must fade with that flight or the avatar first swings
         // to its custom spot, then back, and only then lands on the chat avatar.
-        final float flight = openAnimationInProgress && playProfileAnimation != 0
-                ? Utilities.clamp01(avatarAnimationProgress) : 1f;
+        // The back button and the system back run the profile through its own flight animation
+        // (customFlight), the swipe through the transition's; both move the avatar between two standard
+        // positions, so the look's offsets fade with the flight. Closing it, the name, Last Seen and the
+        // buttons are faded too; opening it they arrive in place so the solved layout is not delayed.
+        final boolean flying = openAnimationInProgress && playProfileAnimation != 0 || customFlight;
+        final float flight = flying ? Utilities.clamp01(avatarAnimationProgress) : 1f;
+        final float partsFlight = flying && !isFragmentOpened ? flight : 1f;
         CustomProfileHeaderLayout.apply(avatarContainer2, avatarContainer,
                 nameTextView != null ? nameTextView[1] : null,
                 onlineTextView != null ? onlineTextView[1] : null,
                 actionsView,
-                calculateHeaderExtraDiff(), expandProgress, flight);
+                calculateHeaderExtraDiff(), expandProgress, flight, partsFlight,
+                ratingView != null ? dp(24) * ratingView.getVisibilityFactor() : 0f);
     }
 
     private void updateExtraViews(float newTop) {
@@ -10566,6 +10574,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         }
         final AnimatorSet animatorSet = new AnimatorSet();
         animatorSet.setDuration(playProfileAnimation == 2 ? 250 : 180);
+        customFlight = true;
         listView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
         ActionBarMenu menu = actionBar.createMenu();
         if (menu.getItem(10) == null) {
@@ -10840,7 +10849,13 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         final ActionBarMenuItem finalPrevCallItem = prevCallItem;
         animatorSet.addListener(new AnimatorListenerAdapter() {
             @Override
+            public void onAnimationCancel(Animator animation) {
+                customFlight = false;
+            }
+
+            @Override
             public void onAnimationEnd(Animator animation) {
+                customFlight = false;
                 if (previousActionBar != null) {
                     previousActionBar.setSkipDrawChild(false);
                 }

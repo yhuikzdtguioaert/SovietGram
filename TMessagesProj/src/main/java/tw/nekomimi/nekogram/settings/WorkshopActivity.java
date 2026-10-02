@@ -11,7 +11,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.EditText;
-import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -63,9 +62,6 @@ public class WorkshopActivity extends BaseFragment {
     private TextView emptyView;
     private ActionBarMenuItem sectionItem;
     private ActionBarMenuItem searchItem;
-    private TextView profileTab;
-    private TextView frameTab;
-    private LinearLayout controls;
     private String search = "";
     private String authorFilter;
     private Runnable pendingSearch;
@@ -80,7 +76,7 @@ public class WorkshopActivity extends BaseFragment {
     private final List<WorkshopHelper.Work> allWorks = new ArrayList<>();
 
     /** First five sections are the reference gallery; the last four use SovietGram's server. */
-    private int section;
+    private int section = 5;
     /**
      * Which of the workshop's two galleries this screen shows — looks or avatar frames. Both are the
      * same endpoints, the same sections and the same grid; only what installing a work does differs.
@@ -165,17 +161,6 @@ public class WorkshopActivity extends BaseFragment {
         root.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundGray));
         fragmentView = root;
 
-        controls = new LinearLayout(context);
-        controls.setOrientation(LinearLayout.VERTICAL);
-        controls.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
-        final LinearLayout tabs = new LinearLayout(context);
-        profileTab = tab(context, R.string.CustomProfileWorkshop, WorkshopHelper.KIND_PROFILE);
-        frameTab = tab(context, R.string.CustomProfileFrames, WorkshopHelper.KIND_FRAME);
-        tabs.addView(profileTab, new LinearLayout.LayoutParams(0, dp(44), 1));
-        tabs.addView(frameTab, new LinearLayout.LayoutParams(0, dp(44), 1));
-        controls.addView(tabs);
-        updateTabs();
-
         progressView = new FlickerLoadingView(context);
         progressView.setViewType(FlickerLoadingView.DIALOG_CELL_TYPE);
         progressView.showDate(false);
@@ -188,11 +173,7 @@ public class WorkshopActivity extends BaseFragment {
         root.addView(emptyView, contentParams());
 
         listView = new RecyclerListView(context);
-        GridLayoutManager grid = new GridLayoutManager(context, 2);
-        grid.setSpanSizeLookup(new GridLayoutManager.SpanSizeLookup() {
-            @Override public int getSpanSize(int position) { return position == 0 ? 2 : 1; }
-        });
-        listView.setLayoutManager(grid);
+        listView.setLayoutManager(new GridLayoutManager(context, 2));
         listView.setPadding(dp(8), dp(8), dp(8), dp(8));
         listView.setClipToPadding(false);
         listView.setVerticalScrollBarEnabled(false);
@@ -219,32 +200,6 @@ public class WorkshopActivity extends BaseFragment {
         final FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
         return params;
-    }
-
-    private TextView tab(Context context, int title, String tabKind) {
-        final TextView view = new TextView(context);
-        view.setGravity(Gravity.CENTER);
-        view.setText(getString(title));
-        view.setTextSize(15);
-        view.setOnClickListener(v -> {
-            if (tabKind.equals(kind)) return;
-            kind = tabKind;
-            authorFilter = null;
-            actionBar.setTitle(getString(WorkshopHelper.KIND_FRAME.equals(kind)
-                    ? R.string.CustomProfileFrames : R.string.CustomProfileWorkshop));
-            updateTabs();
-            load();
-        });
-        return view;
-    }
-
-    private void updateTabs() {
-        if (profileTab != null) {
-            profileTab.setAlpha(WorkshopHelper.KIND_PROFILE.equals(kind) ? 1f : 0.55f);
-        }
-        if (frameTab != null) {
-            frameTab.setAlpha(WorkshopHelper.KIND_FRAME.equals(kind) ? 1f : 0.55f);
-        }
     }
 
     private void applySearch(String text) {
@@ -552,11 +507,6 @@ public class WorkshopActivity extends BaseFragment {
         @NonNull
         @Override
         public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-            if (viewType == 1) {
-                if (controls.getParent() instanceof ViewGroup previous) previous.removeView(controls);
-                controls.setLayoutParams(new RecyclerView.LayoutParams(LayoutHelper.MATCH_PARENT, dp(44)));
-                return new RecyclerListView.Holder(controls);
-            }
             final WorkshopCell cell = new WorkshopCell(context);
             final RecyclerView.LayoutParams params = new RecyclerView.LayoutParams(
                     LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT);
@@ -567,9 +517,8 @@ public class WorkshopActivity extends BaseFragment {
 
         @Override
         public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
-            if (position == 0) return;
             final WorkshopCell cell = (WorkshopCell) holder.itemView;
-            final WorkshopHelper.Work work = works.get(position - 1);
+            final WorkshopHelper.Work work = works.get(position);
             cell.setWork(work);
             cell.setOnLikeClickListener(() -> {
                 final int account = UserConfig.selectedAccount;
@@ -594,9 +543,8 @@ public class WorkshopActivity extends BaseFragment {
 
         @Override
         public int getItemCount() {
-            return works.size() + 1;
+            return works.size();
         }
 
-        @Override public int getItemViewType(int position) { return position == 0 ? 1 : 0; }
     }
 }

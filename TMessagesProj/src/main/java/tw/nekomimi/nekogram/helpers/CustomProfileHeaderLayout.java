@@ -266,21 +266,43 @@ public final class CustomProfileHeaderLayout {
     public static void apply(@Nullable View root, @Nullable View avatar, @Nullable View name,
                              @Nullable View status, @Nullable View actions,
                              float expand, float pull) {
-        apply(root, avatar, name, status, actions, expand, pull, 1f);
+        apply(root, avatar, name, status, actions, expand, pull, 1f, 0f);
     }
+
+    public static void apply(@Nullable View root, @Nullable View avatar, @Nullable View name,
+                             @Nullable View status, @Nullable View actions,
+                             float expand, float pull, float avatarFlight) {
+        apply(root, avatar, name, status, actions, expand, pull, avatarFlight, 0f);
+    }
+
+    public static void apply(@Nullable View root, @Nullable View avatar, @Nullable View name,
+                             @Nullable View status, @Nullable View actions,
+                             float expand, float pull, float avatarFlight, float lead) {
+        apply(root, avatar, name, status, actions, expand, pull, avatarFlight, 1f, lead);
+    }
+
+    /** What sits in front of Last Seen's text and travels with it: the star-rating badge. */
+    private static float statusLead;
 
     /**
      * @param avatarFlight how much of the look's avatar offset to keep, 0..1. The profile's own
      *                     open/close flight interpolates the avatar between two standard positions,
      *                     so the offset fades with it instead of swinging the avatar aside and back.
+     * @param partsFlight  the same for the name, Last Seen and the buttons. While the profile flies
+     *                     to the chat header, Telegram moves those itself, and the look's own offsets
+     *                     fade with the flight instead of fighting it.
+     * @param lead         the width, in pixels, of the badge that is drawn just before Last Seen's text
+     *                     and moves with it. A neighbour has to clear the badge too, not only the text.
      */
     public static void apply(@Nullable View root, @Nullable View avatar, @Nullable View name,
                              @Nullable View status, @Nullable View actions,
-                             float expand, float pull, float avatarFlight) {
+                             float expand, float pull, float avatarFlight, float partsFlight,
+                             float lead) {
         if (!CustomProfileHelper.isEnabled() || !has() || root == null) {
             restoreAll();
             return;
         }
+        statusLead = Math.max(0f, lead);
         // During the entrance animation Telegram may draw the header before its status or avatar
         // has been measured. The collision solver cannot place Last Seen in that frame; request a
         // bounded follow-up as soon as layout has had another chance, without waiting for a scroll.
@@ -292,7 +314,7 @@ public final class CustomProfileHeaderLayout {
             root.postOnAnimation(() -> {
                 measurementRetryPosted = false;
                 if (root.isAttachedToWindow()) {
-                    apply(root, avatar, name, status, actions, expand, pull, avatarFlight);
+                    apply(root, avatar, name, status, actions, expand, pull, avatarFlight, partsFlight, lead);
                 }
             });
         }
@@ -319,41 +341,43 @@ public final class CustomProfileHeaderLayout {
                 -width * AVATAR_BOUND, width * AVATAR_BOUND);
         wantedX[CustomProfileAnchors.NAME] += nameOffset;
 
+        final float avatarAmount = amount * clampF(avatarFlight, 0f, 1f);
+        final float partsAmount = amount * clampF(partsFlight, 0f, 1f);
         applyAnchors(root, views, wantedX, wantedY, amount, pull);
-        keepStatusClearOfAvatar(root, avatar, status, wantedX, wantedY, amount);
-        keepStatusClearOfName(root, name, status, wantedX, wantedY, amount);
+        keepStatusClearOfAvatar(root, avatar, status, wantedX, wantedY, avatarAmount, partsAmount);
+        keepStatusClearOfName(root, name, status, wantedX, wantedY, partsAmount);
 
         for (int i = 0; i < CustomProfileAnchors.COUNT; i++) {
             transforms[i].apply(views[i], elements[i], wantedX[i], wantedY[i],
-                    i == CustomProfileAnchors.AVATAR ? amount * clampF(avatarFlight, 0f, 1f) : amount);
+                    i == CustomProfileAnchors.AVATAR ? avatarAmount : partsAmount);
         }
-        applyActionsContent(actions, amount);
+        applyActionsContent(actions, partsAmount);
     }
 
     /** Keep Last Seen readable when a look moves the avatar across its usual text column. */
     private static void keepStatusClearOfAvatar(View root, @Nullable View avatar,
                                                 @Nullable View status, float[] wantedX,
-                                                float[] wantedY, float amount) {
+                                                float[] wantedY, float avatarAmount, float amount) {
         if (avatar == null || status == null || amount <= 0.01f
                 || avatar.getWidth() == 0 || status.getWidth() == 0) {
             return;
         }
         final float avatarLeft = CustomProfileAnchors.drawnStart(root, avatar, false)
                 - transforms[CustomProfileAnchors.AVATAR].appliedNowX()
-                + wantedX[CustomProfileAnchors.AVATAR] * amount;
+                + wantedX[CustomProfileAnchors.AVATAR] * avatarAmount;
         final float avatarTop = CustomProfileAnchors.drawnStart(root, avatar, true)
                 - transforms[CustomProfileAnchors.AVATAR].appliedNowY()
-                + wantedY[CustomProfileAnchors.AVATAR] * amount;
+                + wantedY[CustomProfileAnchors.AVATAR] * avatarAmount;
         final float avatarRight = avatarLeft + CustomProfileAnchors.drawnSize(root, avatar, false);
         final float avatarBottom = avatarTop + CustomProfileAnchors.drawnSize(root, avatar, true);
-        final float statusLeft = CustomProfileAnchors.drawnStart(root, status, false)
+        final float statusLeft = CustomProfileAnchors.drawnStart(root, status, false) - statusLead
                 - transforms[CustomProfileAnchors.STATUS].appliedNowX()
                 + wantedX[CustomProfileAnchors.STATUS] * amount;
         final float statusTop = CustomProfileAnchors.drawnStart(root, status, true)
                 - transforms[CustomProfileAnchors.STATUS].appliedNowY()
                 + wantedY[CustomProfileAnchors.STATUS] * amount;
         final float statusWidth = Math.min(textWidth(status),
-                CustomProfileAnchors.drawnSize(root, status, false));
+                CustomProfileAnchors.drawnSize(root, status, false)) + statusLead;
         final float statusBottom = statusTop + CustomProfileAnchors.drawnSize(root, status, true);
         if (statusTop >= avatarBottom || statusBottom <= avatarTop
                 || statusLeft >= avatarRight || statusLeft + statusWidth <= avatarLeft) {
@@ -365,11 +389,20 @@ public final class CustomProfileHeaderLayout {
         wantedX[CustomProfileAnchors.STATUS] += (avatarRight + gap - statusLeft) / amount;
     }
 
-    /** Keep Last Seen from drawing over the name (and its badges) when a look stacks them side by side. */
+    /**
+     * Keep Last Seen (with its star-rating badge) from drawing over the name and the badges beside it
+     * when a look puts them side by side.
+     *
+     * <p>Only ever a horizontal move, and only as far as the screen allows: stacking Last Seen under
+     * the name landed it on the action buttons, and it did so while the header was collapsing. The
+     * correction also fades out with the header, so the collapsed header is Telegram's own again.
+     */
     private static void keepStatusClearOfName(View root, @Nullable View name,
                                               @Nullable View status, float[] wantedX,
                                               float[] wantedY, float amount) {
-        if (name == null || status == null || amount <= 0.01f || name.getVisibility() == View.GONE
+        // Full strength while the header is open, gone by the time it is half closed.
+        final float strength = Math.max(0f, Math.min(1f, (amount - 0.55f) / 0.35f));
+        if (name == null || status == null || strength <= 0f || name.getVisibility() == View.GONE
                 || status.getVisibility() == View.GONE || name.getWidth() == 0 || status.getWidth() == 0) {
             return;
         }
@@ -385,14 +418,15 @@ public final class CustomProfileHeaderLayout {
                 - transforms[CustomProfileAnchors.NAME].appliedNowY()
                 + wantedY[CustomProfileAnchors.NAME] * amount;
         final float nameBottom = nameTop + CustomProfileAnchors.drawnSize(root, name, true);
-        final float statusLeft = CustomProfileAnchors.drawnStart(root, status, false)
+        // The badge hangs off the front of the status text, so the box that must clear the name starts there.
+        final float statusLeft = CustomProfileAnchors.drawnStart(root, status, false) - statusLead
                 - transforms[CustomProfileAnchors.STATUS].appliedNowX()
                 + wantedX[CustomProfileAnchors.STATUS] * amount;
         final float statusTop = CustomProfileAnchors.drawnStart(root, status, true)
                 - transforms[CustomProfileAnchors.STATUS].appliedNowY()
                 + wantedY[CustomProfileAnchors.STATUS] * amount;
         final float statusWidth = Math.min(textWidth(status) * CustomProfileAnchors.chainScale(root, status, false),
-                CustomProfileAnchors.drawnSize(root, status, false));
+                CustomProfileAnchors.drawnSize(root, status, false)) + statusLead;
         final float statusBottom = statusTop + CustomProfileAnchors.drawnSize(root, status, true);
         // Rows that merely touch are fine; only a real overlap in both directions is moved.
         final float slack = AndroidUtilities.dpf2(3);
@@ -401,12 +435,11 @@ public final class CustomProfileHeaderLayout {
             return;
         }
         final float gap = AndroidUtilities.dpf2(8);
-        final float clearLeft = nameLeft + nameText + gap;
-        if (clearLeft + statusWidth <= root.getWidth() - gap) {
-            wantedX[CustomProfileAnchors.STATUS] += (clearLeft - statusLeft) / amount;
-        } else {
-            // No room beside the name: stack Last Seen under it instead of pushing it off screen.
-            wantedY[CustomProfileAnchors.STATUS] += (nameBottom - statusTop) / amount;
+        final float needed = nameLeft + nameText + gap - statusLeft;
+        final float room = root.getWidth() - gap - (statusLeft + statusWidth);
+        final float shift = Math.min(needed, Math.max(0f, room));
+        if (shift > 0f) {
+            wantedX[CustomProfileAnchors.STATUS] += shift * strength / amount;
         }
     }
 
@@ -647,6 +680,12 @@ public final class CustomProfileHeaderLayout {
                 startX[i] = CustomProfileAnchors.textStart(startX[i], sizeX[i], text,
                         CustomProfileAnchors.align(gravityOf(view)));
                 sizeX[i] = text;
+            }
+            if (i == CustomProfileAnchors.STATUS && statusLead > 0f) {
+                // The star-rating badge hangs off the front of Last Seen; anchoring the text alone put
+                // the badge on top of whatever the text was anchored beside.
+                startX[i] -= statusLead;
+                sizeX[i] += statusLead;
             }
         }
 

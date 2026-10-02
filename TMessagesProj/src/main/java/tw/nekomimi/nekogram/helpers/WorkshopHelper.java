@@ -138,7 +138,7 @@ public final class WorkshopHelper {
                         + "&kind=" + enc(kind == null ? KIND_PROFILE : kind)
                         + "&period=" + enc(period == null ? "" : period)
                         + "&limit=" + PAGE + "&me=" + me();
-                final JSONObject root = new JSONObject(getText(url));
+                final JSONObject root = new JSONObject(getListing(url));
                 if (!root.optBoolean("ok")) {
                     post(callback, null, error(root));
                     return;
@@ -587,6 +587,16 @@ public final class WorkshopHelper {
         return new String(getBytes(url, MAX_JSON_BYTES), StandardCharsets.UTF_8);
     }
 
+    /**
+     * A listing from the third-party gallery, with a short deadline and no retry. When that host is
+     * down the screen must say so within seconds instead of spinning for the better part of a minute.
+     */
+    private static String getListing(String url) throws Exception {
+        return new String(readOnce(url, MAX_JSON_BYTES, LIST_TIMEOUT), StandardCharsets.UTF_8);
+    }
+
+    private static final int LIST_TIMEOUT = 7000;
+
     /** Answers are small JSON documents; a listing of 40 works is a few tens of KB. */
     private static final long MAX_JSON_BYTES = 8L * 1024 * 1024;
 
@@ -630,11 +640,15 @@ public final class WorkshopHelper {
      * behaves now, so this distinction is what will name the fault quickly if it comes back.
      */
     private static byte[] readOnce(String url, long limit) throws Exception {
+        return readOnce(url, limit, TIMEOUT);
+    }
+
+    private static byte[] readOnce(String url, long limit, int timeout) throws Exception {
         HttpURLConnection connection = null;
         try {
             connection = (HttpURLConnection) new URL(url).openConnection();
-            connection.setConnectTimeout(TIMEOUT);
-            connection.setReadTimeout(TIMEOUT);
+            connection.setConnectTimeout(timeout);
+            connection.setReadTimeout(timeout);
             connection.setInstanceFollowRedirects(true);
             connection.setRequestProperty("User-Agent", "SovietGram/workshop");
             // Android's HttpURLConnection pools plain-HTTP sockets. The workshop occasionally closes
