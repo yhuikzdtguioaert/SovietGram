@@ -31,11 +31,72 @@ public class ConfigItem {
 
     public Object value;
 
+    /** Set on the items of {@code sovietgram.com.NaConfig}, whose defaults win over the Nagram copy's. */
+    public boolean primary;
+
+    /**
+     * Every item made so far, by key. The project carries two config objects with the same keys
+     * (xyz.nextalone.nagram.NaConfig, which the settings screens and most of the app read, and
+     * sovietgram.com.NaConfig, which the rest reads), and each item caches its value. Without this a
+     * switch flipped through one object stayed stale in the other until the app was restarted, and a
+     * key nobody had touched meant one thing to the settings screen and another to the code.
+     */
+    private static final java.util.Map<String, java.util.List<ConfigItem>> TWINS =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
     public ConfigItem(String key, int type, Object defaultValue) {
         this.key = key;
         this.type = type;
         this.defaultValue = defaultValue;
         this.value = defaultValue;
+        TWINS.computeIfAbsent(key, k -> new java.util.concurrent.CopyOnWriteArrayList<>()).add(this);
+    }
+
+    /** Hands this item's value to every other item with the same key. */
+    protected void syncTwins() {
+        final java.util.List<ConfigItem> twins = TWINS.get(key);
+        if (twins == null || twins.size() < 2) {
+            return;
+        }
+        for (ConfigItem twin : twins) {
+            if (twin != this && twin.type == type) {
+                twin.value = value;
+            }
+        }
+    }
+
+    /**
+     * Makes every pair of items with one key agree, once both objects are loaded: what is stored wins
+     * (both read it, so they already agree), and for a key nobody ever stored, the SovietGram item's
+     * default is the one the user is meant to see.
+     */
+    public static void unifyTwins() {
+        try {
+            final android.content.SharedPreferences preferences = NekoConfig.getPreferences();
+            for (java.util.Map.Entry<String, java.util.List<ConfigItem>> entry : TWINS.entrySet()) {
+                final java.util.List<ConfigItem> twins = entry.getValue();
+                if (twins.size() < 2 || preferences.contains(entry.getKey())) {
+                    continue;
+                }
+                ConfigItem primary = null;
+                for (ConfigItem twin : twins) {
+                    if (twin.primary) {
+                        primary = twin;
+                        break;
+                    }
+                }
+                if (primary == null) {
+                    continue;
+                }
+                for (ConfigItem twin : twins) {
+                    if (twin != primary && twin.type == primary.type) {
+                        twin.value = primary.value;
+                    }
+                }
+            }
+        } catch (Throwable e) {
+            FileLog.e(e);
+        }
     }
 
     public String getKey() {
@@ -79,6 +140,7 @@ public class ConfigItem {
 
     public void changed(Object o) {
         value = o;
+        syncTwins();
     }
 
     // Write config
@@ -162,6 +224,7 @@ public class ConfigItem {
                 }
 
                 editor.apply();
+                syncTwins();
             } catch (Exception e) {
                 FileLog.e(e);
             }

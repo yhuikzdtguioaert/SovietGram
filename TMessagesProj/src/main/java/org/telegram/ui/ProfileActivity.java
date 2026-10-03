@@ -9321,7 +9321,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 onlineTextView != null ? onlineTextView[1] : null,
                 actionsView,
                 calculateHeaderExtraDiff(), expandProgress, flight, partsFlight,
-                ratingView != null ? dp(24) * ratingView.getVisibilityFactor() : 0f);
+                ratingView != null ? dp(28) * ratingView.getVisibilityFactor() : 0f);
     }
 
     private void updateExtraViews(float newTop) {

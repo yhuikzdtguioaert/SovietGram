@@ -1095,7 +1095,10 @@ func wsConnectOnce(ctx context.Context, dialAddr, domain, path string, timeout t
 	// ServerName keeps SNI/hostname verification correct while the default root pool validates
 	// the chain. Skipping verification here turned encrypted traffic into unauthenticated traffic.
 	tlsCfg.InsecureSkipVerify = false
-	tlsCfg.MinVersion = tls.VersionTLS12
+	// TLS 1.3 only: Telegram's relays and the Cloudflare fronts both speak it, it has no weak cipher suites to
+	// negotiate down to, and Go 1.26 offers the hybrid X25519MLKEM768 key exchange with it, so a
+	// recording of the handshake cannot be opened later by a quantum computer.
+	tlsCfg.MinVersion = tls.VersionTLS13
 
 	targetAddr := net.JoinHostPort(dialAddr, "443")
 	rawConn, err := dialer.DialContext(ctx, "tcp", targetAddr)

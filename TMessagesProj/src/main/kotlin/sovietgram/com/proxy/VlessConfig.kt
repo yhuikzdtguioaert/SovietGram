@@ -38,7 +38,14 @@ object VlessConfig {
      * @throws ParseException on a malformed URL or invalid SOCKS port.
      */
     @JvmStatic
-    fun build(rawUrl: String, socksPort: Int): String {
+    fun build(rawUrl: String, socksPort: Int): String = build(rawUrl, socksPort, "", "")
+
+    /**
+     * [socksUser]/[socksPass] close the local SOCKS port to everything but Telegram: without them any
+     * app on the phone could connect to 127.0.0.1 and ride the user's tunnel. Blank keeps it open.
+     */
+    @JvmStatic
+    fun build(rawUrl: String, socksPort: Int, socksUser: String, socksPass: String): String {
         if (socksPort !in 1..65535) {
             throw ParseException("Invalid SOCKS port: $socksPort")
         }
@@ -51,7 +58,17 @@ object VlessConfig {
             put("tag", "socks-in")
             put("settings", JSONObject().apply {
                 put("udp", true)
-                put("auth", "noauth")
+                if (socksUser.isNotEmpty() && socksPass.isNotEmpty()) {
+                    put("auth", "password")
+                    put("accounts", JSONArray().apply {
+                        put(JSONObject().apply {
+                            put("user", socksUser)
+                            put("pass", socksPass)
+                        })
+                    })
+                } else {
+                    put("auth", "noauth")
+                }
             })
             // No sniffing: this inbound only carries Telegram's MTProto stream,
             // which is neither HTTP nor TLS, and there are no domain-based
@@ -114,9 +131,7 @@ object VlessConfig {
         when (link.security) {
             "tls" -> stream.put("tlsSettings", JSONObject().apply {
                 put("serverName", link.serverName())
-                if (link.fingerprint.isNotBlank()) {
-                    put("fingerprint", link.fingerprint)
-                }
+                put("fingerprint", link.fingerprint.ifBlank { "chrome" })
                 if (link.alpn.isNotEmpty()) {
                     put("alpn", JSONArray().apply { link.alpn.forEach { put(it) } })
                 }

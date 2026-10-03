@@ -281,6 +281,10 @@ public class ChatAttachAlertPhotoLayoutPreview extends ChatAttachAlert.AttachAle
         return groupsView.getPhotosCount();
     }
 
+    public ArrayList<MediaController.PhotoEntry> getPhotos() {
+        return groupsView.getPhotos();
+    }
+
     @Override
     public void onHidden() {
         draggingCell = null;

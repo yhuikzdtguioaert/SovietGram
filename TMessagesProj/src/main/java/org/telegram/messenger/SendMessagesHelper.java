@@ -136,6 +136,7 @@ import java.util.zip.ZipInputStream;
 
 import tw.nekomimi.nekogram.utils.StringUtils;
 import tw.nekomimi.nekogram.NekoConfig;
+import tw.nekomimi.nekogram.helpers.MemeFrameHelper;
 import xyz.nextalone.nagram.NaConfig;
 
 public class SendMessagesHelper extends BaseController implements NotificationCenter.NotificationCenterDelegate {
@@ -4352,6 +4353,12 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
             return;
         }
         if (peer == 0) {
+            return;
+        }
+        // SovietGram: ".рамка" as a reply to a photo is a command, not a message — swallow it here so
+        // it never reaches the chat, and send the framed meme in its place.
+        if (MemeFrameHelper.isCommand(message)) {
+            MemeFrameHelper.handle(getAccountInstance(), peer, replyToMsg, notify, scheduleDate);
             return;
         }
         if (richMessage != null && DialogObject.isEncryptedDialog(peer)) {

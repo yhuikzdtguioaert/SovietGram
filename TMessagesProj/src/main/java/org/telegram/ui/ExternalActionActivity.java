@@ -52,6 +52,12 @@ import java.util.ArrayList;
 
 public class ExternalActionActivity extends Activity implements INavigationLayout.INavigationLayoutDelegate {
 
+    /** Same reason as {@link BasePermissionsActivity#getResources()}: icon packs apply per context. */
+    @Override
+    public android.content.res.Resources getResources() {
+        return tw.nekomimi.nekogram.ui.icons.IconsResources.wrap(super.getResources());
+    }
+
     private boolean finished;
     private static final ArrayList<BaseFragment> mainFragmentsStack = new ArrayList<>();
     private static final ArrayList<BaseFragment> layerFragmentsStack = new ArrayList<>();

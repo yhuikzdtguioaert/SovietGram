@@ -52,6 +52,7 @@ public class ConfigItemKeyLinked extends ConfigItem {
                     editor.putInt(this.keyLinked.getKey(), newConfig);
                 }
                 editor.apply();
+                syncTwins();
             } catch (Exception e) {
                 FileLog.e(e);
             }

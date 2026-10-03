@@ -39,6 +39,7 @@ import org.telegram.ui.ActionBar.ActionBar;
 import org.telegram.ui.ActionBar.ActionBarMenu;
 import org.telegram.ui.ActionBar.ActionBarMenuItem;
 import org.telegram.ui.ActionBar.ActionBarMenuSubItem;
+import org.telegram.ui.ActionBar.BottomSheet;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Cells.ProfileSearchCell;
@@ -49,10 +50,12 @@ import org.telegram.ui.Components.RecyclerListView;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 
 import sovietgram.com.NaConfig;
+import tw.nekomimi.nekogram.NekoConfig;
 
 // Aggregate screen: lists every chat that has saved deleted messages.
 // Tapping a row opens the existing per-chat AyuViewDeleted screen.
@@ -81,13 +84,50 @@ public class AyuDeletedDialogsActivity extends BaseFragment implements Notificat
     private final HashMap<Long, List<Long>> mergedDialogIds = new HashMap<>();
     private String searchQuery = "";
     private boolean loading;
+    // Dialog ids the user pinned to the top of this list. Kept per account, in the shared preferences.
+    private final HashSet<Long> pinned = new HashSet<>();
 
     @Override
     public boolean onFragmentCreate() {
         super.onFragmentCreate();
         NotificationCenter.getInstance(currentAccount).addObserver(this, AyuConstants.MESSAGES_DELETED_NOTIFICATION);
+        loadPinned();
         loadDialogs();
         return true;
+    }
+
+    private String pinnedKey() {
+        return "ayuDeletedPins_" + UserConfig.getInstance(currentAccount).getClientUserId();
+    }
+
+    private void loadPinned() {
+        pinned.clear();
+        try {
+            for (String id : NekoConfig.getPreferences().getStringSet(pinnedKey(), new HashSet<>())) {
+                pinned.add(Long.parseLong(id));
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    private void savePinned() {
+        final HashSet<String> out = new HashSet<>();
+        for (long id : pinned) {
+            out.add(Long.toString(id));
+        }
+        NekoConfig.getPreferences().edit().putStringSet(pinnedKey(), out).apply();
+    }
+
+    private void togglePinned(DeletedDialogSummary summary) {
+        if (!pinned.remove(summary.dialogId)) {
+            pinned.add(summary.dialogId);
+        }
+        savePinned();
+        applySort();
+        applySearchFilter();
+        if (listView != null) {
+            listView.scrollToPosition(0);
+        }
     }
 
     @Override
@@ -191,6 +231,30 @@ public class AyuDeletedDialogsActivity extends BaseFragment implements Notificat
             DeletedDialogSummary summary = shownItems.get(position);
             presentFragment(new AyuViewDeleted(summary.dialogId, mergedDialogIds.get(summary.dialogId)));
         });
+        listView.setOnItemLongClickListener((view, position) -> {
+            if (position < 0 || position >= shownItems.size() || getParentActivity() == null) {
+                return false;
+            }
+            final DeletedDialogSummary summary = shownItems.get(position);
+            final boolean isPinned = pinned.contains(summary.dialogId);
+            BottomSheet.Builder builder = new BottomSheet.Builder(getParentActivity());
+            builder.setTitle(displayName(summary), true);
+            builder.setItems(new CharSequence[]{
+                    getString(R.string.Open),
+                    getString(isPinned ? R.string.UnpinFromTop : R.string.PinToTop)
+            }, new int[]{
+                    R.drawable.msg_openin,
+                    isPinned ? R.drawable.msg_unpin : R.drawable.msg_pin
+            }, (dialog, which) -> {
+                if (which == 0) {
+                    presentFragment(new AyuViewDeleted(summary.dialogId, mergedDialogIds.get(summary.dialogId)));
+                } else {
+                    togglePinned(summary);
+                }
+            });
+            showDialog(builder.create());
+            return true;
+        });
 
         return fragmentView;
     }
@@ -213,6 +277,12 @@ public class AyuDeletedDialogsActivity extends BaseFragment implements Notificat
     private void applySort() {
         final int direction = isOldestFirst() ? 1 : -1;
         Collections.sort(items, (a, b) -> {
+            // Pinned chats stay on top whichever way the rest is sorted.
+            final boolean pinA = pinned.contains(a.dialogId);
+            final boolean pinB = pinned.contains(b.dialogId);
+            if (pinA != pinB) {
+                return pinA ? -1 : 1;
+            }
             int cmp = Integer.compare(a.latestDate, b.latestDate);
             if (cmp == 0) {
                 // Same second: fall back to the message id, then the dialog id, so the order
@@ -424,6 +494,9 @@ public class AyuDeletedDialogsActivity extends BaseFragment implements Notificat
                 }
             }
             CharSequence status = LocaleController.formatPluralString("DeletedMessagesCount", summary.count);
+            if (pinned.contains(summary.dialogId)) {
+                status = "\uD83D\uDCCC " + status;
+            }
             cell.setData(peer, null, name, status, false, false);
         }
     }

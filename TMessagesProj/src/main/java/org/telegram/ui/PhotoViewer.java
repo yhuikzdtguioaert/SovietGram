@@ -357,7 +357,10 @@ import tw.nekomimi.nekogram.utils.AlertUtil;
 import tw.nekomimi.nekogram.utils.AndroidUtil;
 import tw.nekomimi.nekogram.utils.ProxyUtil;
 import xyz.nextalone.nagram.NaConfig;
+import tw.nekomimi.nekogram.helpers.MediaGlowHelper;
 import tw.nekomimi.nekogram.helpers.MessageHelper;
+import tw.nekomimi.nekogram.helpers.RoundVideoHelper;
+import tw.nekomimi.nekogram.ui.ImageFXSheet;
 import tw.nekomimi.nekogram.streaming.MediaStreamingProvider;
 
 import me.vkryl.android.animator.BoolAnimator;
@@ -1090,6 +1093,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
     private TextureView videoTextureView;
     private SurfaceView videoSurfaceView;
     private boolean usedSurfaceView;
+    private final MediaGlowHelper mediaGlow = new MediaGlowHelper();
     private FirstFrameView firstFrameView;
     private VideoPlayer videoPlayer;
     private PipSource pipSource;
@@ -7780,6 +7784,8 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                         placeProvider.spoilerPressed();
                     }
                 });
+            addSendAsRoundOption(options, currentObject);
+            addImageFXOption(options, currentObject);
 
             if (options.getItemsCount() == 0) return false;
             try {
@@ -10347,6 +10353,60 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
             applyCaption();
         }
         getCaptionView().onBackPressed();
+    }
+
+    /**
+     * SovietGram: "Send as round video" in the editor's send options.
+     * <p>
+     * Only for the entry on screen, so whatever was trimmed, cropped or painted here goes with it —
+     * unlike the attachment sheet's version, which works on the whole untouched selection.
+     */
+    private void addSendAsRoundOption(ItemOptions options, Object currentObject) {
+        if (options == null || parentChatActivity == null || !isCurrentVideo) {
+            return;
+        }
+        if (!(currentObject instanceof MediaController.PhotoEntry)) {
+            return;
+        }
+        final MediaController.PhotoEntry entry = (MediaController.PhotoEntry) currentObject;
+        if (!RoundVideoHelper.canSend(entry)) {
+            return;
+        }
+        options.add(R.drawable.input_video, getString(R.string.SendAsRoundVideo), () -> {
+            final ChatActivity chatActivity = parentChatActivity;
+            // The caption is only pushed onto the entry when the editor closes or the send happens,
+            // so it has to be applied by hand before the entry leaves for the send path.
+            applyCaption();
+            final VideoEditedInfo info = getCurrentVideoEditedInfo();
+            closePhoto(false, false);
+            RoundVideoHelper.send(chatActivity, entry, info, true, 0);
+        });
+    }
+
+    /**
+     * SovietGram: "Edit in ImageFX" in the editor's send options.
+     * <p>
+     * Photos only — a filter over a video would mean re-encoding it, which is not what this is. The
+     * editor works on the file on disk, so anything painted or cropped here is not carried over; it
+     * opens the picture as the gallery has it.
+     */
+    private void addImageFXOption(ItemOptions options, Object currentObject) {
+        if (options == null || parentChatActivity == null || isCurrentVideo) {
+            return;
+        }
+        if (!(currentObject instanceof MediaController.PhotoEntry)) {
+            return;
+        }
+        final MediaController.PhotoEntry entry = (MediaController.PhotoEntry) currentObject;
+        if (entry.isVideo || TextUtils.isEmpty(entry.path)) {
+            return;
+        }
+        options.add(R.drawable.msg_edit, getString(R.string.ImageFXEdit), () -> {
+            final ChatActivity chatActivity = parentChatActivity;
+            final String path = entry.path;
+            closePhoto(false, false);
+            ImageFXSheet.show(chatActivity, path, chatActivity.getDialogId());
+        });
     }
 
     private CaptionContainerView getCaptionView() {
@@ -16878,6 +16938,18 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                 Math.max(1, placeProvider == null ? 1 : placeProvider.getSelectedCount())
             );
         }
+        scheduleMediaGlow();
+    }
+
+    /**
+     * Starts sampling the media that has just been shown so the halo behind it matches its colours.
+     */
+    private void scheduleMediaGlow() {
+        boolean isVideo = currentMessageObject != null && currentMessageObject.isVideo();
+        mediaGlow.schedule(containerView, isVideo, () -> {
+            Bitmap frame = MediaGlowHelper.frameOf(videoTextureView);
+            return frame != null ? frame : MediaGlowHelper.frameOf(centerImage);
+        });
     }
 
     private void resetIndexForDeferredImageLoading() {
@@ -18921,6 +18993,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
             switchToEditMode(EDIT_MODE_NONE);
             return;
         }
+        mediaGlow.clear();
         if (qualityChooseView != null && qualityChooseView.getTag() != null) {
             qualityPicker.cancelButton.callOnClick();
             return;
@@ -20355,6 +20428,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
 
     @SuppressLint({"NewApi", "DrawAllocation"})
     private void onDraw(Canvas canvas) {
+        mediaGlow.draw(canvas, canvas.getWidth(), canvas.getHeight());
         Canvas realCanvas = canvas;
         if (BLUR_RENDERNODE()) {
             if (renderNode == null) {

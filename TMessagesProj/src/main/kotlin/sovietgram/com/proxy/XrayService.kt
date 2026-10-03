@@ -226,7 +226,8 @@ class XrayService : Service() {
         XrayController.setEnabled(true)
 
         val configJson = try {
-            VlessConfig.build(key, port)
+            val (socksUser, socksPass) = XrayController.localSocksLogin()
+            VlessConfig.build(key, port, socksUser, socksPass)
         } catch (e: Throwable) {
             FileLog.e("Xray config build failed")
             FileLog.e(e)

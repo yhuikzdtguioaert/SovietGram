@@ -2451,6 +2451,9 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             if (waitingForDialogsAnimationEnd(parentPage) || parentLayout != null && parentLayout.isInPreviewMode() || rightSlidingDialogContainer.hasFragment() || communityId != 0) {
                 return 0;
             }
+            if (viewHolder.getItemViewType() == DialogsAdapter.VIEW_TYPE_DELETED_MESSAGES) {
+                return 0;
+            }
             if (swipingFolder && swipeFolderBack) {
                 if (viewHolder.itemView instanceof DialogCell) {
                     ((DialogCell) viewHolder.itemView).swipeCanceled = true;
@@ -8057,6 +8060,12 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 filterId = dialogFilter == null ? 0 : dialogFilter.id;
             }
             Object object = dialogsAdapter.getItem(position);
+            if (adapter.getItemViewType(position) == DialogsAdapter.VIEW_TYPE_DELETED_MESSAGES) {
+                if (!actionBar.isActionModeShowed(null)) {
+                    presentFragment(new com.radolyn.ayugram.ui.AyuDeletedDialogsActivity());
+                }
+                return;
+            }
             if (delegate != null && dialogsAdapter.isAllowForwardAsStories() && adapter.getItemViewType(position) == DialogsAdapter.VIEW_TYPE_FORWARD_TO_STORIES_CELL) {
                 delegate.didSelectStories(this);
                 return;
@@ -8476,7 +8485,8 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         if (getParentActivity() == null || view instanceof DialogsHintCell) {
             return false;
         }
-        if (adapter.getItemViewType(position) == DialogsAdapter.VIEW_TYPE_FORWARD_TO_STORIES_CELL) {
+        if (adapter.getItemViewType(position) == DialogsAdapter.VIEW_TYPE_FORWARD_TO_STORIES_CELL
+                || adapter.getItemViewType(position) == DialogsAdapter.VIEW_TYPE_DELETED_MESSAGES) {
             return false;
         }
 

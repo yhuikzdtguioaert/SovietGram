@@ -188,9 +188,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import kotlin.Unit;
 import tw.nekomimi.nekogram.NekoConfig;
 import tw.nekomimi.nekogram.helpers.ChatsHelper;
+import tw.nekomimi.nekogram.helpers.RoundVideoHelper;
 import tw.nekomimi.nekogram.llm.LlmConfig;
 import tw.nekomimi.nekogram.translate.Translator;
 import tw.nekomimi.nekogram.translate.TranslatorKt;
+import tw.nekomimi.nekogram.ui.MemeLibrarySheet;
 import tw.nekomimi.nekogram.utils.AlertUtil;
 import tw.nekomimi.nekogram.utils.AndroidUtil;
 import xyz.nextalone.nagram.NaConfig;
@@ -217,6 +219,8 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
     public static final int LAYOUT_TYPE_EMOJI = 14;
     public static final int LAYOUT_TYPE_LINK = 15;
     public static final int LAYOUT_TYPE_RICH = 16;
+    /** SovietGram: the local meme stash. Opens its own sheet rather than an attach layout. */
+    public static final int LAYOUT_TYPE_MEMES = 17;
 
     private static final int ANIMATOR_ID_CAPTION_ABOVE = 0;
     private static final int ANIMATOR_ID_CAPTION_VISIBLE = 1;
@@ -2888,6 +2892,13 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
                         layouts[10] = richLayout = new ChatAttachAlertRichLayout(this, getContext(), currentAccount, resourcesProvider);
                     }
                     showLayout(richLayout);
+                } else if (num == LAYOUT_TYPE_MEMES) {
+                    // Its own sheet rather than an attach layout: layouts[] is full, and the stash
+                    // has nothing to hand back to the caption bar anyway.
+                    dismiss();
+                    if (baseFragment instanceof ChatActivity) {
+                        MemeLibrarySheet.show(baseFragment, ((ChatActivity) baseFragment).getDialogId());
+                    }
                 } else if (view.getTag() instanceof Integer) {
                     delegate.didPressedButton((Integer) view.getTag(), true, true, 0, 0, 0, isCaptionAbove(), false, 0);
                 }
@@ -4102,6 +4113,7 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
                         }
                 );
             }
+            addSendAsRoundOption(options, chatActivity);
             options.setupSelectors();
             messageSendPreview.setItemOptions(options);
 
@@ -4232,6 +4244,61 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
             }
         }
         return hasCaption;
+    }
+
+    /**
+     * SovietGram: "Send as round video" in the send options, next to the schedule and silent entries.
+     * <p>
+     * Only offered when everything picked is a video — a round message holds exactly one video, so a
+     * mixed selection has nothing sensible to do here. Each entry goes out as its own round message.
+     */
+    private void addSendAsRoundOption(ItemOptions options, ChatActivity chatActivity) {
+        if (options == null || chatActivity == null) {
+            return;
+        }
+        final ArrayList<MediaController.PhotoEntry> entries = getSelectedVideoEntries();
+        if (entries.isEmpty()) {
+            return;
+        }
+        options.add(R.drawable.input_video, getString(R.string.SendAsRoundVideo), () -> {
+            RoundVideoHelper.send(chatActivity, entries, true, 0);
+            if (messageSendPreview != null) {
+                messageSendPreview.dismiss(true);
+                messageSendPreview = null;
+            }
+            dismiss(true);
+        });
+    }
+
+    /** The current selection, but only if every item in it can go out as a round message. */
+    private ArrayList<MediaController.PhotoEntry> getSelectedVideoEntries() {
+        final ArrayList<MediaController.PhotoEntry> result = new ArrayList<>();
+        // The preview layout reorders and regroups what the photo layout picked, so when it is open
+        // it is the one holding the entries the user actually sees.
+        if (currentAttachLayout == photoPreviewLayout && photoPreviewLayout != null) {
+            final ArrayList<MediaController.PhotoEntry> photos = photoPreviewLayout.getPhotos();
+            if (photos != null) {
+                result.addAll(photos);
+            }
+        } else if (currentAttachLayout == photoLayout && photoLayout != null) {
+            final HashMap<Object, Object> selected = photoLayout.getSelectedPhotos();
+            final ArrayList<Object> order = photoLayout.getSelectedPhotosOrder();
+            for (int i = 0; i < order.size(); ++i) {
+                final Object object = selected.get(order.get(i));
+                if (object instanceof MediaController.PhotoEntry) {
+                    result.add((MediaController.PhotoEntry) object);
+                } else {
+                    // A search result or a document — not a local file, so nothing to make round.
+                    return new ArrayList<>();
+                }
+            }
+        }
+        for (int i = 0; i < result.size(); ++i) {
+            if (!RoundVideoHelper.canSend(result.get(i))) {
+                return new ArrayList<>();
+            }
+        }
+        return result;
     }
 
     private void checkUi_attachButtonsVisibility() {
@@ -6643,6 +6710,7 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
         private List<TLRPC.TL_attachMenuBot> attachMenuBots = new ArrayList<>();
 
         private int documentButton;
+        private int memesButton;
         private int musicButton;
         private int pollButton;
         private int todoButton;
@@ -6694,6 +6762,9 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
                         attachButton.setTextAndIcon(4, getString(R.string.ChatDocument), GlassTabView.TabAnimation.FILES);
                         attachButton.setTag(4);
                         err = !checkPhotoAndDocumentsPermission(mContext);
+                    } else if (position == memesButton) {
+                        attachButton.setTextAndIcon(LAYOUT_TYPE_MEMES, getString(R.string.MemeLibrary), GlassTabView.TabAnimation.GALLERY);
+                        attachButton.setTag(LAYOUT_TYPE_MEMES);
                     } else if (position == locationButton) {
                         attachButton.setTextAndIcon(6, getString(R.string.ChatLocation), GlassTabView.TabAnimation.LOCATION);
                         attachButton.setTag(6);
@@ -6775,6 +6846,7 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
             buttonsCount = 0;
             galleryButton = -1;
             documentButton = -1;
+            memesButton = -1;
             musicButton = -1;
             pollButton = -1;
             todoButton = -1;
@@ -6851,6 +6923,9 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
                         attachBotsEndRow = buttonsCount;
                     }
                 }
+                // SovietGram: the meme stash sits right after the attach-menu bots, so it lands
+                // immediately behind "Кошелёк" for anyone who has that bot installed.
+                memesButton = buttonsCount++;
                 documentButton = buttonsCount++;
 
                 if (plainTextEnabled) {

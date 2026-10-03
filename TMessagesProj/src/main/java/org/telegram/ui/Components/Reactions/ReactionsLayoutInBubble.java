@@ -68,6 +68,7 @@ import java.util.HashMap;
 import java.util.Objects;
 
 import tw.nekomimi.nekogram.filters.ReactionFilter;
+import tw.nekomimi.nekogram.helpers.GlowSuiteHelper;
 import xyz.nextalone.nagram.NaConfig;
 
 public class ReactionsLayoutInBubble {
@@ -1117,6 +1118,13 @@ public class ReactionsLayoutInBubble {
                 canvas.scale(bounceScale, bounceScale, x + w / 2f, y + height / 2f);
             }
             float rad = height / 2f;
+            if (GlowSuiteHelper.reactionGlowEnabled()) {
+                GlowSuiteHelper.drawReactionGlow(canvas,
+                        AndroidUtilities.rectTmp.centerX(),
+                        AndroidUtilities.rectTmp.centerY(),
+                        Math.max(AndroidUtilities.rectTmp.width(), AndroidUtilities.rectTmp.height()) / 2f,
+                        visibleReaction, imageReceiver, animatedEmojiDrawable);
+            }
             if (getDrawServiceShaderBackground() > 0 && !drawBgOnlyIfChosen) {
                 Paint paint1 = Theme.getThemePaint(Theme.key_paint_chatActionBackground, resourcesProvider);
                 Paint paint2 = Theme.getThemePaint(Theme.key_paint_chatActionBackgroundDarken, resourcesProvider);

@@ -70,6 +70,8 @@ import org.telegram.ui.ActionBar.FloatingToolbar;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.blur3.BlurredBackgroundDrawableViewFactory;
 
+import tw.nekomimi.nekogram.helpers.TextAnimationHelper;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -863,6 +865,44 @@ public class EditTextBoldCursor extends EditTextEffects {
         }
     }
 
+    private long lastCursorFrame;
+
+    /**
+     * SovietGram: reshapes the caret rect in place — width from the settings, an eased x so it glides
+     * to the new offset instead of jumping, and a stretch along the direction of travel for the
+     * liquid look. Leaves the rect untouched when the effect is off.
+     */
+    private void applyCursorAnimation(Rect r) {
+        TextAnimationHelper animation = getTextAnimation();
+        if (animation == null) {
+            lastCursorFrame = 0;
+            return;
+        }
+        long now = SystemClock.uptimeMillis();
+        long dt = lastCursorFrame == 0 ? 16 : Math.min(48, now - lastCursorFrame);
+        lastCursorFrame = now;
+
+        int width = animation.getCursorWidth(cursorWidth);
+        float x = animation.animateCursor(r.left, dt);
+        boolean selecting = getSelectionStart() != getSelectionEnd();
+        float stretch = animation.getCursorStretch(selecting);
+        float side = selecting ? animation.getSelectionSideStretch() : 0f;
+
+        r.left = Math.round(x);
+        r.right = r.left + width;
+        // The trailing edge is the one that lags, so stretch backwards along the travel direction.
+        if (stretch > 0) {
+            r.left -= Math.round(stretch);
+        } else if (stretch < 0) {
+            r.right -= Math.round(stretch);
+        }
+        if (side > 0) {
+            int grow = Math.round(dp(2) * side);
+            r.top -= grow;
+            r.bottom += grow;
+        }
+    }
+
     @Override
     protected void onDraw(Canvas canvas) {
         drawHint(canvas);
@@ -945,6 +985,7 @@ public class EditTextBoldCursor extends EditTextEffects {
                     }
                     rect.top = rect.centerY() - cursorSize / 2;
                     rect.bottom = rect.top + cursorSize;
+                    applyCursorAnimation(rect);
                     gradientDrawable.setBounds(rect);
                     gradientDrawable.draw(canvas);
                     canvas.restore();
@@ -983,6 +1024,7 @@ public class EditTextBoldCursor extends EditTextEffects {
                     }
                     rect.top = rect.centerY() - cursorSize / 2;
                     rect.bottom = rect.top + cursorSize;
+                    applyCursorAnimation(rect);
                     gradientDrawable.setBounds(rect);
                     gradientDrawable.draw(canvas);
                     canvas.restore();

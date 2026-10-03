@@ -2019,6 +2019,7 @@ object NaConfig {
         val a = ConfigItem(
             k, t, d
         )
+        a.primary = true
         configs.add(
             a
         )
@@ -2035,6 +2036,7 @@ object NaConfig {
             d,
             e,
         )
+        a.primary = true
         configs.add(
             a
         )

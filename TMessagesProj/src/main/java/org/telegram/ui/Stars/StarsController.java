@@ -87,6 +87,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import tw.nekomimi.nekogram.helpers.DeletedGiftsHelper;
+
 public class StarsController {
 
     public static final String currency = "XTR";
@@ -2287,6 +2289,7 @@ public class StarsController {
                 giftsCacheLoaded = true;
                 gifts.clear();
                 gifts.addAll(giftsCached);
+                DeletedGiftsHelper.inject(currentAccount, gifts);
                 birthdaySortedGifts.clear();
                 birthdaySortedGifts.addAll(gifts);
                 Collections.sort(birthdaySortedGifts, Comparator.comparingInt((TL_stars.StarGift a) -> (a.sold_out ? 1 : 0)).thenComparingInt((TL_stars.StarGift a) -> (a.birthday ? -1 : 0)));
@@ -2311,6 +2314,9 @@ public class StarsController {
                     MessagesStorage.getInstance(currentAccount).putUsersAndChats(res.users, res.chats, true, true);
                     gifts.clear();
                     gifts.addAll(res.gifts);
+                    // Gifts Telegram removed from the catalogue, added back in memory only: the cache
+                    // below is written from res.gifts, so the request hash keeps matching the server.
+                    DeletedGiftsHelper.inject(currentAccount, gifts);
                     birthdaySortedGifts.clear();
                     birthdaySortedGifts.addAll(gifts);
                     Collections.sort(birthdaySortedGifts, Comparator.comparingInt((TL_stars.StarGift a) -> (a.sold_out ? 1 : 0)).thenComparingInt((TL_stars.StarGift a) -> (a.birthday ? -1 : 0)));
@@ -2396,16 +2402,20 @@ public class StarsController {
         });
     }
     private void saveStarGiftsCached(ArrayList<TL_stars.StarGift> gifts, int hash, long time) {
+        // Some callers pass the in-memory list, which carries the removed gifts DeletedGiftsHelper
+        // added back. Those must not reach the cache: the hash stored next to it is the server's, so
+        // persisting fabricated rows would make the next NotModified answer restore them as real.
+        final ArrayList<TL_stars.StarGift> toSave = DeletedGiftsHelper.withoutInjected(gifts);
         final MessagesStorage storage = MessagesStorage.getInstance(currentAccount);
         storage.getStorageQueue().postRunnable(() -> {
             final SQLiteDatabase db = storage.getDatabase();
             SQLitePreparedStatement state = null;
             try {
                 db.executeFast("DELETE FROM star_gifts2").stepThis().dispose();
-                if (gifts != null) {
+                if (toSave != null) {
                     state = db.executeFast("REPLACE INTO star_gifts2 VALUES(?, ?, ?, ?, ?)");
-                    for (int i = 0; i < gifts.size(); ++i) {
-                        final TL_stars.StarGift gift = gifts.get(i);
+                    for (int i = 0; i < toSave.size(); ++i) {
+                        final TL_stars.StarGift gift = toSave.get(i);
                         state.requery();
                         state.bindLong(1, gift.id);
                         NativeByteBuffer data = new NativeByteBuffer(gift.getObjectSize());

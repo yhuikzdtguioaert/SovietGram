@@ -87,6 +87,12 @@ import tw.nekomimi.nekogram.NekoConfig;
 
 public class PopupNotificationActivity extends Activity implements NotificationCenter.NotificationCenterDelegate {
 
+    /** Same reason as {@link BasePermissionsActivity#getResources()}: icon packs apply per context. */
+    @Override
+    public android.content.res.Resources getResources() {
+        return tw.nekomimi.nekogram.ui.icons.IconsResources.wrap(super.getResources());
+    }
+
     private ActionBar actionBar;
     private ChatActivityEnterView chatActivityEnterView;
     private BackupImageView avatarImageView;

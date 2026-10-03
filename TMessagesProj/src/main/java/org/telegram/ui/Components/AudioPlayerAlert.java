@@ -126,6 +126,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
+import tw.nekomimi.nekogram.helpers.lyrics.LyricsViewer;
 import xyz.nextalone.nagram.NaConfig;
 
 public class AudioPlayerAlert extends BottomSheet implements NotificationCenter.NotificationCenterDelegate, DownloadController.FileDownloadProgressListener {
@@ -3014,6 +3015,10 @@ public class AudioPlayerAlert extends BottomSheet implements NotificationCenter.
         o.addIf(messageObject.getId() > 0, R.drawable.msg_message, getString(R.string.ShowInChat), () -> {
             o.dismiss();
             onSubItemClick(4);
+        });
+        o.addIf(messageObject.isMusic(), R.drawable.msg_photo_text2, getString(R.string.ShowLyrics), () -> {
+            o.dismiss();
+            new LyricsViewer(parentActivity, currentAccount, messageObject).show();
         });
         if (castAvailable) {
             castItem = o.add();

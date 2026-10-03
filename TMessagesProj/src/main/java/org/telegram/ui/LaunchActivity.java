@@ -7127,6 +7127,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.startAllHeavyOperations, 4096);
         MediaController.getInstance().setFeedbackView(feedbackView = actionBarLayout.getView(), true);
         if (ApplicationLoader.mainInterfacePaused) {
+            sovietgram.com.NaConfig.INSTANCE.getLastAppOpenTime().setConfigLong(System.currentTimeMillis() / 1000L);
             // Coming back from the background is the moment worth re-asking who wears a badge: the
             // answer is about a hundred bytes, and a badge granted or taken away today would
             // otherwise keep showing the old answer for as long as the process lives.

@@ -305,6 +305,9 @@ public class ApplicationLoader extends Application {
         SharedConfig.loadConfig();
         NekoConfig.init();
         NaConfig.init();
+        // The Nagram copy of the config has to be loaded too before the two are made to agree.
+        xyz.nextalone.nagram.NaConfig.init();
+        tw.nekomimi.nekogram.config.ConfigItem.unifyTwins();
         // The embedded local proxy lives in our process. Recreate it after a
         // normal process exit/relaunch instead of leaving Telegram pointed at
         // a dead 127.0.0.1 port until the user toggles the setting manually.

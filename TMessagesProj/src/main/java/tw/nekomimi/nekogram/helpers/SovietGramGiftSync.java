@@ -255,7 +255,7 @@ public final class SovietGramGiftSync {
             final long fromId = parseLong(gift.optString("from_id", null), 0);
             final JSONObject payload = gift.optJSONObject("payload");
             final String blob = payload == null ? null : payload.optString("tl", null);
-            parsed.add(new InboxGift(id, fromId, blob));
+            parsed.add(new InboxGift(id, fromId, blob, parseServerDate(gift.opt("created_at"))));
         }
         Collections.sort(parsed, (a, b) -> Long.compare(a.id, b.id));
 
@@ -268,7 +268,7 @@ public final class SovietGramGiftSync {
             if (gift.fromId > 0 && gift.fromId != myId && !TextUtils.isEmpty(gift.blob)) {
                 final TLRPC.MessageAction action = decodeAction(gift.blob);
                 if (action != null) {
-                    deliverIncoming(account, gift.id, gift.fromId, action);
+                    deliverIncoming(account, gift.id, gift.fromId, action, gift.date);
                 }
             }
             SovietGramTokenStore.setGiftCursor(account, gift.id);
@@ -283,7 +283,7 @@ public final class SovietGramGiftSync {
      * {@code LocalGiftHelper.deliver}: same persistence and UI-refresh dance, but the message is
      * incoming ({@code out = false}) and both peer and sender are the gifter.
      */
-    private static void deliverIncoming(int account, long serverGiftId, long fromId, TLRPC.MessageAction action) {
+    private static void deliverIncoming(int account, long serverGiftId, long fromId, TLRPC.MessageAction action, int sentAt) {
         final MessagesController controller = MessagesController.getInstance(account);
         final UserConfig userConfig = UserConfig.getInstance(account);
 
@@ -295,7 +295,11 @@ public final class SovietGramGiftSync {
         message.dialog_id = fromId;
         message.peer_id = controller.getPeer(fromId);
         message.from_id = controller.getPeer(fromId);
-        message.date = ConnectionsManager.getInstance(account).getCurrentTime();
+        // The moment the sender sent it, not the moment this phone got around to polling. Stamping the
+        // arrival time is what made a gift pop up as the newest message, at the very bottom, when the
+        // chat was opened long after it was sent.
+        final int now = ConnectionsManager.getInstance(account).getCurrentTime();
+        message.date = sentAt > 0 && sentAt <= now ? sentAt : now;
         message.action = action;
         message.unread = true;
         // TL_messageService derives the out flag from this boolean on serialise; setting the bit by
@@ -370,6 +374,51 @@ public final class SovietGramGiftSync {
 
     // ===== misc =====
 
+    /**
+     * The server's {@code created_at} (a DATETIME, as ISO text such as {@code 2026-10-03T12:00:00.000Z}
+     * or {@code 2026-10-03 12:00:00}, or a bare epoch number) as unix seconds, or {@code 0} when it
+     * cannot be read — the caller then falls back to the arrival time.
+     */
+    private static int parseServerDate(@Nullable Object raw) {
+        if (raw == null || raw == JSONObject.NULL) {
+            return 0;
+        }
+        if (raw instanceof Number) {
+            return epochSeconds(((Number) raw).longValue());
+        }
+        final String text = raw.toString().trim();
+        if (text.isEmpty()) {
+            return 0;
+        }
+        if (TextUtils.isDigitsOnly(text)) {
+            try {
+                return epochSeconds(Long.parseLong(text));
+            } catch (NumberFormatException e) {
+                return 0;
+            }
+        }
+        if (text.length() < 19) {
+            return 0;
+        }
+        try {
+            final java.text.SimpleDateFormat format =
+                    new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US);
+            format.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+            final java.util.Date date = format.parse(text.substring(0, 19).replace('T', ' '));
+            return date == null ? 0 : (int) (date.getTime() / 1000L);
+        } catch (Throwable e) {
+            return 0;
+        }
+    }
+
+    /** Milliseconds or seconds, whichever the number looks like. */
+    private static int epochSeconds(long value) {
+        if (value <= 0) {
+            return 0;
+        }
+        return (int) (value > 100_000_000_000L ? value / 1000L : value);
+    }
+
     private static long parseLong(@Nullable String value, long fallback) {
         if (TextUtils.isEmpty(value)) {
             return fallback;
@@ -386,11 +435,13 @@ public final class SovietGramGiftSync {
         final long id;
         final long fromId;
         @Nullable final String blob;
+        final int date;
 
-        InboxGift(long id, long fromId, @Nullable String blob) {
+        InboxGift(long id, long fromId, @Nullable String blob, int date) {
             this.id = id;
             this.fromId = fromId;
             this.blob = blob;
+            this.date = date;
         }
     }
 

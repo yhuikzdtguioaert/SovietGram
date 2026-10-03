@@ -16,6 +16,35 @@ object XrayController {
     // The local SOCKS port is fixed; it is no longer user-configurable.
     const val SOCKS_PORT = 10808
 
+    private const val LOCAL_USER_KEY = "vlessLocalSocksUser"
+    private const val LOCAL_PASS_KEY = "vlessLocalSocksPass"
+
+    /**
+     * The login of the local SOCKS port, made once per install from the system's secure random and
+     * kept in the preferences, read from there rather than from NaConfig for the same reason as
+     * [isEnabled]. Telegram is given it with the proxy entry and Xray is configured with it, so the
+     * port answers to nobody else on the device.
+     */
+    @JvmStatic
+    @Synchronized
+    fun localSocksLogin(): Pair<String, String> {
+        val preferences = NaConfig.getPreferences()
+        var user = preferences.getString(LOCAL_USER_KEY, "") ?: ""
+        var pass = preferences.getString(LOCAL_PASS_KEY, "") ?: ""
+        if (user.length < 16 || pass.length < 32) {
+            val random = java.security.SecureRandom()
+            fun token(bytes: Int): String {
+                val raw = ByteArray(bytes)
+                random.nextBytes(raw)
+                return raw.joinToString("") { "%02x".format(it) }
+            }
+            user = token(8)
+            pass = token(16)
+            preferences.edit().putString(LOCAL_USER_KEY, user).putString(LOCAL_PASS_KEY, pass).commit()
+        }
+        return user to pass
+    }
+
     /**
      * Whether the tunnel is switched on, read straight out of SharedPreferences.
      *
@@ -271,14 +300,15 @@ object XrayController {
 
     private fun applyTelegramProxy(port: Int) {
         removeLocalProxyEntries()
+        val (user, pass) = localSocksLogin()
         val proxyInfo = SharedConfig.addProxy(
-            SharedConfig.ProxyInfo(LOCAL_HOST, port, "", "", "")
+            SharedConfig.ProxyInfo(LOCAL_HOST, port, user, pass, "")
         )
         SharedConfig.setCurrentProxy(proxyInfo)
         MessagesController.getGlobalMainSettings().edit()
             .putString("proxy_ip", LOCAL_HOST)
-            .putString("proxy_pass", "")
-            .putString("proxy_user", "")
+            .putString("proxy_pass", pass)
+            .putString("proxy_user", user)
             .putString("proxy_secret", "")
             .putInt("proxy_port", port)
             .putBoolean("proxy_enabled", true)

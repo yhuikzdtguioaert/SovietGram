@@ -393,7 +393,10 @@ import tw.nekomimi.nekogram.filters.AyuFilter;
 import tw.nekomimi.nekogram.filters.ReactionFilter;
 import tw.nekomimi.nekogram.filters.RegexFilterEditActivity;
 import tw.nekomimi.nekogram.helpers.ChatsHelper;
+import tw.nekomimi.nekogram.helpers.ImageFXHelper;
+import tw.nekomimi.nekogram.helpers.LiveWallpaperHelper;
 import tw.nekomimi.nekogram.helpers.MessageHelper;
+import tw.nekomimi.nekogram.helpers.QuoteShotHelper;
 import tw.nekomimi.nekogram.helpers.TranscribeHelper;
 import tw.nekomimi.nekogram.helpers.remote.EmojiHelper;
 import tw.nekomimi.nekogram.helpers.remote.PagePreviewRulesHelper;
@@ -411,6 +414,7 @@ import tw.nekomimi.nekogram.translate.Translator;
 import tw.nekomimi.nekogram.translate.TranslatorKt;
 import tw.nekomimi.nekogram.ui.BookmarksActivity;
 import tw.nekomimi.nekogram.ui.BottomBuilder;
+import tw.nekomimi.nekogram.ui.MemeLibrarySheet;
 import tw.nekomimi.nekogram.ui.MessageDetailsActivity;
 import tw.nekomimi.nekogram.ui.components.GroupedIconsView;
 import tw.nekomimi.nekogram.utils.AlertUtil;
@@ -490,6 +494,8 @@ public class ChatActivity extends BaseFragment implements
     private final static int nkbtn_clearDeleted = 2100;
     private final static int nkbtn_viewDeleted = 2101;
     private final static int nkbtn_localGiftSender = 2102;
+    private final static int nkbtn_quoteShot = 2103;
+    private final static int nkbtn_imageFX = 2104;
 
     public int shareAlertDebugMode = DEBUG_SHARE_ALERT_MODE_NORMAL;
     public boolean shareAlertDebugTopicsSlowMotion;
@@ -3666,6 +3672,7 @@ public class ChatActivity extends BaseFragment implements
     @Override
     public void onFragmentDestroy() {
         super.onFragmentDestroy();
+        LiveWallpaperHelper.onDestroy(contentView);
         if (messageMetricsView != null) {
             messageMetricsView.finish();
         }
@@ -11109,6 +11116,7 @@ public class ChatActivity extends BaseFragment implements
         actionModeOtherItem.addSubItem(nkbtn_unpin, R.drawable.msg_unpin, LocaleController.getString(R.string.UnpinMessage));
         if (!noforward) {
             actionModeOtherItem.addSubItem(nkbtn_savemessage, R.drawable.menu_saved, LocaleController.getString(R.string.AddToSavedMessages));
+            actionModeOtherItem.addSubItem(nkbtn_quoteShot, R.drawable.menu_select_quote, LocaleController.getString(R.string.QuoteShot));
             if (canSendMessages) actionModeOtherItem.addSubItem(nkbtn_repeat, R.drawable.msg_repeat, LocaleController.getString(R.string.Repeat));
         }
         if (canSendMessages) {
@@ -21467,6 +21475,9 @@ public class ChatActivity extends BaseFragment implements
     @Override
     public void onActivityResultFragment(int requestCode, int resultCode, Intent data) {
         if (resultCode == Activity.RESULT_OK) {
+            if (MemeLibrarySheet.onActivityResult(requestCode, data)) {
+                return;
+            }
             if (requestCode == 0 || requestCode == 2) {
                 createChatAttachView();
                 if (chatAttachAlert != null) {
@@ -22185,7 +22196,7 @@ public class ChatActivity extends BaseFragment implements
             }
 
             // --- AyuGram history hook start
-            if (NaConfig.INSTANCE.getEnableSaveDeletedMessages().Bool()) {
+            if (NaConfig.INSTANCE.getEnableSaveDeletedMessages().Bool() && NaConfig.INSTANCE.getShowDeletedMessagesInChat().Bool()) {
                 long dialogId = getDialogId();
                 long topicId = getTopicId();
 
@@ -24695,7 +24706,7 @@ public class ChatActivity extends BaseFragment implements
                     }
                 }
                 // AyuHistoryHook: fix replyMessage
-                if (NaConfig.INSTANCE.getEnableSaveDeletedMessages().Bool()) {
+                if (NaConfig.INSTANCE.getEnableSaveDeletedMessages().Bool() && NaConfig.INSTANCE.getShowDeletedMessagesInChat().Bool()) {
                     for (int a = 0, N = messages.size(); a < N; a++) {
                         MessageObject messageObject = messages.get(a);
                         if (messageObject.getReplyMsgId() != 0 && (messageObject.replyMessageObject == null || messageObject.replyMessageObject.messageOwner instanceof TLRPC.TL_messageEmpty)) {
@@ -25312,6 +25323,7 @@ public class ChatActivity extends BaseFragment implements
                 }
             }
         } else if (id == NotificationCenter.didSetNewWallpapper) {
+            LiveWallpaperHelper.update(contentView);
             if (fragmentView != null) {
                 updateBackground();
                 progressView2.invalidate();
@@ -27695,7 +27707,7 @@ public class ChatActivity extends BaseFragment implements
             Integer mid = markAsDeletedMessages.get(a);
             MessageObject obj = chatAdapter != null && chatAdapter.isFiltered ? filteredMessagesDict.get(mid) :  messagesDict[loadIndex].get(mid);
 
-            if (!AyuSavePreferences.saveDeletedMessageFor(currentAccount, getDialogId(), obj) || AyuState.isDeletePermitted(getDialogId(), mid)) {
+            if (!NaConfig.INSTANCE.getShowDeletedMessagesInChat().Bool() || !AyuSavePreferences.saveDeletedMessageFor(currentAccount, getDialogId(), obj) || AyuState.isDeletePermitted(getDialogId(), mid)) {
                 AyuState.messageDeleted(getDialogId(), mid);
             } else {
                 continue;
@@ -31285,6 +31297,7 @@ public class ChatActivity extends BaseFragment implements
         if (currentUser != null) {
             tw.nekomimi.nekogram.helpers.SovietGramProfileSync.requestProfile(currentAccount, currentUser.id);
         }
+        LiveWallpaperHelper.onResume(contentView);
         cachedIsGestureNavigation = AndroidUtil.isGestureNavigation(getContext());
         checkShowBlur(false);
         activityResumeTime = System.currentTimeMillis();
@@ -31498,6 +31511,7 @@ public class ChatActivity extends BaseFragment implements
     @Override
     public void onPause() {
         super.onPause();
+        LiveWallpaperHelper.onPause(contentView);
         scrolling = false;
         if (scrimPopupWindow != null) {
             scrimPopupWindow.setPauseNotifications(false);
@@ -46684,6 +46698,8 @@ public class ChatActivity extends BaseFragment implements
         // should hide shit action bar after done
         if (id == nkbtn_localGiftSender) {
             tw.nekomimi.nekogram.helpers.LocalGiftHelper.showSheet(ChatActivity.this, dialog_id);
+        } else if (id == nkbtn_quoteShot) {
+            QuoteShotHelper.makeQuote(ChatActivity.this, getSelectedMessages());
         } else if (id == nkbtn_forward_noquote || id == nkbtn_forward_nocaption) {
             noForwardQuote = id == nkbtn_forward_noquote;
             noForwardCaption = id == nkbtn_forward_nocaption;
@@ -46974,6 +46990,10 @@ public class ChatActivity extends BaseFragment implements
                         BulletinFactory.of(ChatActivity.this).createSimpleBulletin(R.raw.ic_save_to_gallery, getString(R.string.StickerSavedHint)).show();
                     }
                 });
+                break;
+            }
+            case nkbtn_imageFX: {
+                ImageFXHelper.openEditor(this, selectedObject, getDialogId());
                 break;
             }
             case nkbtn_translate_llm:
@@ -49187,6 +49207,11 @@ public class ChatActivity extends BaseFragment implements
                         items.add(LocaleController.getString(R.string.ShareFile));
                         options.add(OPTION_SHARE);
                         icons.add(R.drawable.msg_shareout);
+                        if (ImageFXHelper.canEdit(selectedObject)) {
+                            items.add(getString(R.string.ImageFXEdit));
+                            options.add(nkbtn_imageFX);
+                            icons.add(R.drawable.msg_photo_settings);
+                        }
                     }
                 } else if (type == MESSAGE_TYPE_STICKER_PACK_NOT_INSTALLED) {
                     if (selectedObject.isMask()) {

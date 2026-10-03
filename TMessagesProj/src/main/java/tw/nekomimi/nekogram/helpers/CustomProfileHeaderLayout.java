@@ -351,7 +351,80 @@ public final class CustomProfileHeaderLayout {
             transforms[i].apply(views[i], elements[i], wantedX[i], wantedY[i],
                     i == CustomProfileAnchors.AVATAR ? avatarAmount : partsAmount);
         }
+        settleStatusAgainstName(root, name, status, wantedX, wantedY, partsAmount);
         applyActionsContent(actions, partsAmount);
+    }
+
+    /**
+     * The last word on Last Seen against the name, said with what is actually on screen.
+     *
+     * <p>{@link #keepStatusClearOfName} predicts where both end up, from widths and offsets that are
+     * only as good as the view's own idea of its size. This runs after the transforms are applied and
+     * reads the real positions back, the real extent of the text and of the badges drawn after it, and
+     * moves Last Seen right of whatever it still lies on. Whatever the prediction got wrong, it cannot
+     * leave Last Seen drawn over the name.
+     */
+    private static void settleStatusAgainstName(View root, @Nullable View name, @Nullable View status,
+                                                float[] wantedX, float[] wantedY, float amount) {
+        final float strength = Math.max(0f, Math.min(1f, (amount - 0.55f) / 0.35f));
+        if (name == null || status == null || strength <= 0f || name.getVisibility() == View.GONE
+                || status.getVisibility() == View.GONE || name.getWidth() == 0 || status.getWidth() == 0) {
+            return;
+        }
+        final float nameLeft = CustomProfileAnchors.drawnStart(root, name, false);
+        final float nameRight = nameDrawnRight(root, name);
+        final float nameTop = CustomProfileAnchors.drawnStart(root, name, true);
+        final float nameBottom = nameTop + CustomProfileAnchors.drawnSize(root, name, true);
+
+        final float statusScale = CustomProfileAnchors.chainScale(root, status, false);
+        final float statusStart = CustomProfileAnchors.drawnStart(root, status, false);
+        final float statusBox = CustomProfileAnchors.drawnSize(root, status, false);
+        final float statusText = Math.min(statusBox, textWidth(status) * statusScale);
+        final float statusLeft = CustomProfileAnchors.textStart(statusStart, statusBox, statusText,
+                CustomProfileAnchors.align(gravityOf(status))) - statusLead;
+        final float statusRight = statusLeft + statusLead + statusText;
+        final float statusTop = CustomProfileAnchors.drawnStart(root, status, true);
+        final float statusBottom = statusTop + CustomProfileAnchors.drawnSize(root, status, true);
+
+        final float slack = AndroidUtilities.dpf2(3);
+        if (statusTop + slack >= nameBottom || statusBottom - slack <= nameTop
+                || statusLeft + slack >= nameRight || statusRight - slack <= nameLeft) {
+            return;
+        }
+        final float gap = AndroidUtilities.dpf2(8);
+        final float needed = nameRight + gap - statusLeft;
+        final float room = root.getWidth() - gap - statusRight;
+        final float shift = Math.min(needed, Math.max(0f, room));
+        if (shift <= 0.5f) {
+            return;
+        }
+        wantedX[CustomProfileAnchors.STATUS] += shift * strength / amount;
+        transforms[CustomProfileAnchors.STATUS].apply(status, elements[CustomProfileAnchors.STATUS],
+                wantedX[CustomProfileAnchors.STATUS], wantedY[CustomProfileAnchors.STATUS], amount);
+    }
+
+    /**
+     * Where the name stops being drawn, in the header's coordinates: the end of its text, or of the
+     * last badge after it if that is further. A badge's bounds are the ones it was last drawn at, so
+     * they hold the real size even when the view's own width does not count it.
+     */
+    private static float nameDrawnRight(View root, View name) {
+        final float scale = CustomProfileAnchors.chainScale(root, name, false);
+        final float start = CustomProfileAnchors.drawnStart(root, name, false);
+        final float box = CustomProfileAnchors.drawnSize(root, name, false);
+        final float text = Math.min(box, textWidth(name) * scale);
+        float right = CustomProfileAnchors.textStart(start, box, text,
+                CustomProfileAnchors.align(gravityOf(name))) + text;
+        if (name instanceof org.telegram.ui.ActionBar.SimpleTextView simple) {
+            final android.graphics.drawable.Drawable[] badges = {
+                    simple.getRightDrawable(), simple.getRightDrawable2()};
+            for (android.graphics.drawable.Drawable badge : badges) {
+                if (badge != null && badge.getBounds().width() > 0) {
+                    right = Math.max(right, start + badge.getBounds().right * scale);
+                }
+            }
+        }
+        return Math.min(right, root.getWidth());
     }
 
     /** Keep Last Seen readable when a look moves the avatar across its usual text column. */
@@ -418,6 +491,12 @@ public final class CustomProfileHeaderLayout {
                 - transforms[CustomProfileAnchors.NAME].appliedNowY()
                 + wantedY[CustomProfileAnchors.NAME] * amount;
         final float nameBottom = nameTop + CustomProfileAnchors.drawnSize(root, name, true);
+        // The badges after the name were drawn at their real size; trust that over the view's own width.
+        final float nameRight = Math.max(nameLeft + nameText, nameDrawnRight(root, name)
+                - CustomProfileAnchors.drawnStart(root, name, false)
+                + (CustomProfileAnchors.drawnStart(root, name, false)
+                - transforms[CustomProfileAnchors.NAME].appliedNowX()
+                + wantedX[CustomProfileAnchors.NAME] * amount));
         // The badge hangs off the front of the status text, so the box that must clear the name starts there.
         final float statusLeft = CustomProfileAnchors.drawnStart(root, status, false) - statusLead
                 - transforms[CustomProfileAnchors.STATUS].appliedNowX()
@@ -431,11 +510,11 @@ public final class CustomProfileHeaderLayout {
         // Rows that merely touch are fine; only a real overlap in both directions is moved.
         final float slack = AndroidUtilities.dpf2(3);
         if (statusTop + slack >= nameBottom || statusBottom - slack <= nameTop
-                || statusLeft + slack >= nameLeft + nameText || statusLeft + statusWidth - slack <= nameLeft) {
+                || statusLeft + slack >= nameRight || statusLeft + statusWidth - slack <= nameLeft) {
             return;
         }
         final float gap = AndroidUtilities.dpf2(8);
-        final float needed = nameLeft + nameText + gap - statusLeft;
+        final float needed = nameRight + gap - statusLeft;
         final float room = root.getWidth() - gap - (statusLeft + statusWidth);
         final float shift = Math.min(needed, Math.max(0f, room));
         if (shift > 0f) {

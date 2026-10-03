@@ -19,7 +19,6 @@ import sovietgram.com.NaConfig;
 public class IconsResources extends Resources {
 
     public static final int ICON_REPLACE_SOLAR = 1;
-    private int _iconsType = -1;
 
     public IconsResources(Resources resources) {
         super(resources.getAssets(), resources.getDisplayMetrics(), resources.getConfiguration());
@@ -84,11 +83,11 @@ public class IconsResources extends Resources {
     }
 
     private int getConversion(int icon, int forcedIconsType) {
-        if (_iconsType == -1) {
-            _iconsType = NaConfig.INSTANCE.getIconReplacements().Int();
-        }
-
-        int consideredIconsType = forcedIconsType == -1 ? _iconsType : forcedIconsType;
+        // Read on every call, not once. The first drawable is loaded long before the preferences are,
+        // and a value cached then is the compile-time default (Solar) for the life of the process, so
+        // choosing Default changed nothing and Solar looked the same as Default.
+        int consideredIconsType = forcedIconsType == -1
+                ? NaConfig.INSTANCE.getIconReplacements().Int() : forcedIconsType;
 
         if (consideredIconsType == ICON_REPLACE_SOLAR) {
             return SolarIcons.Companion.getConversion(icon);
