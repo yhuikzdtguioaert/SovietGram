@@ -37,7 +37,7 @@ import tw.nekomimi.nekogram.helpers.remote.ApiServersHelper;
  */
 public final class WorkshopHelper {
 
-    private static final String BASE = "https://penis.nothalk.fun/cpb";
+    private static final String BASE = "https://customprofile.pixivdl.net:23344/cpb";
     private static final int TIMEOUT = 20000;
 
     /**
@@ -50,7 +50,7 @@ public final class WorkshopHelper {
      * does. It is not a mirror — it holds nothing — so it is only worth asking about the hosts the
      * works actually name.
      */
-    private static final String PROXY = "https://penis.nothalk.fun/cpb/api/media?u=";
+    private static final String PROXY = "https://customprofile.pixivdl.net:23344/cpb/api/media?u=";
     private static final String[] PROXIED_HOSTS = {
             "https://github.com/", "https://objects.githubusercontent.com/",
     };

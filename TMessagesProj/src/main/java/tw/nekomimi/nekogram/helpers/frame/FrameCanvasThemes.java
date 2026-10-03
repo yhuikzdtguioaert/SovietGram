@@ -27,7 +27,7 @@ import tw.nekomimi.nekogram.helpers.WorkshopHelper;
  */
 public final class FrameCanvasThemes {
 
-    private static final String URL = "https://penis.nothalk.fun/cpb/api/frame-themes";
+    private static final String URL = "https://customprofile.pixivdl.net:23344/cpb/api/frame-themes";
     private static final String CACHE = "sovietgram_frame_themes.json";
     private static final int MAX_BYTES = 256 * 1024;
     /** How long a fetched list is trusted before it is worth asking again. */
