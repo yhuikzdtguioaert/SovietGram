@@ -44,6 +44,11 @@ class TgWsProxyService : Service() {
     // Guards against overlapping native-engine restarts triggered from both the
     // watchdog loop and the network-change callback.
     private val restarting = AtomicBoolean(false)
+    // Guards stopInProgress/startAfterStop. A START that lands while a stop is still tearing the
+    // engine down (the switch turned off and on again at once) is parked here and run when the
+    // stop is done; dropping it left the switch on with Telegram pointed at a port nobody serves.
+    private val stopLock = Any()
+    private var startAfterStop: (() -> Unit)? = null
     private var connectivityManager: ConnectivityManager? = null
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
     @Volatile
@@ -127,7 +132,17 @@ class TgWsProxyService : Service() {
                 if (!enabled) {
                     removeForegroundNotification()
                 }
-                startProxy(port, poolSize, cfEnabled, secret)
+                val deferred = synchronized(stopLock) {
+                    if (stopInProgress) {
+                        startAfterStop = { startProxy(port, poolSize, cfEnabled, secret) }
+                        true
+                    } else {
+                        false
+                    }
+                }
+                if (!deferred) {
+                    startProxy(port, poolSize, cfEnabled, secret)
+                }
             }
             ACTION_UPDATE_NOTIFICATION -> {
                 // Visibility toggled from settings while the proxy is up. Only
@@ -157,6 +172,7 @@ class TgWsProxyService : Service() {
                 // go through TgWsProxyController.stop(), so clear the flag here or
                 // the settings toggle stays on and the next app start revives it.
                 TgWsProxyController.setEnabled(false)
+                synchronized(stopLock) { startAfterStop = null }
                 stopProxy()
             }
             ACTION_RESTART -> {
@@ -298,10 +314,12 @@ class TgWsProxyService : Service() {
     }
 
     private fun stopProxy() {
-        if (stopInProgress) {
-            return
+        synchronized(stopLock) {
+            if (stopInProgress) {
+                return
+            }
+            stopInProgress = true
         }
-        stopInProgress = true
         portUp = false
         watchdogJob?.cancel()
         watchdogJob = null
@@ -311,13 +329,27 @@ class TgWsProxyService : Service() {
             updateNotification(getString(R.string.TgWsProxyNotificationStopping), force = true)
             stopNative("stop")
             releaseWakeLock()
-            running = false
-            stopInProgress = false
+            val next = synchronized(stopLock) {
+                running = false
+                stopInProgress = false
+                startAfterStop.also { startAfterStop = null }
+            }
+            if (next != null) {
+                // A START came in while this stop was running. Carry it out as onStartCommand
+                // would have, on the main thread, and keep the service (and Telegram's proxy
+                // entry that the controller has just set) alive instead of tearing both down.
+                AndroidUtilities.runOnUIThread { next() }
+                return@launch
+            }
             // The local port is gone; detach Telegram from it. Reached from the
             // notification's Stop action too, where nothing else clears it and
-            // Telegram would otherwise keep dialling a closed socket.
+            // Telegram would otherwise keep dialling a closed socket. Not when VLESS
+            // has taken the slot over: its entry is the local one now, and this stop
+            // (sent by it before it started) would delete it again.
             AndroidUtilities.runOnUIThread {
-                runCatching { TgWsProxyController.releaseTelegramProxy() }
+                if (!XrayController.isEnabled()) {
+                    runCatching { TgWsProxyController.releaseTelegramProxy() }
+                }
             }
             removeForegroundNotification()
             stopSelf()

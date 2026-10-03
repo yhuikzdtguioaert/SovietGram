@@ -14,8 +14,10 @@ data class LocalEmojiStatusData(
 object LocalPremiumStatusHelper {
     const val KEY_PREFIX = "useLocalEmojiStatusData_"
 
-    private val dataMap = mutableMapOf<Long, LocalEmojiStatusData?>()
-    private val loadedUsers = mutableSetOf<Long>()
+    // Read from drawing and from background layout, written from the UI thread.
+    private val dataMap: MutableMap<Long, LocalEmojiStatusData?> =
+        java.util.Collections.synchronizedMap(HashMap())
+    private val loadedUsers: MutableSet<Long> = java.util.Collections.synchronizedSet(HashSet())
 
     @JvmStatic
     fun getDocumentId(user: TLRPC.User?): Long? {
@@ -56,6 +58,7 @@ object LocalPremiumStatusHelper {
     }
 
     @JvmStatic
+    @Synchronized
     fun initForUser(userId: Long, force: Boolean = false) {
         if (!force && loadedUsers.contains(userId)) return
         loadedUsers.add(userId)

@@ -284,10 +284,18 @@ public final class SovietGramProfileSync {
         }
     }
 
+    /**
+     * When the last batch read failed. A failed read caches nothing, so every message bound while the
+     * server is down would sight its sender again and start another request; this keeps a scrolling
+     * chat from turning an outage into a request every drain interval.
+     */
+    private static volatile long batchFailedAt;
+    private static final long BATCH_BACKOFF_MS = 30 * 1000L;
+
     private static void drainSightings() {
         drainScheduled.set(false);
         final int reader = readerAccount(sightingAccount);
-        if (reader < 0) {
+        if (reader < 0 || System.currentTimeMillis() - batchFailedAt < BATCH_BACKOFF_MS) {
             // Nothing can be read right now. Drop the sightings rather than keeping them: the surfaces
             // that produced them re-sight on the next bind, and a handshake that finishes later has no
             // use for a list of who was on screen minutes ago.
@@ -321,6 +329,7 @@ public final class SovietGramProfileSync {
                 inFlight.remove(userId);
             }
             if (error != null || body == null) {
+                batchFailedAt = System.currentTimeMillis();
                 if (error != null) {
                     FileLog.e("SovietGramProfileSync: batch pull of " + batch.size() + " failed: " + error);
                 }

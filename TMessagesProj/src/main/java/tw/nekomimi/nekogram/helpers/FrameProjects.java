@@ -38,6 +38,20 @@ public final class FrameProjects {
     private static final Set<String> frameUploads = new HashSet<>();
     private static final Map<Long, Long> lastRefresh = new HashMap<>();
     private static final Set<Long> refreshing = new HashSet<>();
+    /** Consecutive failed round trips, UI thread only; the retry chain stops after {@link #MAX_FAILURES}. */
+    private static int failures;
+    private static final int MAX_FAILURES = 5;
+
+    /**
+     * A failed route is retried through a profile push, which comes straight back here. Without a
+     * budget a route that stays down (offline, or a server that refuses the body) is hit every 12s forever.
+     */
+    private static void retryAfterFailure(long owner) {
+        lastRefresh.remove(owner);
+        if (++failures <= MAX_FAILURES) {
+            AndroidUtilities.runOnUIThread(SovietGramSync::scheduleProfilePush, 12000);
+        }
+    }
 
     /** Publish textures even when the active frame was not saved as a named project. */
     public static void ensureFramePublished() {
@@ -299,12 +313,12 @@ public final class FrameProjects {
                 return;
             }
             if (body == null) {
-                lastRefresh.remove(owner);
-                AndroidUtilities.runOnUIThread(SovietGramSync::scheduleProfilePush, 12000);
+                retryAfterFailure(owner);
                 if (error != null) FileLog.e("FrameProjects: load failed: " + error);
                 if (finished != null) finished.run();
                 return;
             }
+            failures = 0;
             final List<Project> local = list(account);
             final JSONArray remote = body.optJSONArray("projects");
             final Set<String> deleted = knownDeleted;
@@ -379,10 +393,10 @@ public final class FrameProjects {
                 if (owner != SovietGramTokenStore.ownId(account)) return;
                 if (body == null) {
                     if (error != null) FileLog.e("FrameProjects: delete failed: " + error);
-                    lastRefresh.remove(owner);
-                    AndroidUtilities.runOnUIThread(SovietGramSync::scheduleProfilePush, 12000);
+                    retryAfterFailure(owner);
                     return;
                 }
+                failures = 0;
                 final JSONArray remaining = new JSONArray();
                 for (String item : deletedIds(account)) if (!id.equals(item)) remaining.put(item);
                 try { SovietGramAccountScope.restoreItems(account,
@@ -461,8 +475,9 @@ public final class FrameProjects {
                         body, (result, error) -> {
                             if (error != null) FileLog.e("FrameProjects: save failed: " + error);
                             if (result == null && owner == SovietGramTokenStore.ownId(account)) {
-                                lastRefresh.remove(owner);
-                                AndroidUtilities.runOnUIThread(SovietGramSync::scheduleProfilePush, 12000);
+                                retryAfterFailure(owner);
+                            } else if (result != null) {
+                                failures = 0;
                             }
                             if (result == null || remote.isEmpty() || account != UserConfig.selectedAccount
                                     || !id.equals(NekoConfig.customProfileFrameActiveProject.String())) return;
@@ -481,10 +496,7 @@ public final class FrameProjects {
                         });
             } catch (Exception e) {
                 FileLog.e("FrameProjects: save failed: " + e.getMessage());
-                AndroidUtilities.runOnUIThread(() -> {
-                    lastRefresh.remove(owner);
-                    AndroidUtilities.runOnUIThread(SovietGramSync::scheduleProfilePush, 12000);
-                });
+                AndroidUtilities.runOnUIThread(() -> retryAfterFailure(owner));
             }
         });
     }

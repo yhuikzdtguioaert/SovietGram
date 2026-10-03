@@ -130,8 +130,16 @@ public class ApiServersHelper extends BaseRemoteHelper {
             picking = false;
             return;
         }
-        Executors.newSingleThreadExecutor().execute(() -> {
-            final String picked = pickFastest(urls);
+        final java.util.concurrent.ExecutorService pickExecutor = Executors.newSingleThreadExecutor();
+        pickExecutor.execute(() -> {
+            String found = null;
+            try {
+                found = pickFastest(urls);
+            } catch (Throwable e) {
+                // A malformed URL in the channel must not kill the process or leave `picking` stuck.
+                FileLog.e(e);
+            }
+            final String picked = found;
             picking = false;
             if (TextUtils.isEmpty(picked)) {
                 // No candidate answered. Whatever was cached stays cached, and pending listeners stay
@@ -155,6 +163,8 @@ public class ApiServersHelper extends BaseRemoteHelper {
             // ten minutes into the session may as well not exist.
             AndroidUtilities.runOnUIThread(() -> SovietGramBadges.sync(true));
         });
+        // Lets the queued pick finish, then frees the worker thread instead of keeping one per refresh.
+        pickExecutor.shutdown();
     }
 
     /**
@@ -217,11 +227,16 @@ public class ApiServersHelper extends BaseRemoteHelper {
         final CountDownLatch latch = new CountDownLatch(1);
         final ArrayList<okhttp3.Call> calls = new ArrayList<>();
         for (String url : urls) {
-            final Request req = new Request.Builder()
-                    .url(url + "/v1/health")
-                    .get()
-                    .header("User-Agent", "SovietGram/health")
-                    .build();
+            final Request req;
+            try {
+                req = new Request.Builder()
+                        .url(url + "/v1/health")
+                        .get()
+                        .header("User-Agent", "SovietGram/health")
+                        .build();
+            } catch (IllegalArgumentException e) {
+                continue; // not a usable URL; the other candidates may still answer
+            }
             final okhttp3.Call call = HttpClient.INSTANCE.getInstance().newCall(req);
             calls.add(call);
             call.enqueue(new okhttp3.Callback() {
@@ -252,8 +267,8 @@ public class ApiServersHelper extends BaseRemoteHelper {
     }
 
     private boolean probeOne(String url) {
-        final Request req = new Request.Builder().url(url + "/v1/health").get().build();
-        try (Response r = HttpClient.INSTANCE.getInstance().newCall(req).execute()) {
+        try (Response r = HttpClient.INSTANCE.getInstance().newCall(
+                new Request.Builder().url(url + "/v1/health").get().build()).execute()) {
             return r.isSuccessful();
         } catch (Throwable e) {
             return false;

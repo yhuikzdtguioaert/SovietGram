@@ -79,6 +79,23 @@ public final class CustomProfileMedia {
     private static final Set<String> inFlight = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private static final Map<String, Long> failedAt = new ConcurrentHashMap<>();
 
+    /**
+     * A peer's descriptor names the host to download from, so a fetch can be as slow as that host
+     * likes. It gets its own two workers rather than Utilities.globalQueue, which the whole app
+     * shares and which one stalled download would otherwise hold up.
+     */
+    static final java.util.concurrent.ThreadPoolExecutor FETCH = new java.util.concurrent.ThreadPoolExecutor(
+            2, 2, 30L, java.util.concurrent.TimeUnit.SECONDS, new java.util.concurrent.LinkedBlockingQueue<>(),
+            r -> {
+                final Thread thread = new Thread(r, "CustomProfileMedia");
+                thread.setDaemon(true);
+                return thread;
+            });
+
+    static {
+        FETCH.allowCoreThreadTimeOut(true);
+    }
+
     private CustomProfileMedia() {
     }
 
@@ -837,7 +854,7 @@ public final class CustomProfileMedia {
         if (!inFlight.add(key)) {
             return;
         }
-        Utilities.globalQueue.postRunnable(() -> {
+        FETCH.execute(() -> {
             boolean ok = false;
             try {
                 final byte[] data = WorkshopHelper.download(url, ref.sha);

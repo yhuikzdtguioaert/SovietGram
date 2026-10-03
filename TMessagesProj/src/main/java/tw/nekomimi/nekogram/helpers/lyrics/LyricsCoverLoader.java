@@ -54,7 +54,7 @@ public final class LyricsCoverLoader {
             Bitmap bitmap = null;
             try {
                 bitmap = loadInternal(messageObject);
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 FileLog.e(e);
             }
             final Bitmap delivered = bitmap;
@@ -118,15 +118,54 @@ public final class LyricsCoverLoader {
                 if (!response.isSuccessful() || response.body() == null) {
                     return null;
                 }
+                // The artwork address comes from the track's own metadata, so the picture can be any
+                // size: read it capped and decode it subsampled instead of at full resolution.
+                final byte[] data;
                 try (InputStream stream = response.body().byteStream()) {
-                    BitmapFactory.Options options = new BitmapFactory.Options();
-                    options.inPreferredConfig = Bitmap.Config.ARGB_8888;
-                    return BitmapFactory.decodeStream(stream, null, options);
+                    data = readCapped(stream, MAX_COVER_BYTES);
                 }
+                if (data == null) {
+                    return null;
+                }
+                BitmapFactory.Options bounds = new BitmapFactory.Options();
+                bounds.inJustDecodeBounds = true;
+                BitmapFactory.decodeByteArray(data, 0, data.length, bounds);
+                BitmapFactory.Options options = new BitmapFactory.Options();
+                options.inPreferredConfig = Bitmap.Config.ARGB_8888;
+                options.inSampleSize = sampleSize(bounds.outWidth, bounds.outHeight);
+                return BitmapFactory.decodeByteArray(data, 0, data.length, options);
             }
-        } catch (Exception e) {
+        } catch (Throwable e) {
             return null;
         }
+    }
+
+    /** Larger than any real cover, small enough that a hostile address cannot fill the heap. */
+    private static final int MAX_COVER_BYTES = 8 * 1024 * 1024;
+
+    /** The whole stream, or {@code null} once it runs past {@code limit}. */
+    @Nullable
+    private static byte[] readCapped(InputStream stream, int limit) throws java.io.IOException {
+        final java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+        final byte[] buffer = new byte[16 * 1024];
+        int read;
+        while ((read = stream.read(buffer)) > 0) {
+            if (out.size() + read > limit) {
+                return null;
+            }
+            out.write(buffer, 0, read);
+        }
+        return out.toByteArray();
+    }
+
+    /** The power of two that brings the longest side down towards {@link #MAX_SIDE} without going under it. */
+    private static int sampleSize(int width, int height) {
+        int sample = 1;
+        final int longest = Math.max(width, height);
+        while (longest > 0 && longest / (sample * 2) >= MAX_SIDE) {
+            sample *= 2;
+        }
+        return sample;
     }
 
     /** Last resort when the file carries no artwork: look the track up in the iTunes catalogue. */
@@ -164,10 +203,14 @@ public final class LyricsCoverLoader {
     @Nullable
     private static Bitmap decodeFile(String path) {
         try {
+            BitmapFactory.Options bounds = new BitmapFactory.Options();
+            bounds.inJustDecodeBounds = true;
+            BitmapFactory.decodeFile(path, bounds);
             BitmapFactory.Options options = new BitmapFactory.Options();
             options.inPreferredConfig = Bitmap.Config.ARGB_8888;
+            options.inSampleSize = sampleSize(bounds.outWidth, bounds.outHeight);
             return BitmapFactory.decodeFile(path, options);
-        } catch (Exception e) {
+        } catch (Throwable e) {
             return null;
         }
     }

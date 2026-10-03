@@ -2967,7 +2967,11 @@ func runProxy(ctx context.Context, host string, port int, dcOptMap map[int]strin
 				case <-srvCtx.Done():
 					return
 				default:
-					if ne, ok := err.(net.Error); ok && ne.Timeout() {
+					if ne, ok := err.(net.Error); ok && (ne.Timeout() || ne.Temporary()) {
+						// EMFILE/ENFILE and friends are transient. Returning here left the
+						// listener bound but never accepted again, so the port still answered
+						// the service watchdog while every connection hung in the backlog.
+						time.Sleep(50 * time.Millisecond)
 						continue
 					}
 					return

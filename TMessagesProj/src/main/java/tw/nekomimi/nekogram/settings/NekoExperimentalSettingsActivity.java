@@ -334,6 +334,9 @@ public class NekoExperimentalSettingsActivity extends BaseNekoXSettingsActivity 
                         ((TextCheckCell) view).setChecked(sensitiveEnabled);
                     }
                 } else {
+                    // The server kept the old value, so the local flag must not stay flipped: the next
+                    // tap would otherwise send the opposite of what the row is showing.
+                    sensitiveEnabled = !sensitiveEnabled;
                     AndroidUtilities.runOnUIThread(() -> AlertsCreator.processError(currentAccount, error, this, req));
                 }
             }));

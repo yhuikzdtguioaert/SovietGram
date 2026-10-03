@@ -103,15 +103,20 @@ public final class LyricsHelper {
         // confident synced match we never wait for it.
         final AtomicReference<LyricsResult> genius = new AtomicReference<>();
         final CountDownLatch latch = new CountDownLatch(1);
-        Utilities.externalNetworkQueue.postRunnable(() -> {
+        // Not on externalNetworkQueue: that is a single thread and this method is already running on
+        // it, so a task posted there cannot start until this one returns — the latch below would
+        // always time out after 15s, with the queue blocked, and Genius would never be consulted.
+        final Thread geniusThread = new Thread(() -> {
             try {
                 genius.set(GeniusProvider.search(title, artist));
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 FileLog.e(e);
             } finally {
                 latch.countDown();
             }
-        });
+        }, "LyricsGenius");
+        geniusThread.setDaemon(true);
+        geniusThread.start();
 
         LyricsResult lrclib = null;
         try {

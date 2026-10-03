@@ -185,10 +185,17 @@ public final class SovietGramGiftSync {
      */
     private static void pollPage(int account) {
         final long cursor = SovietGramTokenStore.giftCursor(account);
+        final long owner = SovietGramTokenStore.ownId(account);
         // Delivery state lives on the server now. The cursor is retained for compatibility and
         // diagnostics, but omitting it here lets an unacknowledged row survive a preference reset
         // or reinstall instead of being skipped forever.
         SovietGramApiClient.get(account, "/v1/gifts/inbox", (body, error) -> {
+            if (owner != SovietGramTokenStore.ownId(account)) {
+                // The slot was logged out or re-used while the request was out: these gifts belong to
+                // the previous identity and must not be written into the new one's chats.
+                polling.remove(account);
+                return;
+            }
             if (error != null || body == null) {
                 polling.remove(account);
                 if (error != null) {
@@ -268,7 +275,13 @@ public final class SovietGramGiftSync {
             if (gift.fromId > 0 && gift.fromId != myId && !TextUtils.isEmpty(gift.blob)) {
                 final TLRPC.MessageAction action = decodeAction(gift.blob);
                 if (action != null) {
-                    deliverIncoming(account, gift.id, gift.fromId, action, gift.date);
+                    try {
+                        deliverIncoming(account, gift.id, gift.fromId, action, gift.date);
+                    } catch (Throwable e) {
+                        // A decodable but malformed action from another user must not throw into the UI
+                        // thread: the gift is never acknowledged then, so every later poll would crash again.
+                        org.telegram.messenger.FileLog.e(e);
+                    }
                 }
             }
             SovietGramTokenStore.setGiftCursor(account, gift.id);

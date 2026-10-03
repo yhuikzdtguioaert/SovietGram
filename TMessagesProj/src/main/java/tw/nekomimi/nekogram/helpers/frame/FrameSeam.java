@@ -23,7 +23,17 @@ public final class FrameSeam {
 
     private static final int MAX_WIDTH = 4096;
 
-    private static final Map<String, Bitmap> CACHE = new HashMap<>();
+    /**
+     * Bounded: each entry is a bitmap of up to twice the picture's width, and the keys include every
+     * peer's frame picture that has been drawn, so an unbounded map would grow for as long as the
+     * process lives.
+     */
+    private static final Map<String, Bitmap> CACHE = new java.util.LinkedHashMap<>(8, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<String, Bitmap> eldest) {
+            return size() > 8;
+        }
+    };
     /**
      * Pictures a mirrored copy could not be made of — too large, or no room for one. Remembered
      * because this is asked on every frame drawn, and retrying an allocation that just failed, sixty

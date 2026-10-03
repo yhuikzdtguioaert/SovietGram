@@ -600,6 +600,38 @@ public final class WorkshopHelper {
     /** Answers are small JSON documents; a listing of 40 works is a few tens of KB. */
     private static final long MAX_JSON_BYTES = 8L * 1024 * 1024;
 
+    /** Whole-transfer ceilings, as opposed to the per-read timeout; see {@link DeadlineInputStream}. */
+    private static final long MEDIA_TRANSFER_MS = 5 * 60 * 1000L;
+    private static final long JSON_TRANSFER_MS = 60 * 1000L;
+
+    /** Fails a read once the transfer as a whole has outlived its budget. */
+    private static final class DeadlineInputStream extends java.io.FilterInputStream {
+        private final long deadline;
+
+        DeadlineInputStream(InputStream in, long deadline) {
+            super(in);
+            this.deadline = deadline;
+        }
+
+        @Override
+        public int read() throws IOException {
+            check();
+            return super.read();
+        }
+
+        @Override
+        public int read(byte[] buffer, int offset, int length) throws IOException {
+            check();
+            return super.read(buffer, offset, length);
+        }
+
+        private void check() throws IOException {
+            if (android.os.SystemClock.elapsedRealtime() > deadline) {
+                throw new IOException("transfer too slow");
+            }
+        }
+    }
+
     /** A transfer that ended before the length the host declared. Named so it can be retried. */
     private static final class TruncatedException extends Exception {
         TruncatedException(long received, long declared) {
@@ -662,7 +694,11 @@ public final class WorkshopHelper {
             final String encoding = connection.getContentEncoding();
             final boolean encoded = encoding != null && !"identity".equalsIgnoreCase(encoding.trim());
             final byte[] data;
-            try (InputStream in = connection.getInputStream()) {
+            // The read timeout restarts with every byte, so a host that trickles one byte at a time
+            // would otherwise hold this thread (and whatever queue it runs on) until the size limit.
+            final long budget = limit > MAX_JSON_BYTES ? MEDIA_TRANSFER_MS : JSON_TRANSFER_MS;
+            try (InputStream in = new DeadlineInputStream(connection.getInputStream(),
+                    android.os.SystemClock.elapsedRealtime() + budget)) {
                 data = !encoded && declared >= 0
                         ? readKnownLength(in, declared, limit)
                         : readAll(in, limit);
@@ -725,7 +761,8 @@ public final class WorkshopHelper {
             if (in == null) {
                 return new Json(code, connection.getHeaderField("ETag"), null);
             }
-            try (InputStream stream = in) {
+            try (InputStream stream = new DeadlineInputStream(in,
+                    android.os.SystemClock.elapsedRealtime() + JSON_TRANSFER_MS)) {
                 return new Json(code, connection.getHeaderField("ETag"),
                         new String(readAll(stream, MAX_JSON_BYTES), StandardCharsets.UTF_8));
             }
@@ -754,7 +791,8 @@ public final class WorkshopHelper {
             if (in == null) {
                 return "{}";
             }
-            try (InputStream stream = in) {
+            try (InputStream stream = new DeadlineInputStream(in,
+                    android.os.SystemClock.elapsedRealtime() + JSON_TRANSFER_MS)) {
                 return new String(readAll(stream, MAX_JSON_BYTES), StandardCharsets.UTF_8);
             }
         } finally {

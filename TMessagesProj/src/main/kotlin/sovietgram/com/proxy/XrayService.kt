@@ -47,6 +47,11 @@ class XrayService : Service() {
     // Guards against overlapping native-engine restarts triggered from both the
     // watchdog loop and the network-change callback.
     private val restarting = AtomicBoolean(false)
+    // Guards stopInProgress/startAfterStop. A START that lands while a stop is still tearing the
+    // engine down (the switch turned off and on again at once) is parked here and run when the
+    // stop is done; dropping it left the switch on with Telegram pointed at a port nobody serves.
+    private val stopLock = Any()
+    private var startAfterStop: (() -> Unit)? = null
     private var connectivityManager: ConnectivityManager? = null
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
     @Volatile
@@ -109,8 +114,10 @@ class XrayService : Service() {
                 // startForegroundService(), and not honouring it within ~5s is an
                 // instant ANR-crash. The preference only picks the channel.
                 val enabled = notificationsEnabled()
-                val currentText = if (portUp) runningText() else
-                    lastNotificationText.ifBlank { getString(R.string.VlessNotificationStarting) }
+                // Not runningText(): this is the main thread, and the traffic counters take the
+                // native engine's lock, which a start or stop in progress holds for seconds.
+                // The stats loop keeps lastNotificationText at the latest running text anyway.
+                val currentText = lastNotificationText.ifBlank { getString(R.string.VlessNotificationStarting) }
                 ensureForeground(currentText)
                 // Android/Samsung promotes an IMPORTANCE_NONE foreground-service channel to LOW.
                 // Fulfil startForegroundService first, then detach the notification when the user
@@ -118,7 +125,17 @@ class XrayService : Service() {
                 if (!enabled) {
                     removeForegroundNotification()
                 }
-                startProxy(XrayController.SOCKS_PORT, key)
+                val deferred = synchronized(stopLock) {
+                    if (stopInProgress) {
+                        startAfterStop = { startProxy(XrayController.SOCKS_PORT, key) }
+                        true
+                    } else {
+                        false
+                    }
+                }
+                if (!deferred) {
+                    startProxy(XrayController.SOCKS_PORT, key)
+                }
             }
             ACTION_UPDATE_NOTIFICATION -> {
                 // Visibility toggled from settings while the tunnel is up. Only
@@ -127,8 +144,7 @@ class XrayService : Service() {
                 // ensureForeground() resets the text to "Starting…", so the
                 // current status is captured first and restored right after.
                 val enabled = notificationsEnabled()
-                val currentText = if (portUp) runningText() else
-                    lastNotificationText.ifBlank { getString(R.string.VlessNotificationStarting) }
+                val currentText = lastNotificationText.ifBlank { getString(R.string.VlessNotificationStarting) }
                 if (postedWithNotification != enabled) {
                     foregroundStarted = false
                 }
@@ -145,6 +161,7 @@ class XrayService : Service() {
                 // go through XrayController.stop(), so clear the flag here or the
                 // settings toggle stays on and the next app start revives it.
                 XrayController.setEnabled(false)
+                synchronized(stopLock) { startAfterStop = null }
                 stopProxy()
             }
             ACTION_RESTART -> {
@@ -328,10 +345,12 @@ class XrayService : Service() {
 
     private fun stopProxy() {
         FileLog.e("XrayService stopProxy entry", Throwable())
-        if (stopInProgress) {
-            return
+        synchronized(stopLock) {
+            if (stopInProgress) {
+                return
+            }
+            stopInProgress = true
         }
-        stopInProgress = true
         portUp = false
         watchdogJob?.cancel()
         watchdogJob = null
@@ -341,13 +360,27 @@ class XrayService : Service() {
             updateNotification(getString(R.string.VlessNotificationStopping), force = true)
             stopNative("stop")
             releaseWakeLock()
-            running = false
-            stopInProgress = false
+            val next = synchronized(stopLock) {
+                running = false
+                stopInProgress = false
+                startAfterStop.also { startAfterStop = null }
+            }
+            if (next != null) {
+                // A START came in while this stop was running. Carry it out as onStartCommand
+                // would have, on the main thread, and keep the service (and Telegram's proxy
+                // entry that the controller has just set) alive instead of tearing both down.
+                AndroidUtilities.runOnUIThread { next() }
+                return@launch
+            }
             // The local port is gone; detach Telegram from it. Reached from the
             // notification's Stop action too, where nothing else clears it and
-            // Telegram would otherwise keep dialling a closed socket.
+            // Telegram would otherwise keep dialling a closed socket. Not when the
+            // TG WS proxy has taken the slot over: its entry is the local one now,
+            // and this stop (sent by it before it started) would delete it again.
             AndroidUtilities.runOnUIThread {
-                runCatching { XrayController.releaseTelegramProxy() }
+                if (!TgWsProxyController.isEnabled()) {
+                    runCatching { XrayController.releaseTelegramProxy() }
+                }
             }
             removeForegroundNotification()
             stopSelf()

@@ -216,7 +216,7 @@ object ProxyLinks {
 
     private fun trojan(raw: String): JSONObject {
         val parts = split(raw.substring("trojan://".length))
-        val password = VlessConfig.decode(parts.userInfo)
+        val password = credential(parts.userInfo)
         if (password.isEmpty() || parts.host.isEmpty() || parts.port !in 1..65535) {
             throw LinkException("Bad trojan link")
         }
@@ -257,9 +257,9 @@ object ProxyLinks {
             val userInfo = rest.substring(0, at)
             hostPort = rest.substring(at + 1)
             credentials = if (userInfo.contains(':')) {
-                VlessConfig.decode(userInfo)
+                credential(userInfo)
             } else {
-                String(Base64Lite.decode(VlessConfig.decode(userInfo)) ?: throw LinkException("Bad ss link"), Charsets.UTF_8)
+                String(Base64Lite.decode(credential(userInfo)) ?: throw LinkException("Bad ss link"), Charsets.UTF_8)
             }
         } else {
             val decoded = String(Base64Lite.decode(rest) ?: throw LinkException("Bad ss link"), Charsets.UTF_8)
@@ -295,7 +295,7 @@ object ProxyLinks {
 
     private fun hysteria2(raw: String): JSONObject {
         val parts = split(raw.substring(raw.indexOf("://") + 3), allowPortList = true)
-        val auth = VlessConfig.decode(parts.userInfo)
+        val auth = credential(parts.userInfo)
         if (auth.isEmpty() || parts.host.isEmpty() || parts.port !in 1..65535) throw LinkException("Bad hysteria2 link")
         val sni = parts.params["sni"]?.trim().orEmpty().ifEmpty { parts.host }
         val alpn = parts.params["alpn"]?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }
@@ -339,6 +339,13 @@ object ProxyLinks {
     }
 
     // ------------------------------------------------------------------ url plumbing
+
+    /**
+     * A password, key or auth string out of a link's userinfo. Percent-decoded, but a literal '+' stays
+     * a plus: URLDecoder reads it as a space, which silently corrupts a password or a base64 userinfo
+     * (standard base64 has '+') that a provider wrote unescaped.
+     */
+    private fun credential(value: String): String = VlessConfig.decode(value.replace("+", "%2B"))
 
     private class Parts(
         val userInfo: String,

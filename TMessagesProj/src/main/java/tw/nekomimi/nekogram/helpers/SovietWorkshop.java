@@ -228,7 +228,9 @@ public final class SovietWorkshop {
         work.title = row.optString("title", "");
         work.author = row.optString("owner_id", "");
         work.authorName = row.optString("author_name", work.author);
-        work.previewSha = row.optString("preview_sha", null);
+        // A JSON null reads back as the string "null", which would be requested as /v1/media/null.
+        final String previewSha = row.isNull("preview_sha") ? null : row.optString("preview_sha", null);
+        work.previewSha = previewSha == null || previewSha.isEmpty() ? null : previewSha;
         work.updated = row.optLong("updated_ms", 0);
         work.likes = row.optInt("likes", 0);
         work.liked = row.optBoolean("liked", false);

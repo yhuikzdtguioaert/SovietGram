@@ -14,8 +14,10 @@ data class LocalQuoteColorData(
 object LocalPeerColorHelper {
     const val KEY_PREFIX = "useLocalQuoteColorData_"
 
-    private val dataMap = mutableMapOf<Long, LocalQuoteColorData?>()
-    private val loadedUsers = mutableSetOf<Long>()
+    // Read from drawing and from background layout, written from the UI thread.
+    private val dataMap: MutableMap<Long, LocalQuoteColorData?> =
+        java.util.Collections.synchronizedMap(HashMap())
+    private val loadedUsers: MutableSet<Long> = java.util.Collections.synchronizedSet(HashSet())
 
     @JvmStatic
     fun getColorId(user: TLRPC.User): Int? {
@@ -75,6 +77,7 @@ object LocalPeerColorHelper {
     }
 
     @JvmStatic
+    @Synchronized
     fun initForUser(userId: Long, force: Boolean = false) {
         if (!force && loadedUsers.contains(userId)) return
         loadedUsers.add(userId)

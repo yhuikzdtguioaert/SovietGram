@@ -32,8 +32,11 @@ object SubscriptionParser {
     private fun applyFilter(servers: List<String>, filter: String?): List<String> {
         val pattern = filter?.trim().orEmpty()
         if (pattern.isEmpty()) return servers
+        // The filter comes from the provider's headers: a long or nested pattern is how a catastrophic
+        // backtrack is written, so only a short one is run, and only over a bounded part of each name.
+        if (pattern.length > 300) return servers
         val regex = runCatching { Regex(pattern) }.getOrNull() ?: return servers
-        val kept = servers.filterNot { regex.containsMatchIn(ProxyLinks.displayName(it)) }
+        val kept = servers.filterNot { regex.containsMatchIn(ProxyLinks.displayName(it).take(120)) }
         // A filter that would leave nothing is the provider's mistake, not a reason to show an empty list.
         return kept.ifEmpty { servers }
     }

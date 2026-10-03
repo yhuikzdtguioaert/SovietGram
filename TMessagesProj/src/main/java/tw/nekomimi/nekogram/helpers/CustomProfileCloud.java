@@ -23,6 +23,9 @@ public final class CustomProfileCloud {
     private static final Map<Long, Integer> failures = new HashMap<>();
     /** After this many failed reads the public look is published anyway; the backup stays untouched. */
     private static final int GIVE_UP_AFTER = 4;
+    /** Consecutive failed backup writes, UI thread only; the 12s retry stops after this many. */
+    private static int backupFailures;
+    private static final int MAX_BACKUP_FAILURES = 5;
     private static final ConfigItem[] ACTIVE = {NekoConfig.customProfileFrameActiveProject};
     private CustomProfileCloud() { }
 
@@ -142,13 +145,18 @@ public final class CustomProfileCloud {
             SovietGramApiClient.putSigned(account, "/v1/profile-settings", body, (result, error) -> {
                 pushing.remove(owner);
                 if (result != null) {
+                    backupFailures = 0;
                     saved.put(owner, serialized);
                     // Catch an edit made while this write was in flight without sending overlapping writes.
                     SovietGramSync.scheduleProfilePush();
                 }
                 else {
                     FileLog.e("CustomProfileCloud: backup failed: " + error);
-                    AndroidUtilities.runOnUIThread(SovietGramSync::scheduleProfilePush, 12000);
+                    // Bounded: a push re-enters backup(), so a route that keeps refusing the body
+                    // would otherwise be re-sent every 12s for the rest of the session.
+                    if (++backupFailures <= MAX_BACKUP_FAILURES) {
+                        AndroidUtilities.runOnUIThread(SovietGramSync::scheduleProfilePush, 12000);
+                    }
                 }
             });
         } catch (Exception e) { FileLog.e(e); }

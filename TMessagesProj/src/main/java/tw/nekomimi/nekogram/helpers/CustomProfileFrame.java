@@ -399,7 +399,7 @@ public final class CustomProfileFrame {
             if (!fetching.add(url)) {
                 return;
             }
-            Utilities.globalQueue.postRunnable(() -> {
+            CustomProfileMedia.FETCH.execute(() -> {
                 try {
                     // No sha to check against: a layer is addressed by its URL, not by its hash.
                     final byte[] data = WorkshopHelper.download(url, "");

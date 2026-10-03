@@ -19542,6 +19542,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
         if (PipVideoOverlay.isVisible()) {
             PipVideoOverlay.dismiss();
         }
+        mediaGlow.clear();
         removeObservers();
         releasePlayer(false);
         try {
@@ -19571,6 +19572,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
     }
 
     private void onPhotoClosed(PlaceProviderObject object) {
+        mediaGlow.clear();
         if (doneButtonPressed) {
             releasePlayer(true);
         }

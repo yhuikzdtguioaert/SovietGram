@@ -459,7 +459,10 @@ public class BypassBlockingActivity extends BaseNekoSettingsActivity {
             if (XrayController.isEnabled()) {
                 XrayController.restartIfEnabled(current);
             }
-            animateRows(vlessLinkRow >= 0 ? vlessLinkRow : vlessEnabledRow, null);
+            // A new server list is not one run of rows right after the link row (the update row, the
+            // servers and the shadow are spread over the section, and a same-sized list changes only
+            // content), so an insert/remove animation would leave stale or mismatched server rows.
+            refreshRows();
         }
     }
 
