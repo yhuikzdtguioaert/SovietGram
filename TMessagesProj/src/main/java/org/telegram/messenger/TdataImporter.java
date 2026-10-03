@@ -166,6 +166,18 @@ public class TdataImporter {
      * 256 byte auth key of that dc.
      */
     public static TdataAccount readAccount(File root) throws TdataException {
+        return readAccount(root, new byte[0]);
+    }
+
+    /**
+     * The same, for a tdata that is protected by a local passcode ("Local passcode" in Telegram
+     * Desktop). An empty passcode is the unprotected case. A wrong passcode fails with
+     * {@link #ERROR_PASSCODE}, exactly as a missing one does, so the caller can ask again.
+     */
+    public static TdataAccount readAccount(File root, byte[] passcode) throws TdataException {
+        if (passcode == null) {
+            passcode = new byte[0];
+        }
         if (root == null || !root.exists()) {
             throw new TdataException(ERROR_NO_TDATA, "no root");
         }
@@ -205,7 +217,7 @@ public class TdataImporter {
                 continue;
             }
             try {
-                localKey = readLocalKey(file);
+                localKey = readLocalKey(file, passcode);
             } catch (TdataException e) {
                 if (e.code == ERROR_PASSCODE) {
                     sawPasscode = true;
@@ -269,7 +281,7 @@ public class TdataImporter {
         }
     }
 
-    private static byte[] readLocalKey(File keyDataFile) throws TdataException {
+    private static byte[] readLocalKey(File keyDataFile, byte[] passcode) throws TdataException {
         byte[] payload = readTdf(keyDataFile);
         if (payload == null) {
             return null;
@@ -287,12 +299,12 @@ public class TdataImporter {
             return null;
         }
 
-        byte[] passcodeKey = createLocalKeyModern(salt, new byte[0]);
+        byte[] passcodeKey = createLocalKeyModern(salt, passcode);
         byte[] decrypted = decryptLocal(keyEncrypted, passcodeKey);
         Arrays.fill(passcodeKey, (byte) 0);
         if (decrypted == null) {
             // very old tdata used PBKDF2-HMAC-SHA1 for the passcode key
-            byte[] legacyKey = createLocalKeyLegacy(salt, new byte[0]);
+            byte[] legacyKey = createLocalKeyLegacy(salt, passcode);
             decrypted = decryptLocal(keyEncrypted, legacyKey);
             Arrays.fill(legacyKey, (byte) 0);
         }

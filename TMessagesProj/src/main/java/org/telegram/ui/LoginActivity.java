@@ -143,6 +143,7 @@ import org.telegram.messenger.PushListenerController;
 import org.telegram.messenger.R;
 import org.telegram.messenger.SRPHelper;
 import org.telegram.messenger.SharedConfig;
+import org.telegram.messenger.SessionStringParser;
 import org.telegram.messenger.TdataImporter;
 import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.Utilities;
@@ -1677,7 +1678,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
     public void setPage(@ViewNumber int page, boolean animated, Bundle params, boolean back) {
         boolean needFloatingButton = page == VIEW_PHONE_INPUT || page == VIEW_REGISTER || page == VIEW_PASSWORD ||
                 page == VIEW_NEW_PASSWORD_STAGE_1 || page == VIEW_NEW_PASSWORD_STAGE_2 || page == VIEW_ADD_EMAIL || page == VIEW_CODE_PHRASE || page == VIEW_CODE_WORD ||
-                page == VIEW_LOGIN_BOT_TOKEN;
+                page == VIEW_LOGIN_BOT_TOKEN || page == VIEW_LOGIN_SESSION_STRING;
         if (page == currentViewNum) {
             animated = false;
         }
@@ -3646,7 +3647,17 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                         }), true));
                     }
                     if ("EMPTY".equals(err)) {
-                        BulletinFactory.of(LoginActivity.this).createSimpleBulletin(R.raw.info, getString(R.string.PasskeyNoCredentialAvailable)).show();
+                        // telegram.org lists the apps that may use its passkeys (Digital Asset Links), and only
+                        // Telegram's own packages are on that list: on any other package the system finds no
+                        // credential however many passkeys the account has. Say that, rather than "none available".
+                        final String pkg = ApplicationLoader.applicationContext.getPackageName();
+                        final boolean official = pkg.equals("org.telegram.messenger") || pkg.equals("org.telegram.messenger.web")
+                                || pkg.equals("org.telegram.messenger.beta") || pkg.equals("org.thunderdog.challegram");
+                        if (official) {
+                            BulletinFactory.of(LoginActivity.this).createSimpleBulletin(R.raw.info, getString(R.string.PasskeyNoCredentialAvailable)).show();
+                        } else {
+                            needShowAlert(getString(R.string.PasskeyLogin), getString(R.string.PasskeyThirdPartyInfo));
+                        }
                     }
                     return;
                 }
@@ -8742,6 +8753,10 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
     public class LoginActivitySessionStringView extends SlideView {
 
         private final TextView chooseButton;
+        private final EditTextBoldCursor sessionField;
+        private final OutlineTextContainerView outlineSessionField;
+        private final EditTextBoldCursor dcField;
+        private final OutlineTextContainerView outlineDcField;
         private boolean processing;
 
         public LoginActivitySessionStringView(Context context) {
@@ -8750,7 +8765,34 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
             setOrientation(VERTICAL);
 
             addView(createLoginPageTitle(context, getString(R.string.SessionLogin)), LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 32, 16, 32, 0));
-            addView(createLoginPageDescription(context, getString(R.string.SessionLoginInfo)), LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 12, 8, 12, 0));
+            addView(createLoginPageDescription(context, getString(R.string.SessionLoginInfoBoth)), LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 12, 8, 12, 0));
+
+            // A Telethon StringSession, a Pyrogram session string, or a bare 256-byte key: pasted here.
+            outlineSessionField = new OutlineTextContainerView(context);
+            outlineSessionField.setText(getString(R.string.SessionStringHint));
+            sessionField = createLoginPageField(context, outlineSessionField, false);
+            sessionField.setOnEditorActionListener((textView, i, keyEvent) -> {
+                if (i == EditorInfo.IME_ACTION_DONE || i == EditorInfo.IME_ACTION_NEXT) {
+                    onNextPressed(null);
+                    return true;
+                }
+                return false;
+            });
+            addView(outlineSessionField, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 16, 24, 16, 0));
+
+            // Only a bare 256-byte key needs it: a Telethon or Pyrogram string already carries its datacenter.
+            outlineDcField = new OutlineTextContainerView(context);
+            outlineDcField.setText(getString(R.string.SessionStringDcHint));
+            dcField = createLoginPageField(context, outlineDcField, false);
+            dcField.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+            dcField.setOnEditorActionListener((textView, i, keyEvent) -> {
+                if (i == EditorInfo.IME_ACTION_DONE || i == EditorInfo.IME_ACTION_NEXT) {
+                    onNextPressed(null);
+                    return true;
+                }
+                return false;
+            });
+            addView(outlineDcField, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 16, 12, 16, 0));
 
             chooseButton = new TextView(context);
             chooseButton.setGravity(Gravity.CENTER);
@@ -8762,7 +8804,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
             chooseButton.setTextColor(Color.WHITE);
             chooseButton.setBackground(Theme.createSimpleSelectorRoundRectDrawable(AndroidUtilities.dp(6), Theme.getColor(Theme.key_changephoneinfo_image2), Theme.getColor(Theme.key_chats_actionPressedBackground)));
             chooseButton.setOnClickListener(v -> openPicker());
-            addView(chooseButton, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 50, Gravity.CENTER_HORIZONTAL, 16, 32, 16, 0));
+            addView(chooseButton, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 50, Gravity.CENTER_HORIZONTAL, 16, 20, 16, 0));
 
             addView(createLoginPageDescription(context, getString(R.string.SessionLoginWarning)), LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 12, 16, 12, 0));
         }
@@ -8780,6 +8822,49 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
         @Override
         public void updateColors() {
             chooseButton.setBackground(Theme.createSimpleSelectorRoundRectDrawable(AndroidUtilities.dp(6), Theme.getColor(Theme.key_changephoneinfo_image2), Theme.getColor(Theme.key_chats_actionPressedBackground)));
+        }
+
+        @Override
+        public void onShow() {
+            super.onShow();
+            if (sessionField != null) {
+                AndroidUtilities.runOnUIThread(() -> {
+                    sessionField.requestFocus();
+                    AndroidUtilities.showKeyboard(sessionField);
+                }, 100);
+            }
+        }
+
+        /** Signs in with the pasted session string. */
+        @Override
+        public void onNextPressed(String code) {
+            if (processing) {
+                return;
+            }
+            final String text = sessionField.getText().toString().trim();
+            if (text.length() == 0) {
+                AndroidUtilities.shakeView(outlineSessionField);
+                return;
+            }
+            int dc = 0;
+            try {
+                dc = Integer.parseInt(dcField.getText().toString().trim());
+            } catch (NumberFormatException ignore) {
+            }
+            final SessionStringParser.Session session = SessionStringParser.parse(text, dc);
+            if (session == null || session.authKey == null) {
+                needShowAlert(getString(R.string.SessionLogin), getString(R.string.SessionStringInvalid));
+                return;
+            }
+            processing = true;
+            AndroidUtilities.hideKeyboard(sessionField);
+            needShowProgress(0);
+            loginWithAuthKey(session.dcId, session.ip, session.port, session.authKey, getString(R.string.SessionLogin), () -> processing = false);
+        }
+
+        @Override
+        public void onCancelPressed() {
+            processing = false;
         }
 
         private void openPicker() {
@@ -8943,7 +9028,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
             chooseButton.setOnClickListener(v -> openPicker());
             addView(chooseButton, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 50, Gravity.CENTER_HORIZONTAL, 16, 32, 16, 0));
 
-            addView(createLoginPageDescription(context, getString(R.string.TdataLoginWarning)), LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 12, 16, 12, 0));
+            addView(createLoginPageDescription(context, getString(R.string.TdataLoginNote)), LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 12, 16, 12, 0));
         }
 
         @Override
@@ -8985,16 +9070,16 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
 
             Utilities.globalQueue.postRunnable(() -> {
                 File directory = new File(AndroidUtilities.getCacheDir(), "tdata_import_" + System.currentTimeMillis());
-                TdataImporter.TdataAccount account = null;
-                int errorCode = TdataImporter.ERROR_UNKNOWN;
                 InputStream stream = null;
+                int errorCode = TdataImporter.ERROR_UNKNOWN;
+                boolean unzipped = false;
                 try {
                     stream = ApplicationLoader.applicationContext.getContentResolver().openInputStream(uri);
                     if (stream == null) {
                         errorCode = TdataImporter.ERROR_ZIP;
                     } else {
                         TdataImporter.unzip(stream, directory);
-                        account = TdataImporter.readAccount(directory);
+                        unzipped = true;
                     }
                 } catch (TdataImporter.TdataException e) {
                     errorCode = e.code;
@@ -9009,21 +9094,99 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                         } catch (Exception ignore) {
                         }
                     }
+                }
+                if (!unzipped) {
+                    TdataImporter.deleteRecursively(directory);
+                    final int failed = errorCode;
+                    AndroidUtilities.runOnUIThread(() -> reportTdataFailure(failed));
+                    return;
+                }
+                readTdata(directory, new byte[0]);
+            });
+        }
+
+        /** Reads the account out of the unpacked folder with [passcode]; runs off the UI thread. */
+        private void readTdata(File directory, byte[] passcode) {
+            TdataImporter.TdataAccount account = null;
+            int errorCode = TdataImporter.ERROR_UNKNOWN;
+            try {
+                account = TdataImporter.readAccount(directory, passcode);
+            } catch (TdataImporter.TdataException e) {
+                errorCode = e.code;
+                FileLog.e("LoginActivity: tdata read failed with code " + e.code);
+            } catch (Throwable e) {
+                errorCode = TdataImporter.ERROR_UNKNOWN;
+                FileLog.e("LoginActivity: tdata read failed");
+            }
+            final TdataImporter.TdataAccount result = account;
+            final int finalErrorCode = errorCode;
+            final boolean askPasscode = result == null && finalErrorCode == TdataImporter.ERROR_PASSCODE;
+            if (!askPasscode) {
+                // The folder holds the account's keys: it goes as soon as it has been read.
+                TdataImporter.deleteRecursively(directory);
+            }
+            AndroidUtilities.runOnUIThread(() -> {
+                if (result != null && result.authKey != null) {
+                    loginWithAuthKey(result.dcId, null, 0, result.authKey, getString(R.string.TdataLogin), () -> processing = false);
+                } else if (askPasscode) {
+                    askPasscode(directory, passcode.length > 0);
+                } else {
+                    reportTdataFailure(finalErrorCode);
+                }
+            });
+        }
+
+        private void reportTdataFailure(int errorCode) {
+            processing = false;
+            needHideProgress(false);
+            needShowAlert(getString(R.string.TdataLogin), getString(getTdataErrorString(errorCode)));
+        }
+
+        /** The tdata is protected by Telegram Desktop's local passcode: ask for it and try again. */
+        private void askPasscode(File directory, boolean wrong) {
+            processing = false;
+            needHideProgress(false);
+            if (getParentActivity() == null) {
+                TdataImporter.deleteRecursively(directory);
+                return;
+            }
+            AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+            builder.setTitle(getString(R.string.TdataPasscodeTitle));
+            builder.setMessage(getString(wrong ? R.string.TdataPasscodeWrong : R.string.TdataPasscodeAsk));
+            final EditTextBoldCursor input = new EditTextBoldCursor(getParentActivity());
+            input.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 18);
+            input.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
+            input.setTextColor(Theme.getColor(Theme.key_dialogTextBlack));
+            input.setHintTextColor(Theme.getColor(Theme.key_dialogTextHint));
+            input.setHint(getString(R.string.TdataPasscodeHint));
+            input.setBackground(null);
+            input.setLineColors(Theme.getColor(Theme.key_windowBackgroundWhiteInputField), Theme.getColor(Theme.key_windowBackgroundWhiteInputFieldActivated), Theme.getColor(Theme.key_text_RedRegular));
+            input.setPadding(0, 0, 0, AndroidUtilities.dp(6));
+            LinearLayout box = new LinearLayout(getParentActivity());
+            box.setOrientation(VERTICAL);
+            box.addView(input, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 24, 0, 24, 0));
+            builder.setView(box);
+            final boolean[] submitted = new boolean[1];
+            builder.setPositiveButton(getString(R.string.OK), (dialog, which) -> {
+                final String typed = input.getText().toString();
+                if (typed.length() == 0) {
+                    TdataImporter.deleteRecursively(directory);
+                    return;
+                }
+                submitted[0] = true;
+                processing = true;
+                needShowProgress(0);
+                final byte[] bytes = typed.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                Utilities.globalQueue.postRunnable(() -> readTdata(directory, bytes));
+            });
+            builder.setNegativeButton(getString(R.string.Cancel), (dialog, which) -> TdataImporter.deleteRecursively(directory));
+            AlertDialog dialog = builder.create();
+            dialog.setOnDismissListener(d -> {
+                if (!submitted[0]) {
                     TdataImporter.deleteRecursively(directory);
                 }
-
-                final TdataImporter.TdataAccount result = account;
-                final int finalErrorCode = errorCode;
-                AndroidUtilities.runOnUIThread(() -> {
-                    if (result != null && result.authKey != null) {
-                        loginWithAuthKey(result.dcId, null, 0, result.authKey, getString(R.string.TdataLogin), () -> processing = false);
-                    } else {
-                        processing = false;
-                        needHideProgress(false);
-                        needShowAlert(getString(R.string.TdataLogin), getString(getTdataErrorString(finalErrorCode)));
-                    }
-                });
             });
+            showDialog(dialog);
         }
 
         @Override

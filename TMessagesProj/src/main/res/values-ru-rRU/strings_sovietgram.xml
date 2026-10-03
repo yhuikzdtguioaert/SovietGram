@@ -846,4 +846,11 @@
     <string name="CustomProfileMusicFailed">Не удалось добавить песню</string>
     <string name="muteProfileSounds">Без звука в профилях</string>
     <string name="MuteProfileSoundsInfo">Видео баннера и фона в любых профилях остаются без звука на этом телефоне, поэтому при заходе в чужой профиль музыка не играет.</string>
+    <string name="SessionLoginInfoBoth">Вставьте строку сессии Telethon или Pyrogram либо выберите файл .session. Аккаунт из неё будет выполнен вход на этом телефоне.</string>
+    <string name="TdataPasscodeTitle">Локальный пароль</string>
+    <string name="TdataPasscodeAsk">Эта tdata защищена локальным паролем Telegram Desktop. Введите его, чтобы продолжить.</string>
+    <string name="TdataPasscodeWrong">Неверный локальный пароль. Попробуйте ещё раз.</string>
+    <string name="TdataPasscodeHint">Локальный пароль</string>
+    <string name="PasskeyThirdPartyInfo">Telegram принимает passkey только в своих официальных приложениях: telegram.org перечисляет разрешённые приложения, и SovietGram среди них нет. Войдите по QR-коду, коду из SMS, строке сессии или tdata.</string>
+    <string name="TdataLoginNote">tdata с локальным паролем Telegram Desktop тоже подойдёт: приложение спросит пароль.</string>
 </resources>

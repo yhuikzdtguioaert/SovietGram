@@ -254,9 +254,18 @@ class BottomBuilder(val ctx: Context, val needFocus: Boolean = true, val bgColor
             isSingleLine = true
             isFocusable = true
             background = null
+            // Each field gets its own underline (grey, accent while focused, red on error) and the same
+            // side margins as the rows above it, so a stack of them reads as separate inputs and does
+            // not hang off the left edge of the sheet.
+            setLineColors(
+                Theme.getColor(Theme.key_windowBackgroundWhiteInputField),
+                Theme.getColor(Theme.key_windowBackgroundWhiteInputFieldActivated),
+                Theme.getColor(Theme.key_text_RedRegular)
+            )
+            setPadding(0, dp(8f), 0, dp(8f))
 
             this@BottomBuilder.rootView.addView(this, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, -2, rtl,
-                dp(6f), 0, 0, 0))
+                dp(21f), dp(8f), dp(21f), dp(4f)))
         }
     }
 

@@ -762,4 +762,11 @@
     <string name="CustomProfileMusicFailed">Could not add the song</string>
     <string name="muteProfileSounds">Mute profile sounds</string>
     <string name="MuteProfileSoundsInfo">Banner and background videos of every profile stay silent on this phone, so opening someone\'s profile never plays their music.</string>
+    <string name="SessionLoginInfoBoth">Paste a Telethon or Pyrogram session string, or choose a .session file. The account stored in it will be signed in on this phone.</string>
+    <string name="TdataPasscodeTitle">Local passcode</string>
+    <string name="TdataPasscodeAsk">This tdata is protected by a Telegram Desktop local passcode. Enter it to continue.</string>
+    <string name="TdataPasscodeWrong">Wrong local passcode. Try again.</string>
+    <string name="TdataPasscodeHint">Local passcode</string>
+    <string name="PasskeyThirdPartyInfo">Telegram only accepts passkeys in its official apps: telegram.org lists the apps allowed to use them, and SovietGram is not one of them. Use the QR code, an SMS code, a session string or tdata instead.</string>
+    <string name="TdataLoginNote">A tdata folder with a Telegram Desktop local passcode works too: you will be asked for the passcode.</string>
 </resources>
