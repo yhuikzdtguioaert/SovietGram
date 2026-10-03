@@ -844,4 +844,7 @@
     <string name="TdataPasscodeHint">Local passcode</string>
     <string name="PasskeyThirdPartyInfo">Telegram only accepts passkeys in its official apps: telegram.org lists the apps allowed to use them, and SovietGram is not one of them. Use the QR code, an SMS code, a session string or tdata instead.</string>
     <string name="TdataLoginNote">A tdata folder with a Telegram Desktop local passcode works too: you will be asked for the passcode.</string>
+    <string name="NotificationIconNagramX" translatable="false">Nagram X</string>
+    <string name="NotificationIconNagram" translatable="false">Nagram</string>
+    <string name="NotificationIconNeko" translatable="false">NekoX</string>
 </resources>

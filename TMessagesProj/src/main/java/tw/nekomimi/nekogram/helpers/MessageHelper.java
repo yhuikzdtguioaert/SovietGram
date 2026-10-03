@@ -1472,4 +1472,11 @@ public class MessageHelper extends BaseController {
         builder.setQuickReplyShortcut(quickReplyShortcut, quickReplyShortcutId);
         return builder.build();
     }
+
+    public static boolean isLegacyTranslatedSummary(TLRPC.TL_textWithEntities summaryText, TLRPC.TL_textWithEntities translatedSummaryText) {
+        if (summaryText == null || translatedSummaryText == null || TextUtils.isEmpty(summaryText.text) || TextUtils.isEmpty(translatedSummaryText.text)) {
+            return false;
+        }
+        return translatedSummaryText.text.startsWith(summaryText.text + MessageTransKt.TRANSLATION_SEPARATOR);
+    }
 }

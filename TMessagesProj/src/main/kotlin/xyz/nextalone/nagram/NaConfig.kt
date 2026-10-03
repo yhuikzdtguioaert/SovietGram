@@ -234,7 +234,7 @@ object NaConfig {
         addConfig(
             "NotificationIcon",
             ConfigItem.configTypeInt,
-            1
+            4
         )
     val showSetReminder =
         addConfig(
@@ -1620,13 +1620,12 @@ object NaConfig {
         if (translatorMode.Int() !in 0..2) {
             translatorMode.setConfigInt(0)
         }
-        // Only Telegram's standard icon and the SovietGram hammer-and-sickle remain.
-        // Migrate legacy Nagram/Neko icon indices to SovietGram.
-        if (notificationIcon.Int() !in 0..1) {
-            notificationIcon.setConfigInt(1)
+        // 0 Telegram, 1 NagramX, 2 Nagram, 3 NekoX, 4 SovietGram (default).
+        if (notificationIcon.Int() !in 0..4) {
+            notificationIcon.setConfigInt(4)
         }
-        // SovietGram has one update channel. Migrate every legacy value to Release.
-        if (autoUpdateChannel.Int() != 1) {
+        // Off (0) and Release (1) are user choices; Beta (2) is treated as Release by UpdateHelper.
+        if (autoUpdateChannel.Int() !in 0..2) {
             autoUpdateChannel.setConfigInt(1)
         }
         if (!getPreferences().contains(idDcType.key) && !getPreferences().getBoolean(

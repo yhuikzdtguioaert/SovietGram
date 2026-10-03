@@ -21,6 +21,10 @@ object NativeTgWsProxy {
         NativeTgWsProxyBridge.setCfProxyConfig(enabled, priority, userDomain)
     }
 
+    fun setFakeTls(enabled: Boolean, domain: String) {
+        NativeTgWsProxyBridge.setFakeTls(enabled, domain)
+    }
+
     fun getStats(): String? {
         return NativeTgWsProxyBridge.getStats()
     }

@@ -111,7 +111,7 @@
     <string name="Other">سایر موارد</string>
     <string name="RestartApp">راه‌اندازی مجدد</string>
     <string name="ResetSettings">بازنشانی تنظیمات</string>
-    <string name="ResetSettingsAlert">آیا مطمئنید که می‌خواهید تمام تنظیمات ناگرام را بازنشانی کنید؟</string>
+    <string name="ResetSettingsAlert">آیا مطمئنید که می‌خواهید تمام SovietGram Settings را بازنشانی کنید؟</string>
     <string name="DontAutoPlayNextVoice">عدم پخش خودکار پیام صوتی بعدی</string>
     <string name="SaveToChatSubfolder">ذخیره پیوست‌ها در پوشه‌ای با نام گفتگو</string>
     <string name="MessageColoredBackground">پس‌زمینه رنگی پیام‌ها</string>

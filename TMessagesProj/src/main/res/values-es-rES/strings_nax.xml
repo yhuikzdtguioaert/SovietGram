@@ -111,7 +111,7 @@
     <string name="Other">Otros</string>
     <string name="RestartApp">Reiniciar aplicación</string>
     <string name="ResetSettings">Restablecer Ajustes</string>
-    <string name="ResetSettingsAlert">¿Está seguro de que desea restablecer todos los N-Ajustes?</string>
+    <string name="ResetSettingsAlert">¿Está seguro de que desea restablecer todos los SovietGram Settings?</string>
     <string name="DontAutoPlayNextVoice">No reproducir automáticamente el siguiente mensaje de voz</string>
     <string name="SaveToChatSubfolder">Guardar archivos adjuntos por nombre de chat</string>
     <string name="MessageColoredBackground">Fondos de mensajes de colores</string>

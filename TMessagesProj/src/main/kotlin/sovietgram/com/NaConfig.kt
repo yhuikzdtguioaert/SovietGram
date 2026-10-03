@@ -1008,6 +1008,12 @@ object NaConfig {
             ConfigItem.configTypeBool,
             false
         )
+    val notificationIconFiveChoicesMigrated =
+        addConfig(
+            "NotificationIconFiveChoicesMigrated",
+            ConfigItem.configTypeBool,
+            false
+        )
     val centerActionBarTitleType =
         addConfig(
             "CenterActionBarTitleType",
@@ -1426,13 +1432,13 @@ object NaConfig {
         addConfig(
             "SwitchStyle",
             ConfigItem.configTypeInt,
-            1 // 0: default; 1: Modern
+            1 // 0: default; 1: Modern; 2: MD3
         )
     val sliderStyle =
         addConfig(
             "SliderStyle",
             ConfigItem.configTypeInt,
-            1 // 0: default; 1: Modern
+            1 // 0: default; 1: Modern; 2: MD3
         )
     val iosButtonPlacement =
         addConfig(
@@ -1932,6 +1938,13 @@ object NaConfig {
             }
             notificationIconDefaultMigrated.setConfigBool(true)
         }
+        // The settings screen was cut to Telegram/SovietGram, where 1 meant SovietGram; it offers five again.
+        if (!notificationIconFiveChoicesMigrated.Bool()) {
+            if (notificationIcon.Int() == 1) {
+                notificationIcon.setConfigInt(4)
+            }
+            notificationIconFiveChoicesMigrated.setConfigBool(true)
+        }
         // Apply the new SovietGram visual baseline once to existing installs as well as to fresh
         // installs.  After this marker users can still freely select the classic styles.
         if (!getPreferences().getBoolean("SovietModernDefaultsV1", false)) {
@@ -1943,12 +1956,11 @@ object NaConfig {
         if (translatorMode.Int() !in 0..2) {
             translatorMode.setConfigInt(0)
         }
-        // The Material Design 3 look (value 2) is gone. An install that had it selected would
-        // otherwise index past the end of the two-entry selector, so fold it onto Modern.
-        if (switchStyle.Int() !in 0..1) {
+        // 0: default; 1: Modern; 2: Material Design 3 (Switch and SeekBarView draw all three).
+        if (switchStyle.Int() !in 0..2) {
             switchStyle.setConfigInt(1)
         }
-        if (sliderStyle.Int() !in 0..1) {
+        if (sliderStyle.Int() !in 0..2) {
             sliderStyle.setConfigInt(1)
         }
         if (!getPreferences().contains(idDcType.key) && !getPreferences().getBoolean(

@@ -12,6 +12,7 @@ package com.radolyn.ayugram.messages;
 
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.MessagesController;
+import org.telegram.messenger.MessagesStorage;
 import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.Utilities;
 import org.telegram.messenger.ChatObject;
@@ -22,6 +23,8 @@ import tw.nekomimi.nekogram.NekoConfig;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import sovietgram.com.NaConfig;
 
@@ -94,6 +97,22 @@ public class AyuSavePreferences {
             var fromUser = MessagesController.getInstance(accountId).getUser(userId);
             if (fromUser != null) {
                 return !fromUser.bot || NaConfig.INSTANCE.getSaveDeletedMessageForBotUser().Bool();
+            } else {
+                final MessagesStorage messagesStorage = MessagesStorage.getInstance(accountId);
+                final CountDownLatch countDownLatch = new CountDownLatch(1);
+                final TLRPC.User[] user = {null};
+                messagesStorage.getStorageQueue().postRunnable(() -> {
+                    user[0] = messagesStorage.getUser(userId);
+                    countDownLatch.countDown();
+                });
+                try {
+                    // Bounded: this must never hang if it is ever reached from the storage queue itself.
+                    countDownLatch.await(1, TimeUnit.SECONDS);
+                } catch (Exception ignored) {
+                }
+                if (user[0] != null) {
+                    return !user[0].bot || NaConfig.INSTANCE.getSaveDeletedMessageForBotUser().Bool();
+                }
             }
         }
 

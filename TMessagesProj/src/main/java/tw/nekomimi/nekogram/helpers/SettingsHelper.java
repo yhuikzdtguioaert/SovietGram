@@ -17,6 +17,7 @@ import java.util.Map;
 import tw.nekomimi.nekogram.settings.BaseNekoSettingsActivity;
 import tw.nekomimi.nekogram.settings.BaseNekoXSettingsActivity;
 import tw.nekomimi.nekogram.settings.NekoAboutActivity;
+import tw.nekomimi.nekogram.settings.BypassBlockingActivity;
 import tw.nekomimi.nekogram.settings.NekoChatSettingsActivity;
 import tw.nekomimi.nekogram.settings.NekoEmojiSettingsActivity;
 import tw.nekomimi.nekogram.settings.NekoExperimentalSettingsActivity;
@@ -119,6 +120,22 @@ public class SettingsHelper {
         fragments.add(new SovietGramExclusiveActivity());
 
         String n_title = getString(R.string.NekoSettings);
+        items.add(new SettingsSearchResult(
+                9_000_001,
+                getString(R.string.BypassBlocking),
+                n_title,
+                null,
+                R.drawable.sovietgram_bypass_blocking,
+                () -> callback.presentFragment(new BypassBlockingActivity())
+        ));
+        items.add(new SettingsSearchResult(
+                9_000_002,
+                getString(R.string.SovietGramExclusive),
+                n_title,
+                null,
+                R.drawable.sovietgram_exclusive,
+                () -> callback.presentFragment(new SovietGramExclusiveActivity())
+        ));
         for (BaseNekoXSettingsActivity fragment: fragments) {
             int uid = fragment.getBaseGuid();
             int drawable = fragment.getDrawable();

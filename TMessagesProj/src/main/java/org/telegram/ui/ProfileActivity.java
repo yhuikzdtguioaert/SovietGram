@@ -4917,6 +4917,33 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                             return Unit.INSTANCE;
                         });
 
+                boolean updatesOff = UpdateHelper.getAutoUpdateChannel() == UpdateHelper.UPDATE_OFF;
+                String currentChannel = " - " + getString(updatesOff ? R.string.AutoCheckUpdateOFF : R.string.AutoCheckUpdateRelease);
+
+                builder.addItem(getString(R.string.AutoCheckUpdateSwitch) + currentChannel, R.drawable.sync_outline_28, (it) -> {
+                    BottomBuilder switchBuilder = new BottomBuilder(getParentActivity());
+                    switchBuilder.addTitle(getString(R.string.AutoCheckUpdateSwitch));
+                    switchBuilder.addRadioItem(getString(R.string.AutoCheckUpdateOFF), UpdateHelper.getAutoUpdateChannel() == UpdateHelper.UPDATE_OFF, (radioButtonCell) -> {
+                        NaConfig.INSTANCE.getAutoUpdateChannel().setConfigInt(UpdateHelper.UPDATE_OFF);
+                        switchBuilder.doRadioCheck(radioButtonCell);
+                        AndroidUtilities.runOnUIThread(() -> {
+                            switchBuilder.dismiss();
+                            UpdateHelper.cleanAppUpdate();
+                        }, 500);
+                        return Unit.INSTANCE;
+                    });
+                    switchBuilder.addRadioItem(getString(R.string.AutoCheckUpdateRelease), UpdateHelper.getAutoUpdateChannel() == UpdateHelper.UPDATE_CHANNEL_RELEASE, (radioButtonCell) -> {
+                        NaConfig.INSTANCE.getAutoUpdateChannel().setConfigInt(UpdateHelper.UPDATE_CHANNEL_RELEASE);
+                        switchBuilder.doRadioCheck(radioButtonCell);
+                        AndroidUtilities.runOnUIThread(() -> {
+                            switchBuilder.dismiss();
+                            Browser.openUrl(context, "tg://update");
+                        }, 500);
+                        return Unit.INSTANCE;
+                    });
+                    showDialog(switchBuilder.create());
+                    return Unit.INSTANCE;
+                });
                 builder.show();
             } else if (position == premiumRow) {
                 presentFragment(new PremiumPreviewFragment("settings"));

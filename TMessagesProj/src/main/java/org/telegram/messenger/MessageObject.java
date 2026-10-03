@@ -131,6 +131,7 @@ import me.vkryl.core.BitwiseUtils;
 
 import tw.nekomimi.nekogram.NekoConfig;
 import tw.nekomimi.nekogram.filters.ReactionFilter;
+import tw.nekomimi.nekogram.helpers.EntitiesHelper;
 import xyz.nextalone.nagram.NaConfig;
 import tw.nekomimi.nekogram.helpers.MessageHelper;
 import tw.nekomimi.nekogram.syntaxhighlight.SyntaxHighlight;
@@ -3696,7 +3697,7 @@ public class MessageObject {
         final boolean keepOriginal = MessageHelper.shouldKeepOriginalForDisplay(translatorMode, manualTranslated, autoTranslated);
         final TLRPC.TL_textWithEntities translatedText = messageOwner != null ? (voiceTranscriptionOpen ? messageOwner.translatedVoiceTranscription : messageOwner.translatedText) : null;
         final TLRPC.TL_textWithEntities summarizedText = messageOwner != null && messageOwner.summarizedOpen ? messageOwner.summaryText : null;
-        final TLRPC.TL_textWithEntities summarizeTranslatedText = messageOwner != null && messageOwner.summarizedOpen ? messageOwner.translatedSummaryText : null;
+        final TLRPC.TL_textWithEntities summarizeTranslatedText = messageOwner != null && messageOwner.summarizedOpen && !MessageHelper.isLegacyTranslatedSummary(summarizedText, messageOwner.translatedSummaryText) ? messageOwner.translatedSummaryText : null;
         final boolean showSummarizedTranslated =
             summarizeTranslatedText != null &&
             messageOwner != null &&
@@ -8800,7 +8801,7 @@ public class MessageObject {
             paint = Theme.chat_msgTextPaint;
         }
 
-        CharSequence text = messageText;
+        CharSequence text = EntitiesHelper.parseTables(messageText, maxWidth);
         try {
             textLayoutOriginalWidth = maxWidth;
             textLayout = makeStaticLayout(text, paint, maxWidth, 1f, totalAnimatedEmojiCount >= 4 ? -1 : 0, emojiOnlyCount > 0);

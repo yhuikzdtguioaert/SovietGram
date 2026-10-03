@@ -55,6 +55,8 @@ public class BypassBlockingActivity extends BaseNekoSettingsActivity {
     private int secretKeyRow;
     private int generateSecretKeyRow;
     private int cloudflareCdnRow;
+    private int fakeTlsRow;
+    private int fakeTlsDomainRow;
     private int notificationEnabledRow;
     private int shadowRow;
 
@@ -105,9 +107,11 @@ public class BypassBlockingActivity extends BaseNekoSettingsActivity {
             secretKeyRow = addRow("TgWsProxySecret");
             generateSecretKeyRow = addRow("TgWsProxyGenerateSecretKey");
             cloudflareCdnRow = addRow("TgWsProxyCloudflareCdn");
+            fakeTlsRow = addRow("TgWsProxyFakeTls");
+            fakeTlsDomainRow = TgWsProxyController.isFakeTlsEnabled() ? addRow("TgWsProxyFakeTlsDomain") : -1;
             notificationEnabledRow = addRow("TgWsProxyNotificationEnabled");
         } else {
-            portRow = wsPoolRow = secretKeyRow = generateSecretKeyRow = cloudflareCdnRow = notificationEnabledRow = -1;
+            portRow = wsPoolRow = secretKeyRow = generateSecretKeyRow = cloudflareCdnRow = fakeTlsRow = fakeTlsDomainRow = notificationEnabledRow = -1;
         }
         shadowRow = addRow();
 
@@ -291,6 +295,17 @@ public class BypassBlockingActivity extends BaseNekoSettingsActivity {
             if (view instanceof TextCheckCell checkCell) {
                 checkCell.setChecked(NaConfig.INSTANCE.getTgWsProxyCloudflareCdn().Bool());
             }
+        } else if (position == fakeTlsRow) {
+            // The domain row exists only while Fake TLS is on, right below this switch, so what
+            // the switch reveals or hides is one run of rows after it.
+            final boolean enabled = !TgWsProxyController.isFakeTlsEnabled();
+            if (view instanceof TextCheckCell checkCell) {
+                checkCell.setChecked(enabled);
+            }
+            animateRows(position, () -> TgWsProxyController.setFakeTlsEnabled(enabled));
+            TgWsProxyController.restartIfEnabled(context);
+        } else if (position == fakeTlsDomainRow) {
+            showFakeTlsDomainDialog();
         } else if (position == notificationEnabledRow) {
             // Toggled off the persisted value, the same one the service reads,
             // so the row and the notification can never disagree.
@@ -800,6 +815,33 @@ public class BypassBlockingActivity extends BaseNekoSettingsActivity {
         showDialog(builder.create());
     }
 
+    private void showFakeTlsDomainDialog() {
+        Context context = getParentActivity();
+        if (context == null) {
+            return;
+        }
+        AlertDialog.Builder builder = new AlertDialog.Builder(context, resourcesProvider);
+        builder.setTitle(getString(R.string.TgWsProxyFakeTlsDomain));
+        LinearLayout layout = new LinearLayout(context);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        EditTextBoldCursor input = createEditText(context);
+        input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+        input.setSingleLine(true);
+        input.setText(TgWsProxyController.fakeTlsDomain());
+        input.setSelection(input.length());
+        layout.addView(input, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, dp(8), 0, dp(10), 0));
+        builder.setView(layout);
+        builder.setNegativeButton(getString(R.string.Cancel), null);
+        builder.setPositiveButton(getString(R.string.Save), (dialog, which) -> {
+            TgWsProxyController.setFakeTlsDomain(input.getText().toString());
+            TgWsProxyController.restartIfEnabled(context);
+            if (fakeTlsDomainRow != -1) {
+                listAdapter.notifyItemChanged(fakeTlsDomainRow);
+            }
+        });
+        showDialog(builder.create());
+    }
+
     private EditTextBoldCursor createEditText(Context context) {
         EditTextBoldCursor editText = new EditTextBoldCursor(context);
         editText.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 18);
@@ -897,6 +939,8 @@ public class BypassBlockingActivity extends BaseNekoSettingsActivity {
                         cell.setTextAndCheck(getString(R.string.TgWsProxy), TgWsProxyController.isEnabled(), false);
                     } else if (position == cloudflareCdnRow) {
                         cell.setTextAndCheck(getString(R.string.TgWsProxyCloudflareCdn), NaConfig.INSTANCE.getTgWsProxyCloudflareCdn().Bool(), false);
+                    } else if (position == fakeTlsRow) {
+                        cell.setTextAndCheck(getString(R.string.TgWsProxyFakeTls), TgWsProxyController.isFakeTlsEnabled(), fakeTlsDomainRow != -1);
                     } else if (position == notificationEnabledRow) {
                         cell.setTextAndCheck(getString(R.string.TgWsProxyNotificationEnabled), TgWsProxyController.isNotificationEnabled(), false);
                     } else if (position == vlessEnabledRow) {
@@ -926,6 +970,8 @@ public class BypassBlockingActivity extends BaseNekoSettingsActivity {
                         cell.setTextAndValue(getString(R.string.TgWsProxySecretKey), getSecretPreview(), true);
                     } else if (position == generateSecretKeyRow) {
                         cell.setTextAndIcon(getString(R.string.TgWsProxyGenerateSecretKey), R.drawable.msg_retry_solar, true);
+                    } else if (position == fakeTlsDomainRow) {
+                        cell.setTextAndValue(getString(R.string.TgWsProxyFakeTlsDomain), TgWsProxyController.fakeTlsDomain(), true);
                     } else if (position == vlessLinkRow) {
                         cell.setTextAndValue(getString(R.string.VlessSubLinkTitle), linkRowValue(), vlessUpdateRow != -1);
                     } else if (position == vlessUpdateRow) {
@@ -960,8 +1006,8 @@ public class BypassBlockingActivity extends BaseNekoSettingsActivity {
             if (position == headerRow || position == vlessHeaderRow || position == vlessServersHeaderRow
                     || position == vlessOptionsHeaderRow) {
                 return TYPE_HEADER;
-            } else if (position == tgWsProxyRow || position == cloudflareCdnRow || position == notificationEnabledRow
-                    || position == vlessEnabledRow || position == vlessNotificationRow || position == fragmentRow
+            } else if (position == tgWsProxyRow || position == cloudflareCdnRow || position == fakeTlsRow
+                    || position == notificationEnabledRow || position == vlessEnabledRow || position == vlessNotificationRow || position == fragmentRow
                     || position == noisesRow || position == muxRow || position == maskHappRow) {
                 return TYPE_CHECK;
             } else if (position == vlessLinkInfoRow || position == vlessOptionsInfoRow) {
@@ -969,7 +1015,7 @@ public class BypassBlockingActivity extends BaseNekoSettingsActivity {
             } else if (vlessServersStart != -1 && position >= vlessServersStart && position < vlessServersEnd) {
                 return TYPE_RADIO;
             } else if (position == portRow || position == wsPoolRow || position == secretKeyRow
-                    || position == generateSecretKeyRow || position == vlessLinkRow || position == vlessUpdateRow
+                    || position == fakeTlsDomainRow || position == generateSecretKeyRow || position == vlessLinkRow || position == vlessUpdateRow
                     || position == fragmentPacketsRow || position == fragmentLengthRow || position == fragmentIntervalRow
                     || position == fragmentMaxSplitRow || position == noiseTypeRow || position == noisePacketRow
                     || position == noiseDelayRow || position == noiseApplyRow || position == muxConcurrencyRow

@@ -192,6 +192,7 @@ import java.util.List;
 import java.util.Map;
 
 import tw.nekomimi.nekogram.NekoConfig;
+import tw.nekomimi.nekogram.helpers.SovietGramProfileGifts;
 
 public class StarGiftSheet extends BottomSheetWithRecyclerListView implements NotificationCenter.NotificationCenterDelegate {
 
@@ -4190,6 +4191,11 @@ public class StarGiftSheet extends BottomSheetWithRecyclerListView implements No
 
         ownerTextView = null;
         tableView.clear();
+        if (gift.id < 0) {
+            // Locally generated gifts (SovietGram) carry a negative id - see the quantity row
+            // below. That is the one reliable signal that this gift never came from Telegram.
+            tableView.addFullRow(getString(R.string.SovietGramFakeBadge));
+        }
         if (!refunded) {
             if (gift.host_id != null) {
                 if (!TextUtils.isEmpty(gift.owner_address)) {
@@ -4218,7 +4224,9 @@ public class StarGiftSheet extends BottomSheetWithRecyclerListView implements No
         addAttributeRow(findAttribute(gift.attributes, TL_stars.starGiftAttributePattern.class));
         addAttributeRow(findAttribute(gift.attributes, TL_stars.starGiftAttributeBackdrop.class));
         if (!refunded) {
-            if (messageObject != null) {
+            // Locally generated gifts (SovietGram) carry a negative id, so the server can never
+            // return them; repolling would leave the quantity spinning forever.
+            if (messageObject != null && messageObject.getId() > 0) {
                 if (!messageObjectRepolled) {
                     final TableRow row = tableView.addRow(getString(R.string.Gift2Quantity), "");
                     final TextView rowTextView = (TextView) ((TableView.TableRowContent) row.getChildAt(1)).getChildAt(0);
@@ -5212,8 +5220,13 @@ public class StarGiftSheet extends BottomSheetWithRecyclerListView implements No
         if (messageObjectRepolling || messageObjectRepolled || messageObject == null) {
             return;
         }
-        messageObjectRepolling = true;
         final int id = messageObject.getId();
+        if (id <= 0) {
+            // Local-only message: there is nothing to fetch, so treat it as already repolled.
+            messageObjectRepolled = true;
+            return;
+        }
+        messageObjectRepolling = true;
         final TLRPC.TL_messages_getMessages req = new TLRPC.TL_messages_getMessages();
         req.id.add(id);
         ConnectionsManager.getInstance(currentAccount).sendRequest(req, (res, err) -> {
@@ -5529,6 +5542,26 @@ public class StarGiftSheet extends BottomSheetWithRecyclerListView implements No
 
     private void toggleShow() {
         if (button.isLoading()) return;
+
+        if (SovietGramProfileGifts.isServerGift(savedStarGift)) {
+            final boolean visible = savedStarGift.unsaved;
+            button.setLoading(true);
+            SovietGramProfileGifts.setVisible(currentAccount, savedStarGift, visible, (success, error) -> {
+                button.setLoading(false);
+                if (!success) {
+                    getBulletinFactory().createErrorBulletin(error == null ? "gift_update_failed" : error).show(false);
+                    return;
+                }
+                final StarsController.GiftsCollections collections =
+                        StarsController.getInstance(currentAccount).getProfileGiftCollectionsList(dialogId, false);
+                if (collections != null) {
+                    collections.updateGiftsUnsaved(savedStarGift, !visible);
+                }
+                StarsController.getInstance(currentAccount).invalidateProfileGifts(dialogId);
+                dismiss();
+            });
+            return;
+        }
 
         final boolean saved;
         final TLRPC.Document sticker;
@@ -6741,6 +6774,7 @@ public class StarGiftSheet extends BottomSheetWithRecyclerListView implements No
     }
 
     public static TL_stars.InputSavedStarGift getInputStarGift(long dialogId, TL_stars.SavedStarGift g) {
+        if (SovietGramProfileGifts.isServerGift(g)) return null;
         if (!TextUtils.isEmpty(g.gift.slug)) {
             final TL_stars.TL_inputSavedStarGiftSlug inputSavedStarGiftSlug = new TL_stars.TL_inputSavedStarGiftSlug();
             inputSavedStarGiftSlug.slug = g.gift.slug;
@@ -6753,6 +6787,7 @@ public class StarGiftSheet extends BottomSheetWithRecyclerListView implements No
     }
 
     private TL_stars.InputSavedStarGift getInputStarGift() {
+        if (SovietGramProfileGifts.isServerGift(savedStarGift)) return null;
         if (dialogId < 0) {
             final TL_stars.TL_inputSavedStarGiftChat stargift = new TL_stars.TL_inputSavedStarGiftChat();
             stargift.peer = MessagesController.getInstance(currentAccount).getInputPeer(dialogId);

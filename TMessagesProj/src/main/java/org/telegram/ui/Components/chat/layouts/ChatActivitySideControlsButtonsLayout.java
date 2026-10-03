@@ -25,6 +25,8 @@ import me.vkryl.android.AnimatorUtils;
 import me.vkryl.android.animator.BoolAnimator;
 import me.vkryl.android.animator.FactorAnimator;
 
+import sovietgram.com.NaConfig;
+
 @SuppressLint("ViewConstructor")
 public class ChatActivitySideControlsButtonsLayout extends FrameLayout implements FactorAnimator.Target {
     public static final int BUTTON_ATTACH = 0;
@@ -77,7 +79,15 @@ public class ChatActivitySideControlsButtonsLayout extends FrameLayout implement
         this.blurredBackgroundDrawableViewFactory = blurredBackgroundDrawableViewFactory;
         this.colorProvider = colorProvider;
         this.resourcesProvider = resourcesProvider;
+        this.legacyStyle = NaConfig.isLegacyChatBottom();
     }
+
+    /**
+     * Pre-12.2.0 look for the scroll-down / mention / reaction stack: opaque white discs
+     * with a drop shadow instead of blurred glass pucks. Only the button skin changes -
+     * sizes, gaps and the whole positioning pass stay as they are.
+     */
+    private final boolean legacyStyle;
 
     private int gravity = Gravity.LEFT | Gravity.BOTTOM;
     public void setGravity(int gravity) {
@@ -252,6 +262,10 @@ public class ChatActivitySideControlsButtonsLayout extends FrameLayout implement
                 }
                 return false;
             });
+
+            if (legacyStyle) {
+                button.setLegacyStyle();
+            }
 
             if (buttonId == BUTTON_SEARCH_UP) {
                 button.reverseIconByY();

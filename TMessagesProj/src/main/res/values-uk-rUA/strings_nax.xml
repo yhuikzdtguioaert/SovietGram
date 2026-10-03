@@ -111,7 +111,7 @@
     <string name="Other">Інше</string>
     <string name="RestartApp">Перезапустити застосунок</string>
     <string name="ResetSettings">Скидання налаштувань</string>
-    <string name="ResetSettingsAlert">Ви дійсно бажаєте скинути всі N-Налаштування?</string>
+    <string name="ResetSettingsAlert">Ви дійсно бажаєте скинути всі SovietGram Settings?</string>
     <string name="DontAutoPlayNextVoice">Не відтворювати наступне голосове повідомлення</string>
     <string name="SaveToChatSubfolder">Зберегти вкладення від назви чату</string>
     <string name="MessageColoredBackground">Кольорове тло повідомлень</string>

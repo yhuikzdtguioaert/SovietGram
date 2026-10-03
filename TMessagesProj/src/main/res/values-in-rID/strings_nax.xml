@@ -111,7 +111,7 @@
     <string name="Other">Lainnya</string>
     <string name="RestartApp">Mulai Ulang Aplikasi</string>
     <string name="ResetSettings">Atur Ulang Pengaturan</string>
-    <string name="ResetSettingsAlert">Apakah Anda yakin ingin mengatur ulang semua Pengaturan-N?</string>
+    <string name="ResetSettingsAlert">Apakah Anda yakin ingin mengatur ulang semua SovietGram Settings?</string>
     <string name="DontAutoPlayNextVoice">Jangan Putar Otomatis Pesan Suara Berikutnya</string>
     <string name="SaveToChatSubfolder">Simpan Lampiran Berdasarkan Nama Obrolan</string>
     <string name="MessageColoredBackground">Latar Belakang Pesan Berwarna</string>

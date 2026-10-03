@@ -711,6 +711,7 @@ public class TranslateController extends BaseController {
             } else if (finalMessageObject.messageOwner.summarizedOpen) {
                 if (
                     finalMessageObject.messageOwner.translatedSummaryText == null ||
+                    MessageHelper.isLegacyTranslatedSummary(finalMessageObject.messageOwner.summaryText, finalMessageObject.messageOwner.translatedSummaryText) ||
                     !language.equals(finalMessageObject.messageOwner.translatedSummaryLanguage)
                 ) {
                     pushToSummarize(finalMessageObject, language, text -> {

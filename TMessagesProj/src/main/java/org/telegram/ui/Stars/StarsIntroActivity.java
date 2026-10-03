@@ -4020,6 +4020,20 @@ public class StarsIntroActivity extends GradientHeaderActivity implements Notifi
             textView.setText(s);
             linearLayout.addView(textView, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER, 36, 0, 36, 4));
 
+            if (transaction.gift && TextUtils.isEmpty(transaction.id)) {
+                // Real gift transactions always carry Telegram's charge id; SovietGram's local
+                // sends never set one, so its absence on a gift is the fake marker itself.
+                TextView fakeBadge = new TextView(context);
+                fakeBadge.setText(getString(R.string.SovietGramFakeBadge));
+                fakeBadge.setGravity(Gravity.CENTER);
+                fakeBadge.setTextColor(Theme.getColor(Theme.key_color_orange, resourcesProvider));
+                fakeBadge.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 12);
+                fakeBadge.setTypeface(AndroidUtilities.bold());
+                fakeBadge.setBackground(Theme.createRoundRectDrawable(dp(10), Theme.multAlpha(Theme.getColor(Theme.key_color_orange, resourcesProvider), .12f)));
+                fakeBadge.setPadding(dp(10), dp(4), dp(10), dp(4));
+                linearLayout.addView(fakeBadge, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER, 0, 0, 0, 8));
+            }
+
             if (transaction.paid_message && transaction.starref_commission_permille > 0 && positive) {
                 textView = new LinkSpanDrawable.LinksTextView(context);
                 textView.setTextColor(Theme.getColor(Theme.key_dialogTextBlack, resourcesProvider));

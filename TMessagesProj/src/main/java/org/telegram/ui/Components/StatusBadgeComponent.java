@@ -10,6 +10,8 @@ import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.Premium.PremiumGradient;
 
+import tw.nekomimi.nekogram.helpers.SovietGramBadges;
+
 public class StatusBadgeComponent {
 
     private final AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable statusDrawable;
@@ -45,6 +47,12 @@ public class StatusBadgeComponent {
         } else if (user != null && DialogObject.getEmojiStatusDocumentId(user.emoji_status) != 0) {
             statusDrawable.set(DialogObject.getEmojiStatusDocumentId(user.emoji_status), animated);
             statusDrawable.setColor(colorFilter);
+        } else if (badgeId(user, chat) != 0) {
+            // After a verified tick and after a status the person picked themselves, before the
+            // premium star: a badge says something about this app, and anything Telegram itself has
+            // to say about an account is more important than that.
+            statusDrawable.set(SovietGramBadges.drawable(badgeId(user, chat)), animated);
+            statusDrawable.setColor(colorFilter);
         } else if (user != null && user.premium) {
             statusDrawable.set(PremiumGradient.getInstance().premiumStarDrawableMini, animated);
             statusDrawable.setColor(colorFilter);
@@ -53,6 +61,12 @@ public class StatusBadgeComponent {
             statusDrawable.setColor(null);
         }
         return statusDrawable;
+    }
+
+    /** The id of whoever this row is about when they wear a SovietGram badge, or 0. */
+    private static long badgeId(TLRPC.User user, TLRPC.Chat chat) {
+        final long id = user != null ? user.id : chat == null ? 0 : chat.id;
+        return SovietGramBadges.has(id) ? id : 0;
     }
 
     public Drawable getDrawable() {
