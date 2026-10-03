@@ -232,6 +232,38 @@ object XrayController {
         setSelectedServer(if (active.isEmpty()) -1 else servers.indexOf(active))
     }
 
+    /**
+     * Stores a fetched subscription and keeps the running choice pointing at the same server: by the exact
+     * entry when the provider still publishes it, otherwise by its name, otherwise the first one.
+     */
+    @JvmStatic
+    fun applySubscription(url: String, result: VlessSubscription.Result) {
+        val previousKey = savedVlessKey()
+        val previousName = if (previousKey.isEmpty()) "" else ProxyLinks.displayName(previousKey)
+        setSubscriptionUrl(url)
+        XraySettings.saveSubscriptionInfo(result.info)
+        setServers(result.servers)
+        var index = result.servers.indexOf(previousKey)
+        if (index < 0 && previousName.isNotEmpty()) {
+            index = result.servers.indexOfFirst { ProxyLinks.displayName(it) == previousName }
+        }
+        if (index < 0) {
+            index = 0
+        }
+        setVlessKey(result.servers[index])
+        setSelectedServer(index)
+    }
+
+    /** One or several pasted share links instead of a subscription: they are the whole server list. */
+    @JvmStatic
+    fun applyLinks(links: List<String>) {
+        setSubscriptionUrl("")
+        XraySettings.saveSubscriptionInfo(null)
+        setServers(links)
+        setVlessKey(links.first())
+        setSelectedServer(0)
+    }
+
     /** Index of the picked server in [savedServers], or -1 for a hand-entered key. */
     @JvmStatic
     fun selectedServerIndex(): Int = NaConfig.vlessSelectedServer.Int()

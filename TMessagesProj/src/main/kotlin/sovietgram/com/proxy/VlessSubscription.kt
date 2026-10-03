@@ -1,33 +1,47 @@
 package sovietgram.com.proxy
 
-import android.util.Base64
+import android.os.Build
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Request
 import tw.nekomimi.nekogram.utils.HttpClient
-import java.net.URLDecoder
 
 /**
- * Fetches and decodes a proxy subscription: a URL whose body is a list of share
- * links, usually base64-encoded, one per line.
+ * Fetches and decodes a proxy subscription. Two body formats are understood:
  *
- * Never logs the subscription URL or any of the links it returns — both carry
- * credentials (the UUID is inside every vless:// URI).
+ *  - a list of share links (vless://, vmess://, trojan://, ss://, hysteria2://), base64 or plain text;
+ *  - a JSON array of finished Xray configs, one per server, which is what providers serve to Happ. Each
+ *    entry becomes one server, made of the outbounds in it that carry traffic.
+ *
+ * Providers often answer only the client they expect. The request therefore goes out the way Happ makes
+ * it — its User-Agent, a stable hardware id and the device headers — unless the user switched that off; a
+ * provider that checks which app is asking then hands over the real server list instead of a placeholder.
+ *
+ * Never logs the subscription URL or any of the links it returns — both carry credentials.
  */
 object VlessSubscription {
 
     /** Guards against a hostile/mistyped URL returning a huge body. */
-    private const val MAX_BODY_BYTES = 2L * 1024 * 1024
+    private const val MAX_BODY_BYTES = 8L * 1024 * 1024
+
+    private const val HAPP_VERSION = "2.7.0"
 
     class FetchException(message: String) : Exception(message)
 
+    class Result(val servers: List<String>, val info: XraySettings.SubscriptionInfo)
+
+    /** Kept for callers that only want the servers. */
+    @JvmStatic
+    fun fetch(url: String): List<String> = fetchDetailed(url).servers
+
     /**
-     * Downloads [url] and returns the usable server URIs it contains. Blocking —
-     * callers must run it off the main thread.
+     * Downloads [url] and returns the servers it contains with what the provider says about the profile.
+     * Blocking — callers must run it off the main thread.
      *
-     * @throws FetchException on a bad URL, a transport error, an HTTP error or a
-     *   body that contains no server this build can run.
+     * @throws FetchException on a bad URL, a transport error, an HTTP error or a body without a server
+     *   this build can run.
      */
     @JvmStatic
-    fun fetch(url: String): List<String> {
+    fun fetchDetailed(url: String): Result {
         val target = url.trim()
         if (target.isEmpty()) {
             throw FetchException("Empty subscription URL")
@@ -35,129 +49,104 @@ object VlessSubscription {
         if (!target.startsWith("http://", true) && !target.startsWith("https://", true)) {
             throw FetchException("Subscription URL must start with http:// or https://")
         }
-        val body = try {
-            val request = Request.Builder()
-                .url(target)
-                .header("User-Agent", "SovietGram")
-                .get()
-                .build()
-            HttpClient.instance.newCall(request).execute().use { response ->
+        val settings = XraySettings.snapshot()
+        val response = try {
+            download(target, settings.maskAsHapp)
+        } catch (first: FetchException) {
+            // The provider publishes a mirror for when its main address is blocked; try it for the same path.
+            val mirror = mirrorOf(target)
+                ?: throw first
+            try {
+                download(mirror, settings.maskAsHapp)
+            } catch (_: FetchException) {
+                throw first
+            }
+        }
+
+        val headers = response.second
+        val servers = parse(response.first, headers["exclude-filter"])
+        if (servers.isEmpty()) {
+            throw FetchException("No supported servers in subscription")
+        }
+        val info = XraySettings.SubscriptionInfo(
+            title = decodeHeader(headers["profile-title"]),
+            userInfo = headers["subscription-userinfo"].orEmpty(),
+            fallbackUrl = (headers["fallback-url"] ?: headers["x-sub-fallback"]).orEmpty(),
+            supportUrl = headers["support-url"].orEmpty(),
+            webPageUrl = headers["profile-web-page-url"].orEmpty(),
+            announce = decodeHeader(headers["announce"]),
+            updatedAt = System.currentTimeMillis()
+        )
+        return Result(servers, info)
+    }
+
+    private fun mirrorOf(target: String): String? {
+        val base = XraySettings.subscriptionInfo().fallbackUrl.trim().trimEnd('/')
+        if (base.isEmpty()) return null
+        val http = target.toHttpUrlOrNull() ?: return null
+        val path = http.encodedPath + (http.encodedQuery?.let { "?$it" } ?: "")
+        return base + path
+    }
+
+    private fun download(target: String, maskAsHapp: Boolean): Pair<String, Map<String, String>> {
+        return try {
+            val builder = Request.Builder().url(target).get()
+            if (maskAsHapp) {
+                builder.header("User-Agent", "Happ/$HAPP_VERSION/android")
+                builder.header("Accept", "*/*")
+                builder.header("x-hwid", XraySettings.hwid())
+                builder.header("x-device-os", "Android")
+                builder.header("x-ver-os", asciiOnly(Build.VERSION.RELEASE))
+                builder.header("x-device-model", asciiOnly(Build.MODEL))
+            } else {
+                builder.header("User-Agent", "SovietGram")
+            }
+            HttpClient.instance.newCall(builder.build()).execute().use { response ->
                 if (!response.isSuccessful) {
                     // Only the status code, never the URL.
                     throw FetchException("HTTP ${response.code}")
                 }
-                response.body?.source()?.let { source ->
+                val text = response.body?.source()?.let { source ->
                     source.request(MAX_BODY_BYTES + 1)
                     source.buffer.snapshot(
                         minOf(source.buffer.size, MAX_BODY_BYTES).toInt()
                     ).utf8()
                 }.orEmpty()
+                val headers = HashMap<String, String>()
+                for (name in response.headers.names()) {
+                    headers[name.lowercase()] = response.header(name).orEmpty()
+                }
+                text to headers
             }
         } catch (e: FetchException) {
             throw e
         } catch (e: Throwable) {
             throw FetchException(e.javaClass.simpleName)
         }
-
-        val servers = parse(body)
-        if (servers.isEmpty()) {
-            throw FetchException("No supported servers in subscription")
-        }
-        return servers
     }
 
+    private fun asciiOnly(value: String?): String =
+        (value ?: "").filter { it.code in 32..126 }.ifEmpty { "unknown" }
+
+    /** Providers send titles and notices as `base64:<text>` so non-ASCII survives a header. */
+    private fun decodeHeader(value: String?): String {
+        val v = value?.trim().orEmpty()
+        if (v.startsWith("base64:", ignoreCase = true)) {
+            val bytes = Base64Lite.decode(v.substring(7)) ?: return ""
+            return String(bytes, Charsets.UTF_8).trim()
+        }
+        return v
+    }
+
+    @JvmStatic
+    @JvmOverloads
+    fun parse(body: String, excludeFilter: String? = null): List<String> =
+        SubscriptionParser.parse(body, excludeFilter)
+
     /**
-     * Splits a subscription body into server URIs.
-     *
-     * The body is normally base64 (padded or not, sometimes URL-safe), but plenty
-     * of providers serve the links as plain text, so both are accepted: base64 is
-     * attempted first and the raw text is used when it does not decode into
-     * anything recognisable.
+     * Human-readable label for a server row: the remark when it has one, otherwise host:port. Never
+     * returns any part of the UUID, a password or the query string.
      */
     @JvmStatic
-    fun parse(body: String): List<String> {
-        val direct = extractLinks(body)
-        if (direct.isNotEmpty()) {
-            // Already plain text.
-            return direct
-        }
-        return extractLinks(decodeBase64(body))
-    }
-
-    private fun decodeBase64(body: String): String {
-        // Strip everything base64 cannot contain (newlines the provider wrapped
-        // the payload at, stray whitespace) before decoding, and drop any padding
-        // so NO_PADDING/urlsafe variants all take the same path.
-        val cleaned = body.filterNot { it.isWhitespace() }.trimEnd('=')
-        if (cleaned.isEmpty()) {
-            return ""
-        }
-        val flags = Base64.NO_PADDING or Base64.NO_WRAP
-        for (extra in intArrayOf(Base64.DEFAULT, Base64.URL_SAFE)) {
-            val decoded = runCatching {
-                String(Base64.decode(cleaned, flags or extra), Charsets.UTF_8)
-            }.getOrNull()
-            if (!decoded.isNullOrEmpty()) {
-                return decoded
-            }
-        }
-        return ""
-    }
-
-    /**
-     * Keeps only the lines the bundled core can actually run. VlessConfig builds a
-     * vless outbound and nothing else, so vmess/trojan/ss entries — common in
-     * mixed subscriptions — are dropped here instead of being offered and then
-     * failing to start.
-     */
-    private fun extractLinks(text: String): List<String> {
-        if (text.isEmpty()) {
-            return emptyList()
-        }
-        val result = LinkedHashSet<String>()
-        for (rawLine in text.split('\n')) {
-            val line = rawLine.trim().trim('\r', '﻿')
-            if (line.isEmpty() || line.startsWith("#") || line.startsWith("//")) {
-                continue
-            }
-            if (!line.startsWith("vless://", true)) {
-                continue
-            }
-            if (VlessConfig.isValidVlessUrl(line)) {
-                result.add(line)
-            }
-        }
-        return result.toList()
-    }
-
-    /**
-     * Human-readable label for a server row: the URI's #remark when it has one,
-     * otherwise host:port. Never returns any part of the UUID or query string.
-     */
-    @JvmStatic
-    fun displayName(uri: String): String {
-        val trimmed = uri.trim()
-        val fragmentIdx = trimmed.indexOf('#')
-        if (fragmentIdx >= 0 && fragmentIdx < trimmed.length - 1) {
-            val remark = runCatching {
-                URLDecoder.decode(trimmed.substring(fragmentIdx + 1), "UTF-8")
-            }.getOrElse { trimmed.substring(fragmentIdx + 1) }.trim()
-            if (remark.isNotEmpty()) {
-                return remark
-            }
-        }
-        var rest = if (fragmentIdx >= 0) trimmed.substring(0, fragmentIdx) else trimmed
-        val queryIdx = rest.indexOf('?')
-        if (queryIdx >= 0) {
-            rest = rest.substring(0, queryIdx)
-        }
-        val atIdx = rest.lastIndexOf('@')
-        if (atIdx >= 0) {
-            val authority = rest.substring(atIdx + 1).trim().trimEnd('/')
-            if (authority.isNotEmpty()) {
-                return authority
-            }
-        }
-        return ""
-    }
+    fun displayName(uri: String): String = ProxyLinks.displayName(uri)
 }

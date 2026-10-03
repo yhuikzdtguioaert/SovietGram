@@ -19,62 +19,28 @@ object VlessConfig {
     class ParseException(message: String) : Exception(message)
 
     /**
-     * Lightweight validation used by the settings UI. Returns true when [rawUrl]
-     * looks like a parseable vless:// URL (correct scheme, a UUID, a host and a
-     * valid port). Does not throw.
+     * Lightweight validation used by the settings UI. True when [rawUrl] is a share link of any protocol
+     * the bundled core can run (vless, vmess, trojan, shadowsocks, hysteria2) or a server picked out of
+     * a subscription. Does not throw. The name is historical: it used to mean vless:// only.
      */
     @JvmStatic
-    fun isValidVlessUrl(rawUrl: String?): Boolean {
-        return try {
-            parse(rawUrl.orEmpty())
-            true
-        } catch (_: Throwable) {
-            false
-        }
-    }
+    fun isValidVlessUrl(rawUrl: String?): Boolean = ProxyLinks.isValid(rawUrl)
 
     /**
-     * Builds an Xray JSON config for the given vless URL and local SOCKS port.
-     * @throws ParseException on a malformed URL or invalid SOCKS port.
+     * Builds an Xray JSON config for the given link and local SOCKS port, with the user's own tuning
+     * (fragmentation, noises, mux, fingerprint, DNS) read from [XraySettings].
+     * @throws ParseException on a malformed link or invalid SOCKS port.
      */
     @JvmStatic
     fun build(rawUrl: String, socksPort: Int): String = build(rawUrl, socksPort, "", "")
 
-    /**
-     * [socksUser]/[socksPass] close the local SOCKS port to everything but Telegram: without them any
-     * app on the phone could connect to 127.0.0.1 and ride the user's tunnel. Blank keeps it open.
-     */
     @JvmStatic
-    fun build(rawUrl: String, socksPort: Int, socksUser: String, socksPass: String): String {
-        if (socksPort !in 1..65535) {
-            throw ParseException("Invalid SOCKS port: $socksPort")
-        }
+    fun build(rawUrl: String, socksPort: Int, socksUser: String, socksPass: String): String =
+        XrayConfigBuilder.build(rawUrl, socksPort, socksUser, socksPass, XraySettings.snapshot())
+
+    /** The vless outbound for [rawUrl], tagged "proxy". */
+    internal fun outbound(rawUrl: String): JSONObject {
         val link = parse(rawUrl)
-
-        val inbound = JSONObject().apply {
-            put("listen", "127.0.0.1")
-            put("port", socksPort)
-            put("protocol", "socks")
-            put("tag", "socks-in")
-            put("settings", JSONObject().apply {
-                put("udp", true)
-                if (socksUser.isNotEmpty() && socksPass.isNotEmpty()) {
-                    put("auth", "password")
-                    put("accounts", JSONArray().apply {
-                        put(JSONObject().apply {
-                            put("user", socksUser)
-                            put("pass", socksPass)
-                        })
-                    })
-                } else {
-                    put("auth", "noauth")
-                }
-            })
-            // No sniffing: this inbound only carries Telegram's MTProto stream,
-            // which is neither HTTP nor TLS, and there are no domain-based
-            // routing rules that would need the sniffed destination.
-        }
-
         val user = JSONObject().apply {
             put("id", link.uuid)
             put("encryption", link.encryption)
@@ -88,7 +54,7 @@ object VlessConfig {
             put("port", link.port)
             put("users", JSONArray().apply { put(user) })
         }
-        val outbound = JSONObject().apply {
+        return JSONObject().apply {
             put("protocol", "vless")
             put("tag", "proxy")
             put("settings", JSONObject().apply {
@@ -96,34 +62,48 @@ object VlessConfig {
             })
             put("streamSettings", buildStreamSettings(link))
         }
-
-        val direct = JSONObject().apply {
-            put("protocol", "freedom")
-            put("tag", "direct")
-        }
-
-        val config = JSONObject().apply {
-            put("log", JSONObject().apply { put("loglevel", "warning") })
-            // An empty "stats" object plus statsOutboundUplink/Downlink is what
-            // makes Xray register the outbound>>>proxy>>>traffic>>> counters the
-            // notification reads. Without both, every counter stays at zero.
-            put("stats", JSONObject())
-            put("policy", JSONObject().apply {
-                put("system", JSONObject().apply {
-                    put("statsOutboundUplink", true)
-                    put("statsOutboundDownlink", true)
-                })
-            })
-            put("inbounds", JSONArray().apply { put(inbound) })
-            put("outbounds", JSONArray().apply {
-                put(outbound)
-                put(direct)
-            })
-        }
-        return config.toString()
     }
 
-    private fun buildStreamSettings(link: VlessLink): JSONObject {
+    /**
+     * streamSettings for a link of another protocol, from its query parameters (keys lower-cased) in the
+     * same vocabulary vless links use: type, security, sni, host, path, fp, alpn, pbk, sid, spx, ...
+     */
+    internal fun streamFromParams(params: Map<String, String>, host: String, security: String): JSONObject {
+        val link = VlessLink(
+            uuid = "",
+            host = host,
+            port = 0,
+            encryption = "none",
+            security = security,
+            network = networkOf(params["type"] ?: params["network"]),
+            sni = params["sni"]?.trim().orEmpty(),
+            hostParam = params["host"]?.trim().orEmpty(),
+            path = params["path"]?.trim().orEmpty(),
+            flow = "",
+            publicKey = params["pbk"]?.trim().orEmpty(),
+            shortId = params["sid"]?.trim().orEmpty(),
+            fingerprint = params["fp"]?.trim().orEmpty(),
+            spiderX = params["spx"]?.trim().orEmpty(),
+            alpn = params["alpn"]?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() } ?: emptyList(),
+            serviceName = (params["servicename"] ?: params["path"])?.trim()?.trimStart('/').orEmpty(),
+            xhttpMode = params["mode"]?.trim().orEmpty(),
+            xhttpExtra = params["extra"]?.trim().orEmpty()
+        )
+        if (security == "reality" && link.publicKey.isEmpty()) {
+            throw ParseException("Missing reality public key (pbk)")
+        }
+        return buildStreamSettings(link)
+    }
+
+    internal fun networkOf(value: String?): String = when (value?.lowercase()?.trim()) {
+        "ws", "websocket" -> "ws"
+        "grpc" -> "grpc"
+        "httpupgrade" -> "httpupgrade"
+        "xhttp", "splithttp" -> "xhttp"
+        else -> "tcp"
+    }
+
+    internal fun buildStreamSettings(link: VlessLink): JSONObject {
         val stream = JSONObject()
         stream.put("network", link.network)
         stream.put("security", link.security)
@@ -192,7 +172,7 @@ object VlessConfig {
         return stream
     }
 
-    private fun parse(rawUrl: String): VlessLink {
+    internal fun parse(rawUrl: String): VlessLink {
         val trimmed = rawUrl.trim()
         if (!trimmed.startsWith("vless://", ignoreCase = true)) {
             throw ParseException("Not a vless:// URL")
@@ -269,14 +249,7 @@ object VlessConfig {
             else -> throw ParseException("Unsupported VLESS transport security")
         }
 
-        val network = when ((params["type"] ?: params["network"])?.lowercase()?.trim()) {
-            "ws", "websocket" -> "ws"
-            "grpc" -> "grpc"
-            "httpupgrade" -> "httpupgrade"
-            "xhttp", "splithttp" -> "xhttp"
-            "tcp", null, "" -> "tcp"
-            else -> "tcp"
-        }
+        val network = networkOf(params["type"] ?: params["network"])
 
         val publicKey = params["pbk"]?.trim().orEmpty()
         if (security == "reality" && publicKey.isEmpty()) {
@@ -320,7 +293,7 @@ object VlessConfig {
         )
     }
 
-    private fun parseQuery(rawQuery: String?): Map<String, String> {
+    internal fun parseQuery(rawQuery: String?): Map<String, String> {
         if (rawQuery.isNullOrBlank()) {
             return emptyMap()
         }
@@ -337,7 +310,7 @@ object VlessConfig {
         return result
     }
 
-    private fun decode(value: String): String {
+    internal fun decode(value: String): String {
         return try {
             URLDecoder.decode(value, "UTF-8")
         } catch (_: Exception) {
@@ -345,7 +318,7 @@ object VlessConfig {
         }
     }
 
-    private data class VlessLink(
+    internal data class VlessLink(
         val uuid: String,
         val host: String,
         val port: Int,
