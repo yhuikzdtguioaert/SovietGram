@@ -1,10 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="VersionDesign">버전 디자인</string>
-    <string name="AreaDesignLatest">최신 (v12.10.6)</string>
-    <string name="AreaDesignV1231">v12.3.1</string>
-    <string name="ChatHeaderDesign">채팅 헤더</string>
-    <string name="NavigationDesign">계정 및 설정 메뉴</string>
     <string name="SovietGramExclusive">SovietGram 전용</string>
     <string name="SovietGramServer">SovietGram 서버</string>
     <string name="localGiftSender">NFT/Stars/Gram/Premium 서버 전송</string>

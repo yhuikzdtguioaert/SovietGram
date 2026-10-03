@@ -1,10 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="VersionDesign">Дизайн версии</string>
-    <string name="AreaDesignLatest">Последний (v12.10.6)</string>
-    <string name="AreaDesignV1231">v12.3.1</string>
-    <string name="ChatHeaderDesign">Шапка чата</string>
-    <string name="NavigationDesign">Меню аккаунта и настроек</string>
     <string name="SovietGramExclusive">Эксклюзив SovietGram</string>
     <string name="SovietGramServer">Сервер SovietGram</string>
     <string name="FreshResetAuthorizationForbiddenTitle">Не удалось завершить сеансы</string>

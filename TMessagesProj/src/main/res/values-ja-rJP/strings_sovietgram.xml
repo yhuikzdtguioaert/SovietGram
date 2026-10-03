@@ -1,10 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="VersionDesign">バージョンデザイン</string>
-    <string name="AreaDesignLatest">最新 (v12.10.6)</string>
-    <string name="AreaDesignV1231">v12.3.1</string>
-    <string name="ChatHeaderDesign">チャットのヘッダー</string>
-    <string name="NavigationDesign">アカウントと設定のメニュー</string>
     <string name="SovietGramExclusive">SovietGram 限定</string>
     <string name="SovietGramServer">SovietGram サーバー</string>
     <string name="localGiftSender">NFT/Stars/Gram/Premium のサーバー送信</string>

@@ -3644,12 +3644,6 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             if (folderId == 0) {
                 actionBar.setSupportsHolidayImage(true);
             }
-            if (!onlySelect && searchString == null && folderId == 0 && communityId == 0
-                    && sovietgram.com.NaConfig.useSideDrawer()) {
-                MenuDrawable drawerIcon = new MenuDrawable();
-                drawerIcon.setRoundCap();
-                actionBar.setBackButtonDrawable(drawerIcon);
-            }
         }
         //if (!onlySelect || initialDialogsType == DIALOGS_TYPE_FORWARD) {
             actionBar.setAddToContainer(false);
@@ -4049,9 +4043,6 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                         }
                     } else if (onlySelect || folderId != 0 || communityId != 0) {
                         finishFragment();
-                    } else if (sovietgram.com.NaConfig.useSideDrawer()
-                            && getParentActivity() instanceof LaunchActivity launchActivity) {
-                        launchActivity.openSideDrawer();
                     }
                 } else if (id == 1) {
                     if (getParentActivity() == null) {

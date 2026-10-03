@@ -1,10 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="VersionDesign">Diseño de versión</string>
-    <string name="AreaDesignLatest">Más reciente (v12.10.6)</string>
-    <string name="AreaDesignV1231">v12.3.1</string>
-    <string name="ChatHeaderDesign">Encabezado del chat</string>
-    <string name="NavigationDesign">Menú de cuenta y ajustes</string>
     <string name="NekoSettings">Ajustes de SovietGram</string>
     <string name="SovietGramExclusive">Exclusivo de SovietGram</string>
     <string name="SovietGramServer">Servidor de SovietGram</string>

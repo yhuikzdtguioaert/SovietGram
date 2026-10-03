@@ -18,12 +18,6 @@ import java.io.ObjectInputStream
 
 
 object NaConfig {
-    const val DESIGN_VERSION_LATEST = 0
-    const val DESIGN_VERSION_12_7_3 = 1273
-
-    // Per-area design versions. 0 is the latest look; 1231 restores the pre-12.4 shell.
-    const val AREA_DESIGN_LATEST = 0
-    const val AREA_DESIGN_12_3_1 = 1231
     const val MEDIA_AUTO_ROTATE_OFF = 0
     const val MEDIA_AUTO_ROTATE_FILL = 1
     const val MEDIA_AUTO_ROTATE_GYRO = 2
@@ -194,15 +188,6 @@ object NaConfig {
             ConfigItem.configTypeString,
             "SovietGram"
         )
-    val versionDesign =
-        addConfig(
-            "VersionDesign",
-            ConfigItem.configTypeInt,
-            DESIGN_VERSION_LATEST
-        )
-
-    @JvmStatic
-    fun isLatestDesign(): Boolean = versionDesign.Int() == DESIGN_VERSION_LATEST
     val dateOfForwardedMsg =
         addConfig(
             "DateOfForwardedMsg",
@@ -1663,113 +1648,6 @@ object NaConfig {
             0L
         )
 
-    val chatHeaderDesign =
-        addConfig(
-            "ChatHeaderDesign",
-            ConfigItem.configTypeInt,
-            AREA_DESIGN_LATEST
-        )
-
-    /**
-     * The shell design: the account/settings menu AND the bottom of the chat move
-     * together. They were one redesign upstream (12.4.0 replaced the side drawer with
-     * the tab bar in the same release train that floated the composer into an island),
-     * so splitting them only ever produced half-migrated layouts.
-     */
-    val navigationDesign =
-        addConfig(
-            "NavigationDesign",
-            ConfigItem.configTypeInt,
-            AREA_DESIGN_LATEST
-        )
-
-    // Which rows the 12.3.1 side drawer shows. Defaults match what that release listed
-    // out of the box; the Nagram-only extras stay off so the drawer opens looking stock.
-    val drawerItemMyProfile =
-        addConfig(
-            "DrawerItemMyProfile",
-            ConfigItem.configTypeBool,
-            true
-        )
-    val drawerItemSetEmojiStatus =
-        addConfig(
-            "DrawerItemSetEmojiStatus",
-            ConfigItem.configTypeBool,
-            true
-        )
-    val drawerItemArchivedChats =
-        addConfig(
-            "DrawerItemArchivedChats",
-            ConfigItem.configTypeBool,
-            false
-        )
-    val drawerItemNewGroup =
-        addConfig(
-            "DrawerItemNewGroup",
-            ConfigItem.configTypeBool,
-            true
-        )
-    val drawerItemNewChannel =
-        addConfig(
-            "DrawerItemNewChannel",
-            ConfigItem.configTypeBool,
-            true
-        )
-    val drawerItemContacts =
-        addConfig(
-            "DrawerItemContacts",
-            ConfigItem.configTypeBool,
-            true
-        )
-    val drawerItemCalls =
-        addConfig(
-            "DrawerItemCalls",
-            ConfigItem.configTypeBool,
-            true
-        )
-    val drawerItemSaved =
-        addConfig(
-            "DrawerItemSaved",
-            ConfigItem.configTypeBool,
-            true
-        )
-    val drawerItemSettings =
-        addConfig(
-            "DrawerItemSettings",
-            ConfigItem.configTypeBool,
-            true
-        )
-    val drawerItemNSettings =
-        addConfig(
-            "DrawerItemNSettings",
-            ConfigItem.configTypeBool,
-            true
-        )
-    val drawerItemBrowser =
-        addConfig(
-            "DrawerItemBrowser",
-            ConfigItem.configTypeBool,
-            false
-        )
-    val drawerItemQrLogin =
-        addConfig(
-            "DrawerItemQrLogin",
-            ConfigItem.configTypeBool,
-            false
-        )
-    val drawerItemSessions =
-        addConfig(
-            "DrawerItemSessions",
-            ConfigItem.configTypeBool,
-            false
-        )
-    val drawerItemRestartApp =
-        addConfig(
-            "DrawerItemRestartApp",
-            ConfigItem.configTypeBool,
-            false
-        )
-
     // --- SovietGram sync backend ---
     // Legacy single-token slot, kept only so an existing install can be migrated out of it once
     // (see SovietGramTokenStore). A token embeds the telegram id it was issued for, so one slot
@@ -1860,30 +1738,7 @@ object NaConfig {
         )
 
     @JvmStatic
-    fun isLegacyChatHeader(): Boolean = chatHeaderDesign.Int() == AREA_DESIGN_12_3_1
-
-    @JvmStatic
-    fun isLegacyNavigation(): Boolean = navigationDesign.Int() == AREA_DESIGN_12_3_1
-
-    /**
-     * Single source of truth for "the bottom tab bar is not shown". Both the explicit
-     * HideBottomNavigationBar switch and the 12.3.1 navigation design map onto it: in
-     * 12.3.1 there was no tab bar and the side drawer carried every destination.
-     */
-    @JvmStatic
-    fun hideBottomTabs(): Boolean = hideBottomNavigationBar.Bool() || isLegacyNavigation()
-
-    /** Bound to the shell design — see [navigationDesign]. */
-    @JvmStatic
-    fun isLegacyChatBottom(): Boolean = isLegacyNavigation()
-
-    /**
-     * The swipe-from-the-left drawer only exists in the 12.3.1 shell; in the current
-     * shell the same destinations live in the tab bar, so opening it there would give
-     * two competing navigations.
-     */
-    @JvmStatic
-    fun useSideDrawer(): Boolean = isLegacyNavigation()
+    fun hideBottomTabs(): Boolean = hideBottomNavigationBar.Bool()
 
     val preferredTranslateTargetLangList = ArrayList<String>()
     fun updatePreferredTranslateTargetLangList() {

@@ -1,10 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="VersionDesign">版本設計</string>
-    <string name="AreaDesignLatest">最新 (v12.10.6)</string>
-    <string name="AreaDesignV1231">v12.3.1</string>
-    <string name="ChatHeaderDesign">聊天頂欄</string>
-    <string name="NavigationDesign">帳號與設定選單</string>
     <string name="SovietGramExclusive">SovietGram 獨家</string>
     <string name="SovietGramServer">SovietGram 伺服器</string>
     <string name="localGiftSender">伺服器傳送 NFT/Stars/Gram/Premium</string>
