@@ -86,6 +86,13 @@ public class IconsResources extends Resources {
         // Read on every call, not once. The first drawable is loaded long before the preferences are,
         // and a value cached then is the compile-time default (Solar) for the life of the process, so
         // choosing Default changed nothing and Solar looked the same as Default.
+        // The Max interface brings MAX's own icons for the ones that have a counterpart there.
+        if (forcedIconsType == -1 && sovietgram.com.maxui.MaxInterface.active) {
+            int max = sovietgram.com.maxui.MaxIcons.getConversion(icon);
+            if (max != icon) {
+                return max;
+            }
+        }
         int consideredIconsType = forcedIconsType == -1
                 ? NaConfig.INSTANCE.getIconReplacements().Int() : forcedIconsType;
 
