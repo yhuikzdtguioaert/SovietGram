@@ -792,4 +792,5 @@
     <string name="CustomProfileRestoreFailed">Could not reach the SovietGram server. Check your connection and try again.</string>
     <string name="CustomProfileRestored">Profile restored from the server</string>
     <string name="WorkshopGalleryDown">The community gallery is not reachable right now. Showing SovietGram works.</string>
+    <string name="WorkshopGalleryDownEmpty">The community gallery cannot be reached from your network, and nothing has been published to SovietGram yet. Tap + to publish yours.</string>
 </resources>

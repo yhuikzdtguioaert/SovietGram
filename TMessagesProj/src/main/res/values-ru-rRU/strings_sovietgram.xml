@@ -801,4 +801,5 @@
     <string name="CustomProfileRestoreFailed">Не удалось связаться с сервером SovietGram. Проверьте соединение и повторите.</string>
     <string name="CustomProfileRestored">Профиль восстановлен с сервера</string>
     <string name="WorkshopGalleryDown">Общая галерея сейчас недоступна. Показаны работы SovietGram.</string>
+    <string name="WorkshopGalleryDownEmpty">Общая галерея недоступна из вашей сети, а в SovietGram пока ничего не опубликовано. Нажмите +, чтобы опубликовать свою работу.</string>
 </resources>

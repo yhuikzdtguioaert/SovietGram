@@ -63,6 +63,8 @@ public class WorkshopActivity extends BaseFragment {
     private ActionBarMenuItem sectionItem;
     private ActionBarMenuItem searchItem;
     private String search = "";
+    /** Said in place of "nothing here" when the community gallery was unreachable. */
+    private String galleryNote;
     private String authorFilter;
     private Runnable pendingSearch;
 
@@ -362,6 +364,7 @@ public class WorkshopActivity extends BaseFragment {
         if (isFinished) return;
         final int id = ++requestId;
         loading = true;
+        galleryNote = null;
         allWorks.clear();
         works.clear();
         if (adapter != null) {
@@ -399,9 +402,12 @@ public class WorkshopActivity extends BaseFragment {
                 // error with an empty screen, the section is filled from SovietGram's own works.
                 SovietWorkshop.list(account, kind, shown == 0 ? "new" : "popular", "", null,
                         (own, ownError) -> {
-                            if (own != null && !own.isEmpty() && !isFinished && id == requestId) {
-                                BulletinFactory.of(this).createSimpleBulletin(R.raw.info,
-                                        getString(R.string.WorkshopGalleryDown)).show();
+                            if (own != null && !isFinished && id == requestId) {
+                                galleryNote = getString(R.string.WorkshopGalleryDownEmpty);
+                                if (!own.isEmpty()) {
+                                    BulletinFactory.of(this).createSimpleBulletin(R.raw.info,
+                                            getString(R.string.WorkshopGalleryDown)).show();
+                                }
                                 finished.onResult(own, null);
                             } else {
                                 finished.onResult(null, error);
@@ -424,7 +430,8 @@ public class WorkshopActivity extends BaseFragment {
         progressView.setVisibility(loading ? View.VISIBLE : View.GONE);
         final boolean empty = !loading && works.isEmpty();
         emptyView.setVisibility(empty ? View.VISIBLE : View.GONE);
-        emptyView.setText(error != null ? error : getString(R.string.WorkshopEmpty));
+        emptyView.setText(error != null ? error
+                : galleryNote != null ? galleryNote : getString(R.string.WorkshopEmpty));
         listView.setVisibility(View.VISIBLE);
     }
 
