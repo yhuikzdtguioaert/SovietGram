@@ -766,4 +766,13 @@
     <string name="TdataLoginNote">tdata з локальним паролем Telegram Desktop теж підійде: застосунок спитає пароль.</string>
     <string name="AccountPasscodes">Паролі для акаунтів</string>
     <string name="AccountPasscodesInfo">Задайте окремий пароль кожному акаунту, сховайте акаунти або встановіть panic-код. Який акаунт відкриється, визначає код, введений на екрані блокування.</string>
+    <string name="VlessPingServers">Перевірити пінг серверів</string>
+    <string name="VlessPingType">Тип пінгу</string>
+    <string name="VlessPingGet">Через проксі GET</string>
+    <string name="VlessPingHead">Через проксі HEAD</string>
+    <string name="VlessPingTcp">TCP</string>
+    <string name="VlessPingIcmp">ICMP</string>
+    <string name="VlessPingRunning">Перевірка %1$d/%2$d, натисніть, щоб зупинити</string>
+    <string name="VlessPingTimeout">немає відповіді</string>
+    <string name="DeletedMessagesDeleteConfirm">Видалити з цього телефону всі збережені видалені повідомлення чату %1$s? Це не можна скасувати.</string>
 </resources>

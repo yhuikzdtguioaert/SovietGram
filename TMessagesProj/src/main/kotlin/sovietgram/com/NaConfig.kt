@@ -338,6 +338,14 @@ object NaConfig {
             ConfigItem.configTypeInt,
             -1
         )
+
+    /** How the servers are pinged: 0 via proxy GET, 1 via proxy HEAD, 2 TCP, 3 ICMP. */
+    val vlessPingMethod =
+        addConfig(
+            "VlessPingMethod",
+            ConfigItem.configTypeInt,
+            0
+        )
     val notificationIcon =
         addConfig(
             "NotificationIcon",

@@ -311,6 +311,8 @@ public class ApplicationLoader extends Application {
         // The embedded local proxy lives in our process. Recreate it after a
         // normal process exit/relaunch instead of leaving Telegram pointed at
         // a dead 127.0.0.1 port until the user toggles the setting manually.
+        // Never both at once: a leftover pair of flags is settled before either proxy comes back up.
+        sovietgram.com.proxy.BypassGuard.reconcile(applicationContext);
         AndroidUtilities.runOnUIThread(() ->
                 sovietgram.com.proxy.TgWsProxyController.restartIfEnabled(applicationContext), 750);
         AndroidUtilities.runOnUIThread(() ->

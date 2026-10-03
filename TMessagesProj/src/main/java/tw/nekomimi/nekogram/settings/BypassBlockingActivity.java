@@ -29,7 +29,11 @@ import org.telegram.ui.Components.LayoutHelper;
 import java.text.DateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.Locale;
 
 import sovietgram.com.NaConfig;
@@ -40,6 +44,7 @@ import sovietgram.com.proxy.VlessConfig;
 import sovietgram.com.proxy.VlessSubscription;
 import sovietgram.com.proxy.XrayController;
 import sovietgram.com.proxy.XrayOptions;
+import sovietgram.com.proxy.XrayPing;
 import sovietgram.com.proxy.XraySettings;
 import tw.nekomimi.nekogram.ui.cells.HeaderCell;
 import tw.nekomimi.nekogram.utils.AndroidUtil;
@@ -66,6 +71,8 @@ public class BypassBlockingActivity extends BaseNekoSettingsActivity {
     private int vlessUpdateRow;
     private int vlessLinkInfoRow;
     private int vlessServersHeaderRow;
+    private int vlessPingRow;
+    private int vlessPingTypeRow;
     private int vlessServersStart;
     private int vlessServersEnd;
     private int vlessServersShadowRow;
@@ -93,6 +100,13 @@ public class BypassBlockingActivity extends BaseNekoSettingsActivity {
     private final List<String> servers = new ArrayList<>();
     private XrayOptions.Snapshot options = new XrayOptions.Snapshot(false, "tlshello", "100-200", "10-20", "", false, "rand", "50-100", "10-20", "ip", false, 8, 16, "reject", "", "", true);
     private boolean fetching;
+
+    // Latest ping of each server by its link, in milliseconds; XrayPing.FAILED for no answer. Lives only as long as the screen.
+    private final Map<String, Integer> pings = new HashMap<>();
+    private int pingRun;
+    private int pingDone;
+    private int pingTotal;
+    private ExecutorService pingPool;
 
     @Override
     protected void updateRows() {
@@ -122,6 +136,7 @@ public class BypassBlockingActivity extends BaseNekoSettingsActivity {
         vlessEnabledRow = addRow("VlessVpn");
         vlessLinkRow = vlessUpdateRow = vlessLinkInfoRow = -1;
         vlessServersHeaderRow = vlessServersStart = vlessServersEnd = vlessServersShadowRow = -1;
+        vlessPingRow = vlessPingTypeRow = -1;
         vlessOptionsHeaderRow = fragmentRow = fragmentPacketsRow = fragmentLengthRow = fragmentIntervalRow = fragmentMaxSplitRow = -1;
         noisesRow = noiseTypeRow = noisePacketRow = noiseDelayRow = noiseApplyRow = -1;
         muxRow = muxConcurrencyRow = muxXudpRow = muxUdp443Row = -1;
@@ -137,6 +152,8 @@ public class BypassBlockingActivity extends BaseNekoSettingsActivity {
             vlessLinkInfoRow = addRow();
             if (!servers.isEmpty()) {
                 vlessServersHeaderRow = addRow();
+                vlessPingRow = addRow();
+                vlessPingTypeRow = addRow();
                 vlessServersStart = rowCount;
                 rowCount += servers.size();
                 vlessServersEnd = rowCount;
@@ -212,6 +229,10 @@ public class BypassBlockingActivity extends BaseNekoSettingsActivity {
             showLinkDialog(false);
         } else if (position == vlessUpdateRow) {
             refreshSubscription();
+        } else if (position == vlessPingRow) {
+            togglePing();
+        } else if (position == vlessPingTypeRow) {
+            showPingTypeDialog();
         } else if (vlessServersStart != -1 && position >= vlessServersStart && position < vlessServersEnd) {
             pickServer(context, position - vlessServersStart);
         } else if (position == fragmentRow) {
@@ -393,6 +414,104 @@ public class BypassBlockingActivity extends BaseNekoSettingsActivity {
         } else {
             animateRows(anchor, start);
         }
+    }
+
+    private String pingTypeName(int method) {
+        switch (method) {
+            case XrayPing.HEAD: return getString(R.string.VlessPingHead);
+            case XrayPing.TCP: return getString(R.string.VlessPingTcp);
+            case XrayPing.ICMP: return getString(R.string.VlessPingIcmp);
+            default: return getString(R.string.VlessPingGet);
+        }
+    }
+
+    private void showPingTypeDialog() {
+        Context context = getParentActivity();
+        if (context == null) {
+            return;
+        }
+        final int current = XrayPing.method();
+        CharSequence[] labels = new CharSequence[4];
+        for (int i = 0; i < labels.length; i++) {
+            labels[i] = pingTypeName(i) + (i == current ? "  ✓" : "");
+        }
+        AlertDialog.Builder builder = new AlertDialog.Builder(context, resourcesProvider);
+        builder.setTitle(getString(R.string.VlessPingType));
+        builder.setItems(labels, (dialog, which) -> {
+            XrayPing.setMethod(which);
+            // Numbers from another way of measuring would sit next to the new name and mislead.
+            pings.clear();
+            stopPing();
+            if (listAdapter != null && vlessPingRow != -1) {
+                listAdapter.notifyItemRangeChanged(vlessPingRow, vlessServersEnd - vlessPingRow);
+            }
+        });
+        showDialog(builder.create());
+    }
+
+    private void stopPing() {
+        pingRun++;
+        pingTotal = 0;
+        if (pingPool != null) {
+            pingPool.shutdownNow();
+            pingPool = null;
+        }
+    }
+
+    private void togglePing() {
+        if (pingTotal > 0) {
+            stopPing();
+            if (listAdapter != null && vlessPingRow != -1) {
+                listAdapter.notifyItemChanged(vlessPingRow);
+            }
+            return;
+        }
+        if (servers.isEmpty()) {
+            return;
+        }
+        final int run = ++pingRun;
+        final int method = XrayPing.method();
+        final List<String> snapshot = new ArrayList<>(servers);
+        pings.clear();
+        pingDone = 0;
+        pingTotal = snapshot.size();
+        // A handful at a time: every "via proxy" ping starts a core of its own.
+        final ExecutorService pool = Executors.newFixedThreadPool(method == XrayPing.GET || method == XrayPing.HEAD ? 4 : 8);
+        pingPool = pool;
+        if (listAdapter != null) {
+            listAdapter.notifyItemRangeChanged(vlessPingRow, vlessServersEnd - vlessPingRow);
+        }
+        for (String uri : snapshot) {
+            pool.execute(() -> {
+                final int result = XrayPing.ping(method, uri);
+                AndroidUtilities.runOnUIThread(() -> {
+                    if (run != pingRun) {
+                        return;
+                    }
+                    pings.put(uri, result);
+                    pingDone++;
+                    final boolean finished = pingDone >= pingTotal;
+                    if (finished) {
+                        pingTotal = 0;
+                        pool.shutdown();
+                        pingPool = null;
+                    }
+                    if (listAdapter != null && vlessServersStart != -1) {
+                        int index = servers.indexOf(uri);
+                        if (index >= 0) {
+                            listAdapter.notifyItemChanged(vlessServersStart + index);
+                        }
+                        listAdapter.notifyItemChanged(vlessPingRow);
+                    }
+                });
+            });
+        }
+    }
+
+    @Override
+    public void onFragmentDestroy() {
+        stopPing();
+        super.onFragmentDestroy();
     }
 
     private void pickServer(Context context, int index) {
@@ -658,43 +777,11 @@ public class BypassBlockingActivity extends BaseNekoSettingsActivity {
     // ------------------------------------------------------------------ summaries (never a link or a key)
 
     private String subscriptionSummary() {
-        XraySettings.SubscriptionInfo info = XraySettings.subscriptionInfo();
         List<String> parts = new ArrayList<>();
         if (servers.size() > 1) {
             parts.add(LocaleController.formatString(R.string.VlessSubSummaryServers, servers.size()));
         } else if (servers.size() == 1) {
             parts.add(getString(R.string.VlessSubSingleServer));
-        }
-        long upload = 0, download = 0, total = 0, expire = 0;
-        for (String piece : info.getUserInfo().split(";")) {
-            String[] kv = piece.trim().split("=");
-            if (kv.length != 2) {
-                continue;
-            }
-            try {
-                long n = Long.parseLong(kv[1].trim());
-                switch (kv[0].trim().toLowerCase(Locale.US)) {
-                    case "upload": upload = n; break;
-                    case "download": download = n; break;
-                    case "total": total = n; break;
-                    case "expire": expire = n; break;
-                    default: break;
-                }
-            } catch (NumberFormatException ignored) {
-            }
-        }
-        if (upload + download > 0) {
-            String used = AndroidUtilities.formatFileSize(upload + download);
-            parts.add(LocaleController.formatString(R.string.VlessSubSummaryUsed,
-                    total > 0 ? used + " / " + AndroidUtilities.formatFileSize(total) : used));
-        }
-        if (expire > 0) {
-            parts.add(LocaleController.formatString(R.string.VlessSubSummaryUntil,
-                    DateFormat.getDateInstance(DateFormat.MEDIUM).format(new Date(expire * 1000L))));
-        }
-        if (info.getUpdatedAt() > 0) {
-            parts.add(LocaleController.formatString(R.string.VlessSubSummaryUpdated,
-                    DateFormat.getTimeInstance(DateFormat.SHORT).format(new Date(info.getUpdatedAt()))));
         }
         return android.text.TextUtils.join(" · ", parts);
     }
@@ -927,7 +1014,13 @@ public class BypassBlockingActivity extends BaseNekoSettingsActivity {
                         name = LocaleController.formatString(R.string.VlessServerFallbackName, index + 1);
                     }
                     boolean checked = uri.equals(XrayController.savedVlessKey());
-                    cell.setTextAndValueAndCheck(name.trim(), ProxyLinks.describe(uri), checked, false, index < servers.size() - 1);
+                    String detail = ProxyLinks.describe(uri);
+                    Integer ping = pings.get(uri);
+                    if (ping != null) {
+                        String shown = ping == XrayPing.FAILED ? getString(R.string.VlessPingTimeout) : ping + " ms";
+                        detail = detail.isEmpty() ? shown : shown + " · " + detail;
+                    }
+                    cell.setTextAndValueAndCheck(name.trim(), detail, checked, false, index < servers.size() - 1);
                     break;
                 }
                 case TYPE_CHECK: {
@@ -976,6 +1069,11 @@ public class BypassBlockingActivity extends BaseNekoSettingsActivity {
                         cell.setTextAndValue(getString(R.string.VlessSubLinkTitle), linkRowValue(), vlessUpdateRow != -1);
                     } else if (position == vlessUpdateRow) {
                         cell.setTextAndValue(getString(R.string.VlessSubscriptionRefresh), subscriptionSummary(), false);
+                    } else if (position == vlessPingRow) {
+                        cell.setTextAndValue(getString(R.string.VlessPingServers),
+                                pingTotal > 0 ? LocaleController.formatString(R.string.VlessPingRunning, pingDone, pingTotal) : "", true);
+                    } else if (position == vlessPingTypeRow) {
+                        cell.setTextAndValue(getString(R.string.VlessPingType), pingTypeName(XrayPing.method()), false);
                     } else if (position == fingerprintRow) {
                         cell.setTextAndValue(getString(R.string.VlessFingerprint), optionValue(position), true);
                     } else if (position == dnsRow) {
@@ -1016,6 +1114,7 @@ public class BypassBlockingActivity extends BaseNekoSettingsActivity {
                 return TYPE_RADIO;
             } else if (position == portRow || position == wsPoolRow || position == secretKeyRow
                     || position == fakeTlsDomainRow || position == generateSecretKeyRow || position == vlessLinkRow || position == vlessUpdateRow
+                    || position == vlessPingRow || position == vlessPingTypeRow
                     || position == fragmentPacketsRow || position == fragmentLengthRow || position == fragmentIntervalRow
                     || position == fragmentMaxSplitRow || position == noiseTypeRow || position == noisePacketRow
                     || position == noiseDelayRow || position == noiseApplyRow || position == muxConcurrencyRow

@@ -357,7 +357,7 @@ public final class CustomProfileHeaderLayout {
             transforms[i].apply(views[i], drawElements[i], wantedX[i], wantedY[i],
                     i == CustomProfileAnchors.AVATAR ? avatarAmount : partsAmount);
         }
-        settleStatusAgainstName(root, name, status, wantedX, wantedY, partsAmount);
+        settleStatusAgainstName(root, name, status, actions, wantedX, wantedY, partsAmount);
         applyActionsContent(actions, partsAmount);
     }
 
@@ -394,8 +394,9 @@ public final class CustomProfileHeaderLayout {
      * leave Last Seen drawn over the name.
      */
     private static void settleStatusAgainstName(View root, @Nullable View name, @Nullable View status,
+                                                @Nullable View actions,
                                                 float[] wantedX, float[] wantedY, float amount) {
-        final float strength = Math.max(0f, Math.min(1f, (amount - 0.55f) / 0.35f));
+        final float strength = amount > 0.05f ? 1f : 0f;
         if (name == null || status == null || strength <= 0f || name.getVisibility() == View.GONE
                 || status.getVisibility() == View.GONE || name.getWidth() == 0 || status.getWidth() == 0) {
             return;
@@ -426,6 +427,21 @@ public final class CustomProfileHeaderLayout {
         final float needed = nameRight + gap - statusLeft;
         final float room = root.getWidth() - gap - statusRight;
         final float shift = Math.min(needed, Math.max(0f, room));
+        if (needed - shift > AndroidUtilities.dpf2(4)) {
+            // Not enough room beside the name: put Last Seen on its own line right under it, from the
+            // name's start, so it is never drawn over the name, unless that would land on the buttons.
+            final float dy = nameBottom + AndroidUtilities.dpf2(2) - statusTop;
+            final float dx = nameLeft - statusLeft;
+            final float buttonsTop = actions != null && actions.getVisibility() != View.GONE && actions.getHeight() > 0
+                    ? CustomProfileAnchors.drawnStart(root, actions, true) : Float.MAX_VALUE;
+            if (statusBottom + dy <= buttonsTop + AndroidUtilities.dpf2(2)) {
+                wantedX[CustomProfileAnchors.STATUS] += dx / amount;
+                wantedY[CustomProfileAnchors.STATUS] += dy / amount;
+                transforms[CustomProfileAnchors.STATUS].apply(status, elements[CustomProfileAnchors.STATUS],
+                        wantedX[CustomProfileAnchors.STATUS], wantedY[CustomProfileAnchors.STATUS], amount);
+                return;
+            }
+        }
         if (shift <= 0.5f) {
             return;
         }
@@ -509,8 +525,9 @@ public final class CustomProfileHeaderLayout {
     private static void keepStatusClearOfName(View root, @Nullable View name,
                                               @Nullable View status, float[] wantedX,
                                               float[] wantedY, float amount) {
-        // Full strength while the header is open, gone by the time it is half closed.
-        final float strength = Math.max(0f, Math.min(1f, (amount - 0.55f) / 0.35f));
+        // Full strength whenever the header shows at all: a correction that faded with the header let
+        // Last Seen slide back over the name part way through a scroll.
+        final float strength = amount > 0.05f ? 1f : 0f;
         if (name == null || status == null || strength <= 0f || name.getVisibility() == View.GONE
                 || status.getVisibility() == View.GONE || name.getWidth() == 0 || status.getWidth() == 0) {
             return;

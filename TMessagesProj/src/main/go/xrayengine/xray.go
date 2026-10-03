@@ -211,6 +211,14 @@ func Java_sovietgram_com_proxy_NativeXrayBridge_start(env *C.JNIEnv, clazz C.jcl
 	return C.xrayNewString(env, cResult)
 }
 
+//export Java_sovietgram_com_proxy_NativeXrayBridge_ping
+func Java_sovietgram_com_proxy_NativeXrayBridge_ping(env *C.JNIEnv, clazz C.jclass, jConfig C.jstring, jMethod C.jstring, jUrl C.jstring, timeoutMs C.jint) C.jstring {
+	result := pingXray(jstringToGoString(env, jConfig), jstringToGoString(env, jMethod), jstringToGoString(env, jUrl), int(timeoutMs))
+	cs := C.CString(result)
+	defer C.free(unsafe.Pointer(cs))
+	return C.xrayNewString(env, cs)
+}
+
 //export Java_sovietgram_com_proxy_NativeXrayBridge_stop
 func Java_sovietgram_com_proxy_NativeXrayBridge_stop(env *C.JNIEnv, clazz C.jclass) {
 	stopXray()

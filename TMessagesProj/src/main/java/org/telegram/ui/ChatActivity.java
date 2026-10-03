@@ -7551,6 +7551,7 @@ public class ChatActivity extends BaseFragment implements
         chatActivityFadeView.setup(navbarContentDrawableFactory);
         chatActivityFadeView.setFadeHeightTop(dp(48));
         chatActivityFadeView.setFadeHeightBottom(dp(48));
+        chatActivityFadeView.setSuppressed(LiveWallpaperHelper.isEnabled());
         contentView.addView(chatActivityFadeView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
 
         if (false/* && getDialogId() != getUserConfig().getClientUserId()*/) {
@@ -25322,6 +25323,9 @@ public class ChatActivity extends BaseFragment implements
             }
         } else if (id == NotificationCenter.didSetNewWallpapper) {
             LiveWallpaperHelper.update(contentView);
+            if (chatActivityFadeView != null) {
+                chatActivityFadeView.setSuppressed(LiveWallpaperHelper.isEnabled());
+            }
             if (fragmentView != null) {
                 updateBackground();
                 progressView2.invalidate();
@@ -31296,6 +31300,9 @@ public class ChatActivity extends BaseFragment implements
             tw.nekomimi.nekogram.helpers.SovietGramProfileSync.requestProfile(currentAccount, currentUser.id);
         }
         LiveWallpaperHelper.onResume(contentView);
+        if (chatActivityFadeView != null) {
+            chatActivityFadeView.setSuppressed(LiveWallpaperHelper.isEnabled());
+        }
         cachedIsGestureNavigation = AndroidUtil.isGestureNavigation(getContext());
         checkShowBlur(false);
         activityResumeTime = System.currentTimeMillis();

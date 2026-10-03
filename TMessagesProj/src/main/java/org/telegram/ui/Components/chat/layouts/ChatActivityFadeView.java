@@ -18,6 +18,7 @@ public class ChatActivityFadeView extends View implements Theme.Colorable {
     private BlurredBackgroundWithFadeDrawable fadeDrawableTop;
     private BlurredBackgroundWithFadeDrawable fadeDrawableBottom;
     private int fadeZoneTop, fadeZoneBottom;
+    private boolean suppressed;
 
     public ChatActivityFadeView(Context context) {
         super(context);
@@ -85,6 +86,17 @@ public class ChatActivityFadeView extends View implements Theme.Colorable {
         }
     }
 
+    /**
+     * Switches the two blurred strips off. They are cut from the static wallpaper, so over a live
+     * (video) wallpaper they would cover the video behind the header and the input with a still picture.
+     */
+    public void setSuppressed(boolean suppressed) {
+        if (this.suppressed != suppressed) {
+            this.suppressed = suppressed;
+            invalidate();
+        }
+    }
+
     public void setFadeTopAlpha(int alpha) {
         if (fadeDrawableTop.getAlpha() != alpha) {
             fadeDrawableTop.setAlpha(alpha);
@@ -105,6 +117,9 @@ public class ChatActivityFadeView extends View implements Theme.Colorable {
     @Override
     protected void onDraw(@NonNull Canvas canvas) {
         super.onDraw(canvas);
+        if (suppressed) {
+            return;
+        }
         fadeDrawableTop.draw(canvas);
         fadeDrawableBottom.draw(canvas);
     }

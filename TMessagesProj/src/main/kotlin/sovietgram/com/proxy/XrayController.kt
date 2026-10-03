@@ -180,6 +180,14 @@ object XrayController {
     fun setEnabled(enabled: Boolean) {
         NaConfig.vlessEnabled.setConfigBool(enabled)
         NaConfig.getPreferences().edit().putBoolean(NaConfig.vlessEnabled.key, enabled).commit()
+        if (enabled) {
+            // Never both: the TG WS proxy owns the same local proxy slot.
+            BypassGuard.markVless()
+            if (TgWsProxyController.isEnabled()) {
+                TgWsProxyController.setEnabled(false)
+                TgWsProxyController.stopService(org.telegram.messenger.ApplicationLoader.applicationContext)
+            }
+        }
     }
 
     @JvmStatic

@@ -766,4 +766,13 @@
     <string name="TdataLoginNote">A tdata folder with a Telegram Desktop local passcode works too: you will be asked for the passcode.</string>
     <string name="AccountPasscodes">Passcodes for accounts</string>
     <string name="AccountPasscodesInfo">Give each account its own passcode, hide accounts or set a panic code. The code you enter on the lock screen decides which account opens.</string>
+    <string name="VlessPingServers">Ping servers</string>
+    <string name="VlessPingType">Ping type</string>
+    <string name="VlessPingGet">Via proxy GET</string>
+    <string name="VlessPingHead">Via proxy HEAD</string>
+    <string name="VlessPingTcp">TCP</string>
+    <string name="VlessPingIcmp">ICMP</string>
+    <string name="VlessPingRunning">Pinging %1$d/%2$d, tap to stop</string>
+    <string name="VlessPingTimeout">timeout</string>
+    <string name="DeletedMessagesDeleteConfirm">Remove every saved deleted message of %1$s from this phone? This cannot be undone.</string>
 </resources>

@@ -8053,7 +8053,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             Object object = dialogsAdapter.getItem(position);
             if (adapter.getItemViewType(position) == DialogsAdapter.VIEW_TYPE_DELETED_MESSAGES) {
                 if (!actionBar.isActionModeShowed(null)) {
-                    presentFragment(new com.radolyn.ayugram.ui.AyuDeletedDialogsActivity());
+                    presentFragment(new com.radolyn.ayugram.ui.AyuDeletedDialogsActivity(), false, true);
                 }
                 return;
             }

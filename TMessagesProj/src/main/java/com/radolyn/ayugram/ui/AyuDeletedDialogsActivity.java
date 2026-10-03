@@ -15,6 +15,7 @@ import android.content.Context;
 import android.text.TextUtils;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.TextView;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 
@@ -24,6 +25,8 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.radolyn.ayugram.AyuConstants;
 import com.radolyn.ayugram.database.entities.DeletedDialogSummary;
+import com.radolyn.ayugram.database.entities.DeletedMessage;
+import com.radolyn.ayugram.database.entities.DeletedMessageFull;
 import com.radolyn.ayugram.messages.AyuMessagesController;
 
 import org.telegram.messenger.AndroidUtilities;
@@ -42,7 +45,8 @@ import org.telegram.ui.ActionBar.ActionBarMenuSubItem;
 import org.telegram.ui.ActionBar.BottomSheet;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
-import org.telegram.ui.Cells.ProfileSearchCell;
+import org.telegram.ui.ActionBar.AlertDialog;
+import org.telegram.ui.Cells.DialogCell;
 import org.telegram.ui.Components.EmptyTextProgressView;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.RecyclerListView;
@@ -79,6 +83,9 @@ public class AyuDeletedDialogsActivity extends BaseFragment implements Notificat
     private final ArrayList<DeletedDialogSummary> shownItems = new ArrayList<>();
     private final HashMap<Long, TLObject> peerCache = new HashMap<>();
     private final HashMap<Long, String> nameCache = new HashMap<>();
+    // The newest saved message of every row: what the row shows as its text and the time it is sorted and labelled by.
+    private final HashMap<Long, String> lastText = new HashMap<>();
+    private final HashMap<Long, Integer> lastDate = new HashMap<>();
     // Surviving dialogId -> every id folded into that row (including itself). Only populated for
     // conversations that exist under more than one id; see mergeMigratedDialogs.
     private final HashMap<Long, List<Long>> mergedDialogIds = new HashMap<>();
@@ -208,17 +215,19 @@ public class AyuDeletedDialogsActivity extends BaseFragment implements Notificat
         updateSortChecks();
 
         FrameLayout frameLayout = new FrameLayout(context);
-        frameLayout.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundGray));
+        frameLayout.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
         fragmentView = frameLayout;
 
         emptyView = new EmptyTextProgressView(context);
         emptyView.setText(getString(R.string.DeletedMessagesEmpty));
-        emptyView.showTextView();
+        // Nothing is said about an empty list until the first load has actually finished.
+        emptyView.showProgress();
         frameLayout.addView(emptyView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
 
         listView = new RecyclerListView(context);
         listView.setLayoutManager(new LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false));
         listView.setVerticalScrollBarEnabled(false);
+        listView.setItemAnimator(null);
         listView.setEmptyView(emptyView);
         adapter = new ListAdapter(context);
         listView.setAdapter(adapter);
@@ -229,7 +238,7 @@ public class AyuDeletedDialogsActivity extends BaseFragment implements Notificat
                 return;
             }
             DeletedDialogSummary summary = shownItems.get(position);
-            presentFragment(new AyuViewDeleted(summary.dialogId, mergedDialogIds.get(summary.dialogId)));
+            openSummary(summary);
         });
         listView.setOnItemLongClickListener((view, position) -> {
             if (position < 0 || position >= shownItems.size() || getParentActivity() == null) {
@@ -241,15 +250,19 @@ public class AyuDeletedDialogsActivity extends BaseFragment implements Notificat
             builder.setTitle(displayName(summary), true);
             builder.setItems(new CharSequence[]{
                     getString(R.string.Open),
-                    getString(isPinned ? R.string.UnpinFromTop : R.string.PinToTop)
+                    getString(isPinned ? R.string.UnpinFromTop : R.string.PinToTop),
+                    getString(R.string.Delete)
             }, new int[]{
                     R.drawable.msg_openin,
-                    isPinned ? R.drawable.msg_unpin : R.drawable.msg_pin
+                    isPinned ? R.drawable.msg_unpin : R.drawable.msg_pin,
+                    R.drawable.msg_delete
             }, (dialog, which) -> {
                 if (which == 0) {
-                    presentFragment(new AyuViewDeleted(summary.dialogId, mergedDialogIds.get(summary.dialogId)));
-                } else {
+                    openSummary(summary);
+                } else if (which == 1) {
                     togglePinned(summary);
+                } else {
+                    confirmDelete(summary);
                 }
             });
             showDialog(builder.create());
@@ -257,6 +270,61 @@ public class AyuDeletedDialogsActivity extends BaseFragment implements Notificat
         });
 
         return fragmentView;
+    }
+
+    private void openSummary(DeletedDialogSummary summary) {
+        // No transition: the screen is a list read from the phone, so it is there at once.
+        presentFragment(new AyuViewDeleted(summary.dialogId, mergedDialogIds.get(summary.dialogId)), false, true);
+    }
+
+    private void confirmDelete(DeletedDialogSummary summary) {
+        if (getParentActivity() == null) {
+            return;
+        }
+        final AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+        builder.setTitle(getString(R.string.Delete));
+        builder.setMessage(LocaleController.formatString(R.string.DeletedMessagesDeleteConfirm, displayName(summary)));
+        builder.setNegativeButton(getString(R.string.Cancel), null);
+        builder.setPositiveButton(getString(R.string.Delete), (dialog, which) -> deleteDialog(summary));
+        final AlertDialog alert = builder.create();
+        showDialog(alert);
+        final TextView button = (TextView) alert.getButton(AlertDialog.BUTTON_POSITIVE);
+        if (button != null) {
+            button.setTextColor(Theme.getColor(Theme.key_text_RedBold));
+        }
+    }
+
+    private void deleteDialog(DeletedDialogSummary summary) {
+        final List<Long> ids = mergedDialogIds.get(summary.dialogId) != null
+                ? new ArrayList<>(mergedDialogIds.get(summary.dialogId))
+                : Collections.singletonList(summary.dialogId);
+        // The row goes at once; the database and the saved files follow in the background.
+        items.remove(summary);
+        pinned.remove(summary.dialogId);
+        savePinned();
+        applySearchFilter();
+        Utilities.globalQueue.postRunnable(() -> {
+            for (long id : ids) {
+                AyuMessagesController.getInstance().deleteCurrent(id, 0, null);
+            }
+        });
+    }
+
+    private static String describe(DeletedMessage message) {
+        if (!TextUtils.isEmpty(message.text)) {
+            return message.text.replace('\n', ' ');
+        }
+        final String mime = message.mimeType == null ? "" : message.mimeType;
+        if (mime.startsWith("image/")) {
+            return getString(R.string.AttachPhoto);
+        } else if (mime.startsWith("video/")) {
+            return getString(R.string.AttachVideo);
+        } else if (mime.startsWith("audio/")) {
+            return getString(R.string.AttachAudio);
+        } else if (message.documentSerialized != null || !TextUtils.isEmpty(message.mediaPath)) {
+            return getString(R.string.AttachDocument);
+        }
+        return "";
     }
 
     private void updateSortChecks() {
@@ -283,7 +351,7 @@ public class AyuDeletedDialogsActivity extends BaseFragment implements Notificat
             if (pinA != pinB) {
                 return pinA ? -1 : 1;
             }
-            int cmp = Integer.compare(a.latestDate, b.latestDate);
+            int cmp = Integer.compare(dateOf(a), dateOf(b));
             if (cmp == 0) {
                 // Same second: fall back to the message id, then the dialog id, so the order
                 // is stable across reloads instead of depending on the map iteration.
@@ -294,6 +362,11 @@ public class AyuDeletedDialogsActivity extends BaseFragment implements Notificat
             }
             return direction * cmp;
         });
+    }
+
+    private int dateOf(DeletedDialogSummary summary) {
+        final Integer date = lastDate.get(summary.dialogId);
+        return date != null ? date : summary.latestDate;
     }
 
     private void applySearchFilter() {
@@ -352,9 +425,32 @@ public class AyuDeletedDialogsActivity extends BaseFragment implements Notificat
             }
             final HashMap<Long, List<Long>> merged = new HashMap<>();
             final List<DeletedDialogSummary> result = mergeMigratedDialogs(raw, resolved, merged);
+            final HashMap<Long, String> texts = new HashMap<>();
+            final HashMap<Long, Integer> dates = new HashMap<>();
+            if (result != null) {
+                for (DeletedDialogSummary s : result) {
+                    final List<Long> ids = merged.get(s.dialogId) != null ? merged.get(s.dialogId) : Collections.singletonList(s.dialogId);
+                    DeletedMessage newest = null;
+                    for (long id : ids) {
+                        final List<DeletedMessageFull> latest = AyuMessagesController.getInstance().getLatestMessages(userId, id, 1);
+                        if (latest != null && !latest.isEmpty() && latest.get(0).message != null
+                                && (newest == null || latest.get(0).message.date > newest.date)) {
+                            newest = latest.get(0).message;
+                        }
+                    }
+                    if (newest != null) {
+                        texts.put(s.dialogId, describe(newest));
+                        dates.put(s.dialogId, newest.date);
+                    }
+                }
+            }
             AndroidUtilities.runOnUIThread(() -> {
                 loading = false;
                 items.clear();
+                lastText.clear();
+                lastDate.clear();
+                lastText.putAll(texts);
+                lastDate.putAll(dates);
                 peerCache.clear();
                 nameCache.clear();
                 mergedDialogIds.clear();
@@ -368,6 +464,9 @@ public class AyuDeletedDialogsActivity extends BaseFragment implements Notificat
                 }
                 applySort();
                 applySearchFilter();
+                if (emptyView != null) {
+                    emptyView.showTextView();
+                }
             });
         });
     }
@@ -466,38 +565,29 @@ public class AyuDeletedDialogsActivity extends BaseFragment implements Notificat
         @NonNull
         @Override
         public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-            ProfileSearchCell cell = new ProfileSearchCell(mContext);
+            // The chat list's own row: photo, name, last text, time, badge and pin look exactly as there.
+            final DialogCell cell = new DialogCell(null, mContext, false, false, currentAccount, null);
             cell.useSeparator = true;
+            cell.setLayoutParams(new RecyclerView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
             return new RecyclerListView.Holder(cell);
         }
 
         @Override
         public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
-            DeletedDialogSummary summary = shownItems.get(position);
-            ProfileSearchCell cell = (ProfileSearchCell) holder.itemView;
-            TLObject peer = peerCache.get(summary.dialogId);
-            CharSequence name = displayName(summary);
-            if (peer == null) {
-                // Never hand a bare null to ProfileSearchCell: its else-branch neither clears the
-                // recycled user/chat nor draws anything, so a recycled row would keep a stale avatar.
-                // A minimal placeholder makes it reset state and render a letter avatar.
-                if (summary.dialogId < 0) {
-                    TLRPC.Chat placeholder = new TLRPC.TL_chat();
-                    placeholder.id = -summary.dialogId;
-                    placeholder.title = name.toString();
-                    peer = placeholder;
-                } else {
-                    TLRPC.User placeholder = new TLRPC.TL_user();
-                    placeholder.id = summary.dialogId;
-                    placeholder.first_name = name.toString();
-                    peer = placeholder;
-                }
-            }
-            CharSequence status = LocaleController.formatPluralString("DeletedMessagesCount", summary.count);
-            if (pinned.contains(summary.dialogId)) {
-                status = "\uD83D\uDCCC " + status;
-            }
-            cell.setData(peer, null, name, status, false, false);
+            final DeletedDialogSummary summary = shownItems.get(position);
+            final DialogCell cell = (DialogCell) holder.itemView;
+            final DialogCell.CustomDialog row = new DialogCell.CustomDialog();
+            row.name = displayName(summary).toString();
+            row.id = (int) summary.dialogId;
+            row.peer = peerCache.get(summary.dialogId);
+            final String text = lastText.get(summary.dialogId);
+            row.message = TextUtils.isEmpty(text) ? LocaleController.formatPluralString("DeletedMessagesCount", summary.count) : text;
+            row.date = dateOf(summary);
+            // The badge counts the saved messages, the way a chat counts what you have not read.
+            row.unread_count = summary.count;
+            row.pinned = pinned.contains(summary.dialogId);
+            row.muted = false;
+            cell.setDialog(row);
         }
     }
 }

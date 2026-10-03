@@ -407,6 +407,8 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
         public boolean verified;
         public boolean isMedia;
         public int sent = -1;
+        /** The real user or chat, when the row should show its photo instead of a letter. */
+        public TLObject peer;
     }
 
     private int paintIndex;
@@ -3281,6 +3283,9 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
             avatarDrawable.setInfo(customDialog.id, customDialog.name, null);
             if (isShareToStoryCell) {
                 avatarImage.setImage(null, "50_50", repostStoryDrawable, null, 0);
+            } else if (customDialog.peer != null) {
+                avatarDrawable.setInfo(currentAccount, customDialog.peer);
+                avatarImage.setForUserOrChat(customDialog.peer, avatarDrawable);
             } else {
                 avatarImage.setImage(null, "50_50", avatarDrawable, null, 0);
             }
