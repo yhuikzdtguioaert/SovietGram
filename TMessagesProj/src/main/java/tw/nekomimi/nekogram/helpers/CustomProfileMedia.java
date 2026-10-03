@@ -263,6 +263,33 @@ public final class CustomProfileMedia {
         if (TextUtils.isEmpty(raw) || "null".equals(raw)) {
             return null;
         }
+        // pathFor() lands here from the draw path, several times a frame for a workshop look, and
+        // the answer only depends on the string. A handful of entries covers the banner, the
+        // background and the fonts of the look on screen.
+        synchronized (parsedDescriptors) {
+            final Ref known = parsedDescriptors.get(raw);
+            if (known != null) {
+                return known == NO_REF ? null : known;
+            }
+        }
+        final Ref parsed = readDescriptor(raw);
+        synchronized (parsedDescriptors) {
+            parsedDescriptors.put(raw, parsed == null ? NO_REF : parsed);
+        }
+        return parsed;
+    }
+
+    private static final Ref NO_REF = new Ref("", "", "", "", false);
+    private static final Map<String, Ref> parsedDescriptors =
+            new java.util.LinkedHashMap<>(16, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<String, Ref> eldest) {
+                    return size() > 16;
+                }
+            };
+
+    @Nullable
+    private static Ref readDescriptor(String raw) {
         try {
             final JSONObject json = new JSONObject(raw);
             final String sha = json.optString("sha", "").trim();

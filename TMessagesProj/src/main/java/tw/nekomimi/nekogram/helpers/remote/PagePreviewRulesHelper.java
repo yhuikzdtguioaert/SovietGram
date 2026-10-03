@@ -213,8 +213,17 @@ public class PagePreviewRulesHelper extends BaseRemoteHelper {
             this.replace = replace;
         }
 
+        /** The compiled form of {@link #regex}, and the string it was compiled from. */
+        private Pattern compiled;
+        private String compiledFrom;
+
         public Pattern getRegexPattern() {
-            return Pattern.compile(regex);
+            // doRegex() asks for it every time a link is checked; compile once per rule.
+            if (compiled == null || !regex.equals(compiledFrom)) {
+                compiled = Pattern.compile(regex);
+                compiledFrom = regex;
+            }
+            return compiled;
         }
 
         public static DomainRule deserialize(AbstractSerializedData stream) {

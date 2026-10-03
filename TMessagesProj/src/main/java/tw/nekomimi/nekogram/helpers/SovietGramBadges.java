@@ -424,10 +424,19 @@ public final class SovietGramBadges {
 
     /** "#RRGGBB" from the server; anything else means the default colour. */
     private static int parseColor(String value) {
-        if (value == null || !value.matches("#[0-9A-Fa-f]{6}")) {
+        if (value == null || value.length() != 7 || value.charAt(0) != '#') {
             return NO_COLOR;
         }
-        return Integer.parseInt(value.substring(1), 16) & 0xFFFFFF;
+        int color = 0;
+        for (int i = 1; i < 7; i++) {
+            final int digit = Character.digit(value.charAt(i), 16);
+            // Character.digit also takes non-ASCII digits and full-width letters; the shape is ASCII hex.
+            if (digit < 0 || value.charAt(i) > 'f') {
+                return NO_COLOR;
+            }
+            color = (color << 4) | digit;
+        }
+        return color;
     }
 
     /** The id arrives as text: it is a Telegram id and does not survive a JSON number everywhere. */

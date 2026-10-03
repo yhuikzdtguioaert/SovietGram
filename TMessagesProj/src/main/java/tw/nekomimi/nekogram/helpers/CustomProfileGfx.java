@@ -167,6 +167,44 @@ public final class CustomProfileGfx {
         return smoothingPercent > 0 ? smooth(path, smoothingPercent) : path;
     }
 
+    /**
+     * Keeps the last outline built, so an avatar that is redrawn every frame at the same size does not
+     * rebuild (and re-smooth) its path each time. The path is only ever clipped to or stroked, never
+     * edited, so handing the same one out again is safe. {@code points} is compared by identity, which
+     * is enough because the caller keeps parsing it once per value.
+     */
+    static final class ShapeMemo {
+        @Nullable
+        private Path path;
+        private int shape;
+        private int smoothing;
+        private float left;
+        private float top;
+        private float right;
+        private float bottom;
+        private float radiusDp;
+        @Nullable
+        private float[] points;
+
+        Path get(int shape, float left, float top, float right, float bottom,
+                 float radiusDp, int smoothingPercent, @Nullable float[] points) {
+            if (path == null || shape != this.shape || smoothingPercent != smoothing
+                    || left != this.left || top != this.top || right != this.right
+                    || bottom != this.bottom || radiusDp != this.radiusDp || points != this.points) {
+                path = shapePath(shape, left, top, right, bottom, radiusDp, smoothingPercent, points);
+                this.shape = shape;
+                this.smoothing = smoothingPercent;
+                this.left = left;
+                this.top = top;
+                this.right = right;
+                this.bottom = bottom;
+                this.radiusDp = radiusDp;
+                this.points = points;
+            }
+            return path;
+        }
+    }
+
     /** The look's own outline, in the order its author drew it. */
     private static void custom(Path path, float[] points, float left, float top, float width, float height) {
         for (int i = 0; i + 1 < points.length; i += 2) {
@@ -391,29 +429,46 @@ public final class CustomProfileGfx {
         if (width <= 0 || height <= 0) {
             return null;
         }
-        final int count = clamp(CustomProfileHelper.cfgInt(NekoConfig.customProfileGradientCount), 2, 3);
+        // Called from onDraw for every frame a gradient banner is on screen, so the shader is kept
+        // until one of the settings it was built from, or the box it is stretched over, moves.
+        final int[] probe = gradientProbe;
+        probe[0] = CustomProfileHelper.cfgInt(NekoConfig.customProfileGradientCount);
+        probe[1] = CustomProfileHelper.cfgInt(NekoConfig.customProfileGradientColor1);
+        probe[2] = CustomProfileHelper.cfgInt(NekoConfig.customProfileGradientColor2);
+        probe[3] = CustomProfileHelper.cfgInt(NekoConfig.customProfileGradientColor3);
+        probe[4] = CustomProfileHelper.cfgInt(NekoConfig.customProfileGradientRadius);
+        probe[5] = CustomProfileHelper.cfgBool(NekoConfig.customProfileGradientRadial) ? 1 : 0;
+        probe[6] = CustomProfileHelper.cfgInt(NekoConfig.customProfileGradientCenterX);
+        probe[7] = CustomProfileHelper.cfgInt(NekoConfig.customProfileGradientCenterY);
+        probe[8] = CustomProfileHelper.cfgInt(NekoConfig.customProfileGradientAngle);
+        probe[9] = Float.floatToIntBits(width);
+        probe[10] = Float.floatToIntBits(height);
+        if (gradientCache != null && java.util.Arrays.equals(probe, gradientCacheKey)) {
+            return gradientCache;
+        }
+        final int count = clamp(probe[0], 2, 3);
         final int[] colors = new int[count];
-        colors[0] = CustomProfileHelper.cfgInt(NekoConfig.customProfileGradientColor1);
-        colors[1] = CustomProfileHelper.cfgInt(NekoConfig.customProfileGradientColor2);
+        colors[0] = probe[1];
+        colors[1] = probe[2];
         if (count > 2) {
-            colors[2] = CustomProfileHelper.cfgInt(NekoConfig.customProfileGradientColor3);
+            colors[2] = probe[3];
         }
         // Null stops spread the colours evenly, which is 0/1 for two and 0/0.5/1 for three — the same
         // stops the reference writes out by hand.
-        final float r = clamp(CustomProfileHelper.cfgInt(NekoConfig.customProfileGradientRadius), 20, 200) / 100f;
+        final float r = clamp(probe[4], 20, 200) / 100f;
         final Shader shader;
-        if (CustomProfileHelper.cfgBool(NekoConfig.customProfileGradientRadial)) {
+        if (probe[5] != 0) {
             float radius = r * 0.5f;
             if (radius <= 0) {
                 radius = 0.5f;
             }
             shader = new RadialGradient(
-                    clampF(CustomProfileHelper.cfgInt(NekoConfig.customProfileGradientCenterX) / 100f, 0f, 1f),
-                    clampF(CustomProfileHelper.cfgInt(NekoConfig.customProfileGradientCenterY) / 100f, 0f, 1f),
+                    clampF(probe[6] / 100f, 0f, 1f),
+                    clampF(probe[7] / 100f, 0f, 1f),
                     radius, colors, null, Shader.TileMode.CLAMP);
         } else {
             // A linear gradient is always struck through the middle; only its angle and length move.
-            final double theta = Math.toRadians(CustomProfileHelper.cfgInt(NekoConfig.customProfileGradientAngle) % 360);
+            final double theta = Math.toRadians(probe[8] % 360);
             final float half = r * 0.5f;
             final float dx = (float) Math.sin(theta) * half;
             final float dy = -(float) Math.cos(theta) * half;
@@ -423,8 +478,35 @@ public final class CustomProfileGfx {
         matrix.reset();
         matrix.setScale(width, height);
         shader.setLocalMatrix(matrix);
+        System.arraycopy(probe, 0, gradientCacheKey, 0, probe.length);
+        gradientCache = shader;
         return shader;
     }
+
+    /** The settings and box {@link #gradientCache} was built from, and a scratch copy to compare with. */
+    private static final int[] gradientProbe = new int[11];
+    private static final int[] gradientCacheKey = new int[11];
+    @Nullable
+    private static Shader gradientCache;
+
+    /**
+     * The white-to-clear ramp that dissolves a banner's last {@code band} pixels into what is under
+     * it. Kept for as long as the same box is drawn, which is every frame of a scroll.
+     */
+    static Shader blendShader(float height, float band) {
+        if (blendCache == null || blendCacheHeight != height || blendCacheBand != band) {
+            blendCache = new LinearGradient(0, height - band, 0, height,
+                    0xFFFFFFFF, 0x00FFFFFF, Shader.TileMode.CLAMP);
+            blendCacheHeight = height;
+            blendCacheBand = band;
+        }
+        return blendCache;
+    }
+
+    @Nullable
+    private static Shader blendCache;
+    private static float blendCacheHeight;
+    private static float blendCacheBand;
 
     /**
      * Runs {@code content} through the alpha, dim and fade every banner and background share. Plain
@@ -464,8 +546,7 @@ public final class CustomProfileGfx {
         if (blendRadius > 0) {
             final float band = Math.min(height, Math.max(AndroidUtilities.dpf2(8),
                     height * clamp(blendRadius, 2, 60) / 100f));
-            fadePaint.setShader(new LinearGradient(0, height - band, 0, height,
-                    0xFFFFFFFF, 0x00FFFFFF, Shader.TileMode.CLAMP));
+            fadePaint.setShader(blendShader(height, band));
             canvas.drawRect(0, height - band, width, height, fadePaint);
             fadePaint.setShader(null);
         }
@@ -600,6 +681,11 @@ public final class CustomProfileGfx {
     private static final int STORY_READ = 0xFF8E8E93;
 
     private static final Paint ringPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    /** The unread ring's gradient for the box it was last stretched over; the ring redraws every frame. */
+    @Nullable
+    private static LinearGradient ringGradient;
+    private static float ringGradientWidth;
+    private static float ringGradientHeight;
 
     /**
      * Strokes {@code path} the way the stock ring strokes its circle. The segmented arcs the real ring
@@ -614,12 +700,16 @@ public final class CustomProfileGfx {
         ringPaint.setStrokeWidth(AndroidUtilities.dpf2(unread ? 3f : 1.8f));
         if (unread) {
             ringPaint.setColor(Color.BLACK);
-            matrix.reset();
-            matrix.setScale(width / 256f, height / 256f);
-            final LinearGradient gradient = new LinearGradient(0, 0, 256f, 256f, STORY_UNREAD,
-                    null, Shader.TileMode.CLAMP);
-            gradient.setLocalMatrix(matrix);
-            ringPaint.setShader(gradient);
+            if (ringGradient == null || ringGradientWidth != width || ringGradientHeight != height) {
+                matrix.reset();
+                matrix.setScale(width / 256f, height / 256f);
+                ringGradient = new LinearGradient(0, 0, 256f, 256f, STORY_UNREAD,
+                        null, Shader.TileMode.CLAMP);
+                ringGradient.setLocalMatrix(matrix);
+                ringGradientWidth = width;
+                ringGradientHeight = height;
+            }
+            ringPaint.setShader(ringGradient);
         } else {
             ringPaint.setShader(null);
             ringPaint.setColor(STORY_READ);

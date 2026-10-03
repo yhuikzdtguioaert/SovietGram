@@ -76,6 +76,8 @@ public final class CustomProfileBlocks {
     /** A section draw pass must never join against a card from an earlier frame/profile. */
     public static void beginFrame() {
         hasPrevious = false;
+        signatureFresh = false;
+        backgroundKnown = false;
     }
 
     /** Drops the frosted copy. Called whenever the look changes under it. */
@@ -84,6 +86,8 @@ public final class CustomProfileBlocks {
         backdropShader = null;
         backdropKey = 0;
         hasPrevious = false;
+        signatureFresh = false;
+        backgroundKnown = false;
     }
 
     /**
@@ -187,7 +191,7 @@ public final class CustomProfileBlocks {
     private static void drawBlur(Canvas canvas, RectF rect, float topRadius, float bottomRadius,
                                  float alpha, View list) {
         final int blur = CustomProfileGfx.clamp(CustomProfileHelper.cfgInt(NekoConfig.customProfileBlocksBlur), 0, 100);
-        if (blur <= 0 || !CustomProfileHelper.hasBackground()) {
+        if (blur <= 0 || !hasBackground()) {
             return;
         }
         final int width = list.getWidth();
@@ -233,14 +237,15 @@ public final class CustomProfileBlocks {
      */
     @Nullable
     private static Bitmap backdrop(int width, int height, int blur) {
-        final int pair = pair(blur);
-        final int scale = pair >> 8;
-        final int radius = pair & 0xFF;
         final long key = key(width, height, blur);
         final Bitmap cached = backdrop;
         if (cached != null && !cached.isRecycled() && key == backdropKey) {
             return cached;
         }
+        // Only on a rebuild: this runs once per card per frame, and the search is thirty iterations.
+        final int pair = pair(blur);
+        final int scale = pair >> 8;
+        final int radius = pair & 0xFF;
         final int smallWidth = Math.max(2, width / scale);
         final int smallHeight = Math.max(2, height / scale);
         try {
@@ -272,8 +277,31 @@ public final class CustomProfileBlocks {
         key = key * 31 + width;
         key = key * 31 + height;
         key = key * 31 + blur;
-        key = key * 31 + CustomProfileHelper.backgroundSignature();
+        if (!signatureFresh) {
+            frameSignature = CustomProfileHelper.backgroundSignature();
+            signatureFresh = true;
+        }
+        key = key * 31 + frameSignature;
         return key;
+    }
+
+    /**
+     * The background's signature, worked out once per section pass instead of once per card. It looks
+     * at the picture's file, which is not free, and nothing it reads can change inside one pass of
+     * the UI thread. {@link #beginFrame} and {@link #invalidate} start it over.
+     */
+    private static long frameSignature;
+    private static boolean signatureFresh;
+    /** Likewise {@link CustomProfileHelper#hasBackground()}, asked once per card otherwise. */
+    private static boolean backgroundPresent;
+    private static boolean backgroundKnown;
+
+    private static boolean hasBackground() {
+        if (!backgroundKnown) {
+            backgroundPresent = CustomProfileHelper.hasBackground();
+            backgroundKnown = true;
+        }
+        return backgroundPresent;
     }
 
     /**

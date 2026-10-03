@@ -195,8 +195,10 @@ public class TypefaceHelper {
 
     public static boolean isFontFile(String fileName) {
         if (fileName == null) return false;
-        String lower = fileName.toLowerCase();
-        return lower.endsWith(".ttf") || lower.endsWith(".otf");
+        // Asked while binding document messages; compare in place instead of lower-casing a copy.
+        final int at = fileName.length() - 4;
+        return at >= 0 && (fileName.regionMatches(true, at, ".ttf", 0, 4)
+                || fileName.regionMatches(true, at, ".otf", 0, 4));
     }
 
     // --- Asset path to category mapping ---

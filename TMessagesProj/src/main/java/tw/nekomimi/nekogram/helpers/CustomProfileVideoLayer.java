@@ -488,8 +488,7 @@ public final class CustomProfileVideoLayer {
                 final float height = getHeight();
                 final float band = Math.min(height, Math.max(org.telegram.messenger.AndroidUtilities.dpf2(8),
                         height * CustomProfileGfx.clamp(blendRadius, 2, 60) / 100f));
-                fadePaint.setShader(new android.graphics.LinearGradient(0, height - band, 0, height,
-                        0xFFFFFFFF, 0x00FFFFFF, Shader.TileMode.CLAMP));
+                fadePaint.setShader(CustomProfileGfx.blendShader(height, band));
                 canvas.drawRect(0, height - band, getWidth(), height, fadePaint);
             }
             fadePaint.setShader(null);

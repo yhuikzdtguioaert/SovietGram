@@ -137,7 +137,8 @@ public final class SovietGramSync {
             final long ownId = SovietGramTokenStore.ownId(account);
             if (ownId <= 0) {
                 continue;
-            }            final JSONObject body = buildProfileBody(account);
+            }
+            final JSONObject body = buildProfileBody(account);
             if (body == null) {
                 continue;
             }

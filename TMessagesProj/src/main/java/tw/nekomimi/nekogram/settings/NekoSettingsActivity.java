@@ -244,6 +244,13 @@ public class NekoSettingsActivity extends BaseNekoSettingsActivity {
 
             containerLayout.addView(searchListView, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT));
 
+            // Lower-cased once here rather than for every row on every keystroke.
+            final String[] lowerTitles = new String[results.size()];
+            for (int i = 0; i < lowerTitles.length; i++) {
+                final String title = results.get(i).searchTitle;
+                lowerTitles[i] = title == null ? "" : title.toLowerCase();
+            }
+
             searchField.addTextChangedListener(new TextWatcher() {
                 @Override
                 public void beforeTextChanged(CharSequence s, int start, int count, int after) {
@@ -263,8 +270,8 @@ public class NekoSettingsActivity extends BaseNekoSettingsActivity {
                         filtered.addAll(results);
                     } else {
                         String[] parts = q.split("\\s+");
-                        for (SettingsSearchResult item : results) {
-                            String title = item.searchTitle == null ? "" : item.searchTitle.toLowerCase();
+                        for (int i = 0; i < lowerTitles.length; i++) {
+                            final String title = lowerTitles[i];
                             boolean ok = true;
                             for (String p : parts) {
                                 if (!title.contains(p)) {
@@ -272,7 +279,7 @@ public class NekoSettingsActivity extends BaseNekoSettingsActivity {
                                     break;
                                 }
                             }
-                            if (ok) filtered.add(item);
+                            if (ok) filtered.add(results.get(i));
                         }
                     }
                     adapter.notifyDataSetChanged();

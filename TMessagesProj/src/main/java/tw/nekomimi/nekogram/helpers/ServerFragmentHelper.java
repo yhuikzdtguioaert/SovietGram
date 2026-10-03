@@ -402,7 +402,15 @@ public final class ServerFragmentHelper {
 
     /** Configured collectible usernames, without the @ and without duplicates. */
     public static List<String> usernames() {
-        return parseUsernames(NekoConfig.serverFragmentUsernames.String());
+        // apply() runs for the own user on every putUser; the setting changes about never, so the
+        // parsed list is kept against the string it came from. Handed out read-only for that reason.
+        final String raw = NekoConfig.serverFragmentUsernames.String();
+        ParsedNames cached = liveNames;
+        if (cached == null || !cached.raw.equals(raw)) {
+            cached = new ParsedNames(raw, java.util.Collections.unmodifiableList(parseUsernames(raw)));
+            liveNames = cached;
+        }
+        return cached.names;
     }
 
     /**
@@ -432,30 +440,75 @@ public final class ServerFragmentHelper {
         return digits.length() > 15 ? digits.substring(0, 15) : digits;
     }
 
+    /** Splits on commas, semicolons and whitespace; each piece is cleaned and empty ones are dropped. */
     private static List<String> parseUsernames(String raw) {
         final LinkedHashSet<String> names = new LinkedHashSet<>();
         if (raw != null) {
-            for (String part : raw.split("[,;\\s]+")) {
-                final String name = clean(part);
-                if (!name.isEmpty()) {
-                    names.add(name);
+            int start = 0;
+            for (int i = 0; i <= raw.length(); i++) {
+                if (i < raw.length() && !isSeparator(raw.charAt(i))) {
+                    continue;
                 }
+                if (i > start) {
+                    final String name = clean(raw.substring(start, i));
+                    if (!name.isEmpty()) {
+                        names.add(name);
+                    }
+                }
+                start = i + 1;
             }
         }
         return new ArrayList<>(names);
     }
 
-    // ===== small helpers =====
-
-    private static String clean(String name) {
-        if (name == null) {
-            return "";
-        }
-        return name.trim().replaceAll("^@+", "").replaceAll("[^A-Za-z0-9_]", "");
+    private static boolean isSeparator(char c) {
+        return c == ',' || c == ';' || c == ' ' || c == '\t' || c == '\n' || c == '\u000B'
+                || c == '\f' || c == '\r';
     }
 
-    private static String digitsOf(String value) {
-        return value == null ? "" : value.replaceAll("[^0-9]", "");
+    /** What {@link #usernames()} last parsed, and the setting it parsed it from. */
+    private static final class ParsedNames {
+        final String raw;
+        final List<String> names;
+
+        ParsedNames(String raw, List<String> names) {
+            this.raw = raw;
+            this.names = names;
+        }
+    }
+
+    private static volatile ParsedNames liveNames;
+
+    // ===== small helpers =====
+
+    /**
+     * The name reduced to the characters a username can hold. A leading @ and surrounding blanks are
+     * not letters, digits or underscores, so dropping everything else covers them too.
+     */
+    static String clean(@Nullable String name) {
+        return name == null ? "" : keepOnly(name, false);
+    }
+
+    static String digitsOf(@Nullable String value) {
+        return value == null ? "" : keepOnly(value, true);
+    }
+
+    /** {@code value} with every character outside [0-9] (digits only) or [A-Za-z0-9_] removed. */
+    private static String keepOnly(String value, boolean digitsOnly) {
+        StringBuilder out = null;
+        for (int i = 0; i < value.length(); i++) {
+            final char c = value.charAt(i);
+            final boolean keep = (c >= '0' && c <= '9')
+                    || (!digitsOnly && (c == '_' || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')));
+            if (keep) {
+                if (out != null) {
+                    out.append(c);
+                }
+            } else if (out == null) {
+                out = new StringBuilder(value.length()).append(value, 0, i);
+            }
+        }
+        return out == null ? value : out.toString();
     }
 
     private static boolean containsIgnoreCase(List<String> names, String name) {

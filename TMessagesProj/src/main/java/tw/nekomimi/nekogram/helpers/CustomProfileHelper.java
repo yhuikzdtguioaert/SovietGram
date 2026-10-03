@@ -418,7 +418,10 @@ public final class CustomProfileHelper {
      * @param parent the view being drawn into; an animated banner needs it to schedule its own frames.
      */
     public static void drawBanner(Canvas canvas, float width, float height, @Nullable View parent) {
-        if (!hasBanner() || width <= 0 || height <= 0) {
+        // What hasBanner() asks, answered once: the type involves a look at the picture's file, and
+        // this runs on every frame of the header.
+        final int type = isEnabled() ? bannerType() : 0;
+        if (type == 0 || width <= 0 || height <= 0) {
             return;
         }
         if (CustomProfileVideoLayer.bannerPlaying(parent)) {
@@ -427,7 +430,6 @@ public final class CustomProfileHelper {
             // wherever the look asked for transparency.
             return;
         }
-        final int type = bannerType();
         final AnimatedFileDrawable animation = type == 4 ? video(parent) : null;
         // Having a player is not the same as having a picture. It reports a failure to open the file
         // by simply never producing a frame — nothing throws, nothing logs — so drawing it because it
@@ -459,13 +461,13 @@ public final class CustomProfileHelper {
     }
 
     public static void drawBackground(Canvas canvas, float width, float height, @Nullable View parent) {
-        if (!hasBackground() || width <= 0 || height <= 0) {
+        final int type = isEnabled() ? backgroundType() : 0;
+        if (type == 0 || width <= 0 || height <= 0) {
             return;
         }
         if (CustomProfileVideoLayer.backgroundPlaying(parent)) {
             return;
         }
-        final int type = backgroundType();
         final AnimatedFileDrawable animation = type == 4 ? backgroundVideo(parent) : null;
         final boolean playing = animation != null && animation.hasBitmap();
         final Bitmap picture = stillWanted(type, playing, animation) ? background() : null;
@@ -495,10 +497,10 @@ public final class CustomProfileHelper {
      * poster rather than nothing, and it takes no parent view, since nothing here schedules frames.
      */
     static void drawBackdrop(Canvas canvas, float width, float height) {
-        if (!hasBackground() || width <= 0 || height <= 0) {
+        final int type = isEnabled() ? backgroundType() : 0;
+        if (type == 0 || width <= 0 || height <= 0) {
             return;
         }
-        final int type = backgroundType();
         final Bitmap picture = type == 3 || type == 4 ? background() : null;
         CustomProfileGfx.drawFaded(canvas, width, height,
                 cfgInt(NekoConfig.customProfileBackgroundFade),
@@ -693,12 +695,16 @@ public final class CustomProfileHelper {
         if (shape == 0) {
             return null;
         }
-        return CustomProfileGfx.shapePath(shape,
+        return avatarShape.get(shape,
                 inset, inset, width - inset, height - inset,
                 cfgInt(NekoConfig.customProfileAvatarRadius),
                 cfgInt(NekoConfig.customProfileAvatarSmoothing),
                 shape == 8 ? avatarPoints() : null);
     }
+
+    /** The clip and the ring outline are asked for on every frame the avatar is drawn; see ShapeMemo. */
+    private static final CustomProfileGfx.ShapeMemo avatarShape = new CustomProfileGfx.ShapeMemo();
+    private static final CustomProfileGfx.ShapeMemo ringShape = new CustomProfileGfx.ShapeMemo();
 
     /**
      * The look's free-form avatar outline, parsed once per value rather than on every frame — this is
@@ -802,9 +808,8 @@ public final class CustomProfileHelper {
         }
         // The look's own palette first: it names theme keys outright, so it outranks the two fixed
         // rules below, which are our shorthand for the handful of keys a look usually wants changed.
-        final Integer painted = CustomProfilePalette.colorFor(key);
-        if (painted != null) {
-            return painted;
+        if (CustomProfilePalette.paints(key)) {
+            return CustomProfilePalette.colorFor(key);
         }
         if (cfgBool(NekoConfig.customProfileBlocksEnabled) && isBlockKey(key)) {
             final int alpha = CustomProfileGfx.clamp(cfgInt(NekoConfig.customProfileBlocksAlpha), 0, 100);
@@ -858,10 +863,10 @@ public final class CustomProfileHelper {
             return;
         }
         final float inset = AndroidUtilities.dpf2(2.5f);
-        final Path path = CustomProfileGfx.shapePath(cfgInt(NekoConfig.customProfileAvatarShape),
+        final Path path = ringShape.get(cfgInt(NekoConfig.customProfileAvatarShape),
                 inset, inset, width - inset, height - inset,
                 cfgInt(NekoConfig.customProfileAvatarRadius),
-                cfgInt(NekoConfig.customProfileAvatarSmoothing));
+                cfgInt(NekoConfig.customProfileAvatarSmoothing), null);
         CustomProfileGfx.drawStoryRing(canvas, path, unread, width, height);
     }
 

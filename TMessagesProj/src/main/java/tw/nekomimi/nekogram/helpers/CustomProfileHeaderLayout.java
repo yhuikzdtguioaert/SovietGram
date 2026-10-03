@@ -10,8 +10,6 @@ import androidx.annotation.Nullable;
 import org.telegram.messenger.AndroidUtilities;
 
 import java.util.Locale;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import tw.nekomimi.nekogram.NekoConfig;
 
@@ -135,6 +133,8 @@ public final class CustomProfileHeaderLayout {
     private static String parsedFrom = "";
     private static int parsedPreset = Integer.MIN_VALUE;
     private static Element[] elements = idleElements();
+    /** {@link #elements} as they are drawn, with {@link #textSafe} already applied; rebuilt with them. */
+    private static Element[] drawElements = elements;
     private static int[] anchors = new int[CustomProfileAnchors.COUNT * ANCHOR_PARTS];
     private static boolean anchored;
     private static Extras extras = Extras.NONE;
@@ -354,7 +354,7 @@ public final class CustomProfileHeaderLayout {
         keepStatusClearOfName(root, name, status, wantedX, wantedY, partsAmount);
 
         for (int i = 0; i < CustomProfileAnchors.COUNT; i++) {
-            transforms[i].apply(views[i], textSafe(i, elements[i]), wantedX[i], wantedY[i],
+            transforms[i].apply(views[i], drawElements[i], wantedX[i], wantedY[i],
                     i == CustomProfileAnchors.AVATAR ? avatarAmount : partsAmount);
         }
         settleStatusAgainstName(root, name, status, wantedX, wantedY, partsAmount);
@@ -401,7 +401,9 @@ public final class CustomProfileHeaderLayout {
             return;
         }
         final float nameLeft = CustomProfileAnchors.drawnStart(root, name, false);
-        final float nameRight = nameDrawnRight(root, name);
+        final float nameRight = nameDrawnRight(root, name, nameLeft,
+                CustomProfileAnchors.drawnSize(root, name, false),
+                CustomProfileAnchors.chainScale(root, name, false));
         final float nameTop = CustomProfileAnchors.drawnStart(root, name, true);
         final float nameBottom = nameTop + CustomProfileAnchors.drawnSize(root, name, true);
 
@@ -436,24 +438,29 @@ public final class CustomProfileHeaderLayout {
      * Where the name stops being drawn, in the header's coordinates: the end of its text, or of the
      * last badge after it if that is further. A badge's bounds are the ones it was last drawn at, so
      * they hold the real size even when the view's own width does not count it.
+     *
+     * @param start the name's drawn start, its drawn width and its chain scale, which both callers
+     *              have already measured for their own sums.
      */
-    private static float nameDrawnRight(View root, View name) {
-        final float scale = CustomProfileAnchors.chainScale(root, name, false);
-        final float start = CustomProfileAnchors.drawnStart(root, name, false);
-        final float box = CustomProfileAnchors.drawnSize(root, name, false);
+    private static float nameDrawnRight(View root, View name, float start, float box, float scale) {
         final float text = Math.min(box, textWidth(name) * scale);
         float right = CustomProfileAnchors.textStart(start, box, text,
                 CustomProfileAnchors.align(gravityOf(name))) + text;
         if (name instanceof org.telegram.ui.ActionBar.SimpleTextView simple) {
-            final android.graphics.drawable.Drawable[] badges = {
-                    simple.getRightDrawable(), simple.getRightDrawable2()};
-            for (android.graphics.drawable.Drawable badge : badges) {
-                if (badge != null && badge.getBounds().width() > 0) {
-                    right = Math.max(right, start + badge.getBounds().right * scale);
-                }
-            }
+            right = badgeRight(right, start, scale, simple.getRightDrawable());
+            right = badgeRight(right, start, scale, simple.getRightDrawable2());
         }
         return Math.min(right, root.getWidth());
+    }
+
+    /** {@code right}, pushed out to the end of a badge's last drawn bounds when that is further. */
+    private static float badgeRight(float right, float start, float scale,
+                                    @Nullable android.graphics.drawable.Drawable badge) {
+        if (badge == null) {
+            return right;
+        }
+        final android.graphics.Rect bounds = badge.getBounds();
+        return bounds.width() > 0 ? Math.max(right, start + bounds.right * scale) : right;
     }
 
     /** Keep Last Seen readable when a look moves the avatar across its usual text column. */
@@ -511,21 +518,20 @@ public final class CustomProfileHeaderLayout {
         final float nameBox = CustomProfileAnchors.drawnSize(root, name, false);
         final float nameScale = CustomProfileAnchors.chainScale(root, name, false);
         final float nameText = Math.min(nameBox, textWidth(name) * nameScale);
+        final float nameStart = CustomProfileAnchors.drawnStart(root, name, false);
+        // Where the name's box starts once this pass's offset is applied instead of the one on screen.
+        final float nameWanted = nameStart
+                - transforms[CustomProfileAnchors.NAME].appliedNowX()
+                + wantedX[CustomProfileAnchors.NAME] * amount;
         final float nameLeft = CustomProfileAnchors.textStart(
-                CustomProfileAnchors.drawnStart(root, name, false)
-                        - transforms[CustomProfileAnchors.NAME].appliedNowX()
-                        + wantedX[CustomProfileAnchors.NAME] * amount,
-                nameBox, nameText, CustomProfileAnchors.align(gravityOf(name)));
+                nameWanted, nameBox, nameText, CustomProfileAnchors.align(gravityOf(name)));
         final float nameTop = CustomProfileAnchors.drawnStart(root, name, true)
                 - transforms[CustomProfileAnchors.NAME].appliedNowY()
                 + wantedY[CustomProfileAnchors.NAME] * amount;
         final float nameBottom = nameTop + CustomProfileAnchors.drawnSize(root, name, true);
         // The badges after the name were drawn at their real size; trust that over the view's own width.
-        final float nameRight = Math.max(nameLeft + nameText, nameDrawnRight(root, name)
-                - CustomProfileAnchors.drawnStart(root, name, false)
-                + (CustomProfileAnchors.drawnStart(root, name, false)
-                - transforms[CustomProfileAnchors.NAME].appliedNowX()
-                + wantedX[CustomProfileAnchors.NAME] * amount));
+        final float nameRight = Math.max(nameLeft + nameText,
+                nameDrawnRight(root, name, nameStart, nameBox, nameScale) - nameStart + nameWanted);
         // The badge hangs off the front of the status text, so the box that must clear the name starts there.
         final float statusLeft = CustomProfileAnchors.drawnStart(root, status, false) - statusLead
                 - transforms[CustomProfileAnchors.STATUS].appliedNowX()
@@ -617,6 +623,11 @@ public final class CustomProfileHeaderLayout {
     public static void restoreAll() {
         for (Transform transform : transforms) {
             transform.restore();
+        }
+        // apply() lands here on every frame of a profile that wears no layout; most never touched an
+        // action button, so skip copying the key set.
+        if (contentScales.isEmpty()) {
+            return;
         }
         for (View child : new java.util.ArrayList<>(contentScales.keySet())) {
             restoreContent(child);
@@ -863,7 +874,20 @@ public final class CustomProfileHeaderLayout {
         return hash;
     }
 
+    /** The anchor table {@link #settingsValue} was worked out from, and the density it assumed. */
+    private static int[] settingsFrom;
+    private static float settingsDensity;
+    private static long settingsValue;
+
+    /**
+     * A number for the anchor settings, which the solver compares against to know they changed.
+     * Asked on every frame, but the table only ever changes by being replaced in {@link #parse}, so it
+     * is worked out once per table.
+     */
     private static long settingsSignature() {
+        if (settingsFrom == anchors && settingsDensity == AndroidUtilities.density) {
+            return settingsValue;
+        }
         long hash = 17;
         for (int axis = 0; axis < 2; axis++) {
             final boolean vertical = axis == 1;
@@ -876,6 +900,9 @@ public final class CustomProfileHeaderLayout {
                 hash = hash * 31 + Math.round(CustomProfileAnchors.fraction(anchorValue(i, toKey)) * 100f);
             }
         }
+        settingsFrom = anchors;
+        settingsDensity = AndroidUtilities.density;
+        settingsValue = hash;
         return hash;
     }
 
@@ -966,6 +993,13 @@ public final class CustomProfileHeaderLayout {
             extras = new Extras(preset == PRESET_LEFT ? NAME_LEFT : NAME_CENTER, false, false,
                     CONTENT_SCALE_DEFAULT, CONTENT_SCALE_DEFAULT);
         }
+        // apply() runs every frame; squaring the text parts' scales once here keeps it from building
+        // a new Element per text part per frame.
+        final Element[] safe = new Element[elements.length];
+        for (int i = 0; i < safe.length; i++) {
+            safe[i] = textSafe(i, elements[i]);
+        }
+        drawElements = safe;
     }
 
     private interface Lookup {
@@ -1049,15 +1083,77 @@ public final class CustomProfileHeaderLayout {
         if (TextUtils.isEmpty(raw) || raw.length() > 4096) {
             return fallback;
         }
-        try {
-            final Matcher matcher = Pattern.compile("\\\"" + Pattern.quote(key)
-                    + "\\\"\\s*:\\s*(-?(?:\\d+(?:\\.\\d*)?|\\.\\d+))").matcher(raw);
-            if (matcher.find()) {
-                return clampF(Float.parseFloat(matcher.group(1)), -limit, limit);
+        // Scanned by hand for  "key" : -12.5  rather than with a Pattern: a custom layout reads some
+        // seventy keys per parse, and compiling a regex for each one made every layout edit and every
+        // peer's look pay for seventy compilations. Same grammar as before, first match wins.
+        final String needle = "\"" + key + "\"";
+        for (int at = raw.indexOf(needle); at >= 0; at = raw.indexOf(needle, at + 1)) {
+            int from = skipSpace(raw, at + needle.length());
+            if (from >= raw.length() || raw.charAt(from) != ':') {
+                continue;
             }
-        } catch (Throwable ignore) {
+            from = skipSpace(raw, from + 1);
+            final int to = numberEnd(raw, from);
+            if (to < 0) {
+                continue;
+            }
+            try {
+                return clampF(Float.parseFloat(raw.substring(from, to)), -limit, limit);
+            } catch (NumberFormatException ignore) {
+                return fallback;
+            }
         }
         return fallback;
+    }
+
+    /** The first index at or after {@code from} that is not regex {@code \s} whitespace. */
+    private static int skipSpace(String text, int from) {
+        int i = from;
+        while (i < text.length()) {
+            final char c = text.charAt(i);
+            if (c != ' ' && c != '\t' && c != '\n' && c != '\u000B' && c != '\f' && c != '\r') {
+                break;
+            }
+            i++;
+        }
+        return i;
+    }
+
+    /**
+     * The end of the number starting at {@code from}, as {@code -?(\d+(\.\d*)?|\.\d+)}, or -1 when
+     * what stands there is not one.
+     */
+    private static int numberEnd(String text, int from) {
+        int i = from;
+        if (i < text.length() && text.charAt(i) == '-') {
+            i++;
+        }
+        final int digits = i;
+        while (i < text.length() && isDigit(text.charAt(i))) {
+            i++;
+        }
+        if (i > digits) {
+            if (i < text.length() && text.charAt(i) == '.') {
+                i++;
+                while (i < text.length() && isDigit(text.charAt(i))) {
+                    i++;
+                }
+            }
+            return i;
+        }
+        if (i < text.length() && text.charAt(i) == '.') {
+            final int fraction = i + 1;
+            i = fraction;
+            while (i < text.length() && isDigit(text.charAt(i))) {
+                i++;
+            }
+            return i > fraction ? i : -1;
+        }
+        return -1;
+    }
+
+    private static boolean isDigit(char c) {
+        return c >= '0' && c <= '9';
     }
 
     private static float whole(String raw, String key, float fallback) {

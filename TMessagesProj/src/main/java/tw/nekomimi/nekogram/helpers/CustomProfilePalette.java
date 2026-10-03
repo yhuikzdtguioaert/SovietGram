@@ -135,17 +135,18 @@ public final class CustomProfilePalette {
     }
 
     /**
-     * The colour this look gives that theme key, or null when it says nothing about it.
-     * Called from the draw path for every colour the profile resolves, so it must stay a lookup.
+     * Whether this look gives that theme key a colour of its own; {@link #colorFor} then says which.
+     * Called from the draw path for every colour the profile resolves, so it must stay a lookup — and
+     * not box the answer, which is why it is two calls and not one that returns a nullable Integer.
      */
-    @Nullable
-    public static Integer colorFor(int key) {
+    public static boolean paints(int key) {
         final SparseIntArray palette = palette();
-        if (palette.size() == 0) {
-            return null;
-        }
-        final int index = palette.indexOfKey(key);
-        return index < 0 ? null : palette.valueAt(index);
+        return palette.size() != 0 && palette.indexOfKey(key) >= 0;
+    }
+
+    /** The colour {@link #paints} said this key has. */
+    public static int colorFor(int key) {
+        return palette().get(key);
     }
 
     private static SparseIntArray palette() {

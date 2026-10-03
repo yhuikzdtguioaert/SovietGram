@@ -604,6 +604,10 @@ public final class SovietGramProfileSync {
             readIdentity(profile, identity);
         }
         profile.customProfile = custom != null && custom.length() > 0 ? custom : null;
+        profile.injectable = profile.fakePremium || !TextUtils.isEmpty(profile.fragmentPhone)
+                || !profile.fragmentUsernames.isEmpty()
+                || profile.emojiStatusDocument != 0 || profile.nameColor >= 0 || profile.nameEmoji != 0
+                || profile.profileColor >= 0 || profile.profileEmoji != 0;
         return profile;
     }
 
@@ -642,11 +646,15 @@ public final class SovietGramProfileSync {
         int profileColor = -1;
         long profileEmoji;
 
-        /** Whether anything here can be written onto the peer's {@link TLRPC.User} object. */
+        /**
+         * Whether anything here can be written onto the peer's {@link TLRPC.User} object. Worked out
+         * once, when {@link #parse} has filled the fields in: it is asked on every putUser and on
+         * every sighting of a peer, and the fields never change afterwards.
+         */
+        boolean injectable;
+
         boolean hasInjectable() {
-            return fakePremium || !TextUtils.isEmpty(fragmentPhone) || !fragmentUsernames.isEmpty()
-                    || emojiStatusDocument != 0 || nameColor >= 0 || nameEmoji != 0
-                    || profileColor >= 0 || profileEmoji != 0;
+            return injectable;
         }
 
         /** A look is not injectable — it is read off the cache while the peer's profile draws. */
@@ -710,10 +718,7 @@ public final class SovietGramProfileSync {
     }
 
     private static String clean(@Nullable String name) {
-        if (name == null) {
-            return "";
-        }
-        return name.trim().replaceAll("^@+", "").replaceAll("[^A-Za-z0-9_]", "");
+        return ServerFragmentHelper.clean(name);
     }
 
     @Nullable
@@ -721,7 +726,7 @@ public final class SovietGramProfileSync {
         if (value == null) {
             return null;
         }
-        final String digits = value.replaceAll("[^0-9]", "");
+        final String digits = ServerFragmentHelper.digitsOf(value);
         return digits.isEmpty() ? null : digits;
     }
 
