@@ -16,14 +16,25 @@ public final class MainTabsHelper {
     }
 
     public static boolean isMainTabsHideTitleStyle() {
-        return NaConfig.INSTANCE.getMainTabsHideTitles().Bool();
+        return !isMax() && NaConfig.INSTANCE.getMainTabsHideTitles().Bool();
+    }
+
+    /** The Max interface's bar is MAX's: flat, full width, 76dp (68dp above a navigation bar). */
+    public static boolean isMax() {
+        return sovietgram.com.maxui.MaxInterface.active;
     }
 
     public static int getMainTabsHeight() {
+        if (isMax()) {
+            return org.telegram.messenger.AndroidUtilities.navigationBarHeight > 0 ? 68 : 76;
+        }
         return isMainTabsHideTitleStyle() ? FILTER_TABS_HEIGHT : MAIN_TABS_HEIGHT;
     }
 
     public static int getMainTabsMargin() {
+        if (isMax()) {
+            return 0;
+        }
         return isMainTabsHideTitleStyle() ? MAIN_TABS_MARGIN_COMPACT : MAIN_TABS_MARGIN;
     }
 
@@ -56,6 +67,9 @@ public final class MainTabsHelper {
     }
 
     public static int getTabsViewWidth() {
+        if (isMax()) {
+            return org.telegram.ui.Components.LayoutHelper.MATCH_PARENT;
+        }
         return TAB_WIDTH * getFragmentsCount() + (getMainTabsMargin() + TAB_PADDING) * 2;
     }
 }

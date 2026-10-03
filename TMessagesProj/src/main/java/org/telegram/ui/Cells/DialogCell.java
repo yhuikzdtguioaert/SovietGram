@@ -178,6 +178,7 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
     private boolean isShareToStoryCell;
     private boolean hideTime;
     public ShareDialogCell.RepostStoryDrawable repostStoryDrawable;
+    private boolean maxRow;
     public int avatarStart = 11;
     public int messagePaddingStart = 72;
     public int heightDefault = 70;
@@ -747,7 +748,15 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
             thumbImage[i].setRoundRadius(dp(2));
             thumbImage[i].setAllowLoadingOnAttachedOnly(true);
         }
-        useForceThreeLines = forceThreeLines;
+        // The Max interface's row is MAX's: a 56dp avatar 12dp from the edge, name, two lines of text, 82dp high.
+        // That is Telegram's "three lines" layout, whose type sizes (16/15) are MAX's own as well.
+        maxRow = sovietgram.com.maxui.MaxInterface.active;
+        useForceThreeLines = forceThreeLines || maxRow;
+        if (maxRow) {
+            avatarStart = 12;
+            messagePaddingStart = 74;
+            heightThreeLines = 82;
+        }
         currentAccount = account;
 
         emojiStatusView = new View(context) {
@@ -2491,7 +2500,7 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
         int avatarTop;
         int thumbLeft;
         if (useForceThreeLines || SharedConfig.useThreeLinesLayout) {
-            avatarTop = dp(11);
+            avatarTop = dp(maxRow ? 13 : 11);
             messageNameTop = dp(32);
             timeTop = dp(13);
             errorTop = dp(42.33f);
@@ -4979,7 +4988,7 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                 left = dp(messagePaddingStart);
             }
 
-            if (rightFragmentOpenedProgress != 1) {
+            if (rightFragmentOpenedProgress != 1 && !maxRow) {
                 int alpha = Theme.dividerPaint.getAlpha();
                 if (rightFragmentOpenedProgress != 0) {
                     Theme.dividerPaint.setAlpha((int) (alpha * (1f - rightFragmentOpenedProgress)));

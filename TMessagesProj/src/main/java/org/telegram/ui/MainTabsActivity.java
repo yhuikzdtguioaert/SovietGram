@@ -336,10 +336,12 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
 
         tabsView = new MainTabsLayout(context, resourceProvider);
         tabsView.setClipChildren(false);
-        final int paddingH = dp(mainTabsMargin + 4);
-        final int paddingV = dp(mainTabsMargin + 4);
-        tabsView.setPadding(paddingH, paddingV, paddingH, paddingV);
-        tabsView.setMaxWidth(dp(328 + DialogsActivity.MAIN_TABS_MARGIN * 2));
+        final boolean maxBar = MainTabsHelper.isMax();
+        final int paddingH = dp(maxBar ? 4 : mainTabsMargin + 4);
+        final int paddingV = dp(maxBar ? 0 : mainTabsMargin + 4);
+        // MAX: items start 10dp below the bar's top edge and end 12dp above its bottom edge.
+        tabsView.setPadding(paddingH, maxBar ? dp(10) : paddingV, paddingH, maxBar ? dp(12) : paddingV);
+        tabsView.setMaxWidth(maxBar ? 0 : dp(328 + DialogsActivity.MAIN_TABS_MARGIN * 2));
 
         tabs = new GlassTabView[5];
         tabs[INDEX_CHATS] = GlassTabView.createMainTab(context, resourceProvider, GlassTabView.TabAnimation.CHATS, R.string.MainTabsChats);
@@ -405,7 +407,12 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
         tabsViewBackground = iBlur3FactoryGlass.create(tabsView, BlurredBackgroundProviderImpl.mainTabs(resourceProvider));
         tabsViewBackground.setRadius(dp(MainTabsHelper.getMainTabsHeight() / 2f));
         tabsViewBackground.setPadding(dp(mainTabsMargin - 0.334f));
-        tabsView.setBackground(tabsViewBackground);
+        if (maxBar) {
+            tabsView.setBackground(new sovietgram.com.maxui.MaxBarDrawable());
+            tabsView.setElevation(dp(8));
+        } else {
+            tabsView.setBackground(tabsViewBackground);
+        }
 
         BlurredBackgroundDrawableViewFactory iBlur3FactoryFade = new BlurredBackgroundDrawableViewFactory(iBlur3SourceColor);
         iBlur3FactoryFade.setSourceRootView(viewPositionWatcher, contentView);
@@ -421,6 +428,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
         tabsViewWrapper.setOnClickListener(v -> {});
         tabsViewWrapper.addView(tabsView, LayoutHelper.createFrame(tabsViewWidth, MainTabsHelper.getMainTabsHeightWithMargins(), Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL));
         tabsViewWrapper.setClipToPadding(false);
+        tabsViewWrapper.setClipChildren(!maxBar);
         contentView.addView(tabsViewWrapper, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.BOTTOM));
 
         updateLayoutWrapper = new UpdateLayoutWrapper(context);
@@ -1000,7 +1008,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
         {
             int bottomMargin = isUpdateLayoutVisible ? (navigationBarHeight + updateLayoutHeight) : 0;
             if (tabletLayout) {
-                bottomMargin = Math.max(bottomMargin, navigationBarHeight + dp(DialogsActivity.MAIN_TABS_HEIGHT_WITH_MARGINS));
+                bottomMargin = Math.max(bottomMargin, navigationBarHeight + dp(MainTabsHelper.getMainTabsHeightWithMargins()));
             }
             lp = (ViewGroup.MarginLayoutParams) viewPager.getLayoutParams();
             if (lp.bottomMargin != bottomMargin || lp.leftMargin != systemInsets.left || lp.rightMargin != systemInsets.right) {
@@ -1125,7 +1133,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
     }
 
     private void checkUi_fadeView() {
-        if (viewPager == null || fadeView == null || sovietgram.com.NaConfig.hideBottomTabs()) {
+        if (viewPager == null || fadeView == null || sovietgram.com.NaConfig.hideBottomTabs() || MainTabsHelper.isMax()) {
             return;
         }
 

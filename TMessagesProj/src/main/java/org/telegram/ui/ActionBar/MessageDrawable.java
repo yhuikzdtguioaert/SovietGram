@@ -668,6 +668,24 @@ public class MessageDrawable extends Drawable {
         if (rad > heightHalf) {
             rad = heightHalf;
         }
+        if (sovietgram.com.maxui.MaxInterface.active && (drawFullBubble || currentType == TYPE_PREVIEW || customPaint || (drawFullBottom && drawFullTop))) {
+            // MAX: a plain rounded rectangle without a tail. The corners that touch a neighbouring bubble of the same
+            // sender are the small ones; the side that held the tail keeps its 8dp of room, so nothing in the cell moves.
+            final boolean media = currentType == TYPE_MEDIA;
+            final float left = isOut || media ? bounds.left + padding : bounds.left + dp(8);
+            final float right = !isOut || media ? bounds.right - padding : bounds.right - dp(8);
+            final float topEdge = bounds.top + padding;
+            final float bottomEdge = bounds.bottom - padding;
+            final float big = rad;
+            final float small = Math.min(nearRad, rad);
+            final float topSide = isTopNear ? small : big;
+            final float bottomSide = isBottomNear || botButtonsBottom ? small : big;
+            final float[] radii = isOut
+                    ? new float[]{big, big, topSide, topSide, bottomSide, bottomSide, big, big}
+                    : new float[]{topSide, topSide, big, big, big, big, bottomSide, bottomSide};
+            path.addRoundRect(new android.graphics.RectF(left, topEdge, right, bottomEdge), radii, Path.Direction.CW);
+            return;
+        }
         if (isOut) {
             // LEFT-BOTTOM <- RIGHT-BOTTOM
             if (drawFullBubble || currentType == TYPE_PREVIEW || customPaint || drawFullBottom) {

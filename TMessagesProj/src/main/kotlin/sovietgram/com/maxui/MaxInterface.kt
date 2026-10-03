@@ -44,6 +44,10 @@ object MaxInterface {
     fun reload() {
         active = NaConfig.customInterface.Int() == INTERFACE_MAX
         way = -1
+        // MAX's bubbles have 16dp corners. Only the value in memory is changed; the user's own choice stays in the
+        // preferences and comes back when the Max interface is switched off.
+        org.telegram.messenger.SharedConfig.bubbleRadius = if (active) 16 else
+            org.telegram.messenger.MessagesController.getGlobalMainSettings().getInt("bubbleRadius", 17)
     }
 
     /** The settings changed: re-read them and have every screen take the colours again. */
@@ -51,6 +55,19 @@ object MaxInterface {
     fun onSettingsChanged() {
         reload()
         AndroidUtilities.runOnUIThread { Theme.refreshThemeColors() }
+    }
+
+    /** A MAX token's colour for the current theme, for drawing that has no Telegram colour key. */
+    @JvmStatic
+    fun tokenColor(token: Int): Int {
+        val currentDark = Theme.isCurrentThemeDark()
+        val currentWay = colorWay()
+        if (currentWay != way || currentDark != dark || table.isEmpty()) {
+            way = currentWay
+            dark = currentDark
+            table = MaxPalette.table(way, dark)
+        }
+        return table[token]
     }
 
     @JvmStatic
@@ -372,7 +389,7 @@ object MaxInterface {
         // ---- main tabs and glass surfaces
         put(Theme.key_glass_defaultIcon, t.ICON_PRIMARY)
         put(Theme.key_glass_defaultText, t.TEXT_PRIMARY)
-        put(Theme.key_glass_tabSelected, t.BACKGROUND_TERTIARY)
+        put(Theme.key_glass_tabSelected, t.TABBAR_ACTIVE)
         put(Theme.key_glass_tabSelectedText, t.TEXT_THEMED)
         put(Theme.key_glass_tabUnselected, t.TABBAR_INACTIVE)
 

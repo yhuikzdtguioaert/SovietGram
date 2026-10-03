@@ -779,4 +779,5 @@
     <string name="CustomInterfaceDefault">Звичайний інтерфейс Telegram</string>
     <string name="CustomInterfaceMax">Інтерфейс Max</string>
     <string name="MaxColorWay">Колірна тема Max</string>
+    <string name="CustomInterfaceRestart">Кольори змінилися одразу. Перезапустіть застосунок, щоб панелі, рядки й шапки перебудувалися.</string>
 </resources>

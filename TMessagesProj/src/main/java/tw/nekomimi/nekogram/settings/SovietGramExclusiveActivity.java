@@ -324,6 +324,18 @@ public class SovietGramExclusiveActivity extends BaseNekoXSettingsActivity {
                     || key.equals(sovietgram.com.NaConfig.INSTANCE.getMaxColorWay().getKey())) {
                 sovietgram.com.maxui.MaxInterface.onSettingsChanged();
                 toggleRow(maxColorWayRow, customInterfaceRow, sovietgram.com.maxui.MaxInterface.isMax());
+                if (key.equals(sovietgram.com.NaConfig.INSTANCE.getCustomInterface().getKey()) && getParentActivity() != null) {
+                    // Colours change at once; the bars, rows and header are laid out once per start.
+                    final org.telegram.ui.ActionBar.AlertDialog.Builder builder = new org.telegram.ui.ActionBar.AlertDialog.Builder(getParentActivity());
+                    builder.setTitle(getString(R.string.CustomInterface));
+                    builder.setMessage(getString(R.string.CustomInterfaceRestart));
+                    builder.setNegativeButton(getString(R.string.Cancel), null);
+                    builder.setPositiveButton(getString(R.string.RestartApp), (dialog, which) ->
+                            tw.nekomimi.nekogram.helpers.AppRestartHelper.triggerRebirth(
+                                    org.telegram.messenger.ApplicationLoader.applicationContext,
+                                    new android.content.Intent(org.telegram.messenger.ApplicationLoader.applicationContext, org.telegram.ui.LaunchActivity.class)));
+                    showDialog(builder.create());
+                }
             } else if (key.equals(NekoConfig.customProfileEnabled.getKey())) {
                 toggleRow(workshopRow, customProfileRow, (Boolean) newValue);
                 toggleRow(framesRow, workshopRow, (Boolean) newValue);

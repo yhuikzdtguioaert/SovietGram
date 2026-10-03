@@ -19,15 +19,27 @@ import org.telegram.ui.Components.blur3.drawable.BlurredBackgroundDrawable;
 
 import me.vkryl.android.animator.ListAnimator;
 
+import sovietgram.com.NaConfig;
+
 public class ChatActivityTopPanelLayout extends AnimatedLinearLayout {
     public ChatActivityTopPanelLayout(@NonNull Context context) {
         super(context);
 
         setOrientation(LinearLayout.VERTICAL);
+        flatPanel = sovietgram.com.maxui.MaxInterface.active;
         updateColors();
     }
 
+    /**
+     * Pre-12.2.0 look: the pinned-message / report-spam stack is a full-width opaque strip
+     * glued under the action bar instead of a rounded floating card. Only the corner radius,
+     * the side bleed and the background fill change - heights and the animator-driven
+     * layout are untouched, so ChatActivity's offsets keep matching.
+     */
+    private final boolean flatPanel;
+
     BlurredBackgroundDrawable backgroundDrawable;
+    private final android.graphics.Paint flatBackgroundPaint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
 
     public void setBlurredBackground(BlurredBackgroundDrawable background) {
         backgroundDrawable = background;
@@ -66,11 +78,21 @@ public class ChatActivityTopPanelLayout extends AnimatedLinearLayout {
         final float bgHeight = getMetadata().getTotalHeight();
         final float bgAlpha = getMetadata().getTotalVisibility();
 
-        clipRectF.set(getPaddingLeft(), getPaddingTop(), getMeasuredWidth() - getPaddingRight(), getPaddingTop() + bgHeight);
+        if (flatPanel) {
+            // Full bleed: the panel is drawn edge to edge, ignoring the 7dp gutter that
+            // ChatActivity keeps applying as padding for the floating card.
+            clipRectF.set(0, 0, getMeasuredWidth(), getPaddingTop() + bgHeight);
+        } else {
+            clipRectF.set(getPaddingLeft(), getPaddingTop(), getMeasuredWidth() - getPaddingRight(), getPaddingTop() + bgHeight);
+        }
 
-        final float r = Math.min(dp(18), Math.min(clipRectF.width(), clipRectF.height()) / 2f);
+        final float r = flatPanel ? 0 : Math.min(dp(18), Math.min(clipRectF.width(), clipRectF.height()) / 2f);
         clipPath.rewind();
         clipPath.addRoundRect(clipRectF, r, r, Path.Direction.CW);
+
+        if (flatPanel) {
+            return;
+        }
 
         if (backgroundDrawable != null) {
             backgroundDrawable.setAlpha((int) (bgAlpha * 255));
@@ -86,6 +108,8 @@ public class ChatActivityTopPanelLayout extends AnimatedLinearLayout {
 
         final int color = Theme.getColor(Theme.key_windowBackgroundWhite);
         final int alpha = Color.alpha(color);
+
+        flatBackgroundPaint.setColor(Theme.getColor(Theme.key_chat_topPanelBackground));
 
         invalidate();
     }
@@ -104,9 +128,15 @@ public class ChatActivityTopPanelLayout extends AnimatedLinearLayout {
 
     @Override
     protected void dispatchDraw(@NonNull Canvas canvas) {
-        if (getMetadata().getTotalVisibility() == 0) return;
+        final float totalVisibility = getMetadata().getTotalVisibility();
+        if (totalVisibility == 0) return;
 
-        if (backgroundDrawable != null) {
+        if (flatPanel) {
+            final int wasAlpha = flatBackgroundPaint.getAlpha();
+            flatBackgroundPaint.setAlpha((int) (wasAlpha * totalVisibility));
+            canvas.drawRect(clipRectF, flatBackgroundPaint);
+            flatBackgroundPaint.setAlpha(wasAlpha);
+        } else if (backgroundDrawable != null) {
             backgroundDrawable.draw(canvas);
         }
 

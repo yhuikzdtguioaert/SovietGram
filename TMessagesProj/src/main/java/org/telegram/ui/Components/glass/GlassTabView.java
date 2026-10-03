@@ -71,6 +71,8 @@ public class GlassTabView extends FrameLayout implements MainTabsLayout.Tab, Fac
     private int colorSelectedText;
     private int colorDefault;
     private boolean usePremiumCounter;
+    /** A tab of the main bar while the Max interface is on: drawn the way MAX draws its own. */
+    private boolean maxMain;
 
     private TabAnimation tabAnimation;
     private TLRPC.TL_attachMenuBot tabAnimationBot;
@@ -151,7 +153,7 @@ public class GlassTabView extends FrameLayout implements MainTabsLayout.Tab, Fac
     protected void dispatchDraw(@NonNull Canvas canvas) {
         final float viewWidth = hasVisualWidth ? visualWidth : getWidth();
         final float selectedFactor = hasGestureSelectedOverride ? gestureSelectedOverride : isSelectedAnimator.getFloatValue();
-        if (selectedFactor > 0 && !skipDrawSelector) {
+        if (selectedFactor > 0 && !skipDrawSelector && !maxMain) {
             final float alpha = AnimatorUtils.DECELERATE_INTERPOLATOR.getInterpolation(selectedFactor);
 
             paintCounterBackground.setColor(Theme.multAlpha(colorSelected, 0.09f * alpha));
@@ -175,13 +177,14 @@ public class GlassTabView extends FrameLayout implements MainTabsLayout.Tab, Fac
         if (hasCounter > 0) {
             canvas.save();
 
-            final float gap = dpf2(1.33f);
-            final float cx = viewWidth / 2f + dpf2(11);
-            final float cy = dpf2(10);
-            final float height = dpf2(16);
-            final float width = Math.max(height, counter.getCurrentWidth() + dp(8));
-            final float rOuter = dpf2(9.333f);
-            final float rInner = dpf2(8f);
+            final float gap = maxMain ? dpf2(1.5f) : dpf2(1.33f);
+            final float height = maxMain ? dpf2(20) : dpf2(16);
+            final float width = maxMain ? Math.max(height, counter.getCurrentWidth() + dp(12)) : Math.max(height, counter.getCurrentWidth() + dp(8));
+            // MAX: the badge starts 14dp right of the icon's start, i.e. at the icon's centre, level with the item's top.
+            final float cx = maxMain ? viewWidth / 2f + width / 2f : viewWidth / 2f + dpf2(11);
+            final float cy = maxMain ? height / 2f : dpf2(10);
+            final float rOuter = maxMain ? height / 2f + gap : dpf2(9.333f);
+            final float rInner = maxMain ? height / 2f : dpf2(8f);
             tmpRectF.set(
                     cx - width / 2f - gap,
                     cy - height / 2f - gap,
@@ -205,7 +208,9 @@ public class GlassTabView extends FrameLayout implements MainTabsLayout.Tab, Fac
                 premiumStarDrawable.setBounds(x, y, x + dp(14), y + dp(14));
                 premiumStarDrawable.draw(canvas);
             } else {
-                paintCounterBackground.setColor(ColorUtils.blendARGB(Theme.getColor(Theme.key_telegram_color), Theme.getColor(Theme.key_fill_RedNormal), isHasCounterErrorAnimator.getFloatValue()));
+                paintCounterBackground.setColor(maxMain
+                        ? sovietgram.com.maxui.MaxInterface.tokenColor(sovietgram.com.maxui.MaxTokens.COUNTER_ATTENTION)
+                        : ColorUtils.blendARGB(Theme.getColor(Theme.key_telegram_color), Theme.getColor(Theme.key_fill_RedNormal), isHasCounterErrorAnimator.getFloatValue()));
                 canvas.drawRoundRect(tmpRectF, rInner, rInner, paintCounterBackground);
                 counter.setBounds(tmpRectF);
                 counter.draw(canvas);
@@ -234,7 +239,7 @@ public class GlassTabView extends FrameLayout implements MainTabsLayout.Tab, Fac
         isSelectedAnimator.setValue(selected, animated);
         checkPlayAnimation(animated);
 
-        textView.setTypeface(selected ? AndroidUtilities.getTypeface(AndroidUtilities.TYPEFACE_ROBOTO_EXTRA_BOLD) : AndroidUtilities.bold());
+        textView.setTypeface(maxMain ? AndroidUtilities.bold() : selected ? AndroidUtilities.getTypeface(AndroidUtilities.TYPEFACE_ROBOTO_EXTRA_BOLD) : AndroidUtilities.bold());
     }
 
     public boolean isTabSelected() {
@@ -253,7 +258,8 @@ public class GlassTabView extends FrameLayout implements MainTabsLayout.Tab, Fac
 
     private void updateColors() {
         final int color = ColorUtils.blendARGB(colorDefault, colorSelected, isSelectedAnimator.getFloatValue());
-        final int colorText = ColorUtils.blendARGB(colorDefault, colorSelectedText, isSelectedAnimator.getFloatValue());
+        final int idleText = maxMain ? sovietgram.com.maxui.MaxInterface.tokenColor(sovietgram.com.maxui.MaxTokens.TEXT_TERTIARY) : colorDefault;
+        final int colorText = ColorUtils.blendARGB(idleText, colorSelectedText, isSelectedAnimator.getFloatValue());
 
         final PorterDuffColorFilter filter = new PorterDuffColorFilter(color, PorterDuff.Mode.SRC_IN);
         if (backupImageView != null && needUpdateBackupViewColor) {
@@ -308,6 +314,15 @@ public class GlassTabView extends FrameLayout implements MainTabsLayout.Tab, Fac
 
         if (tabAnimation == null) {
             return;
+        }
+
+        if (maxMain) {
+            final int icon = maxIconFor(tabAnimation);
+            if (icon != 0) {
+                imageView.setImageResource(icon);
+                updateColors();
+                return;
+            }
         }
 
         if (tabAnimation.iconStatic != -1) {
@@ -397,13 +412,34 @@ public class GlassTabView extends FrameLayout implements MainTabsLayout.Tab, Fac
         }
     }
 
+    /** MAX's own drawing of the four main tabs; the bar there recolours it for the selected tab. */
+    private static int maxIconFor(TabAnimation animation) {
+        switch (animation) {
+            case CHATS: return R.drawable.max_icon_message;
+            case CONTACTS: return R.drawable.max_icon_user;
+            case CALLS: return R.drawable.max_icon_call;
+            case SETTINGS: return R.drawable.max_icon_settings;
+            default: return 0;
+        }
+    }
+
     public static GlassTabView createMainTab(Context context, Theme.ResourcesProvider resourcesProvider, TabAnimation tabAnimation, @StringRes int stringRes) {
         GlassTabView tab = new GlassTabView(context);
         tab.resourcesProvider = resourcesProvider;
         tab.tabAnimation = tabAnimation;
+        tab.maxMain = sovietgram.com.maxui.MaxInterface.active;
         tab.textView.setText(LocaleController.getString(stringRes));
+        if (tab.maxMain) {
+            // 28dp icon 4dp below the item's top, a 10sp medium label 2dp under it.
+            tab.textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 10f);
+            tab.defaultTextPaint.setTextSize(dp(10));
+            tab.textView.setTypeface(AndroidUtilities.bold());
+            tab.textView.setLayoutParams(LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL | Gravity.TOP, 0, 34, 0, 0));
+        }
         tab.checkPlayAnimation(false);
-        tab.imageView.setLayoutParams(LayoutHelper.createFrame(24, 24, Gravity.CENTER_HORIZONTAL | Gravity.TOP, 0, 4, 0, 0));
+        tab.imageView.setLayoutParams(tab.maxMain
+                ? LayoutHelper.createFrame(28, 28, Gravity.CENTER_HORIZONTAL | Gravity.TOP, 0, 4, 0, 0)
+                : LayoutHelper.createFrame(24, 24, Gravity.CENTER_HORIZONTAL | Gravity.TOP, 0, 4, 0, 0));
         tab.colorDefault = Theme.getColor(Theme.key_glass_tabUnselected, resourcesProvider);
         tab.colorSelected = Theme.getColor(Theme.key_glass_tabSelected, resourcesProvider);
         tab.colorSelectedText = Theme.getColor(Theme.key_glass_tabSelectedText, resourcesProvider);
@@ -533,6 +569,9 @@ public class GlassTabView extends FrameLayout implements MainTabsLayout.Tab, Fac
 
     @Override
     public void setTextSizeDp(float textSizeDp) {
+        if (maxMain) {
+            return;
+        }
         final float px = dp(textSizeDp);
         if (textView.getTextSize() != px) {
             textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, textSizeDp);

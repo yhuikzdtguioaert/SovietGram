@@ -857,4 +857,5 @@
     <string name="CustomInterfaceDefault">Default Telegram Interface</string>
     <string name="CustomInterfaceMax">Max Interface</string>
     <string name="MaxColorWay">Max color theme</string>
+    <string name="CustomInterfaceRestart">The colours changed at once. Restart the app to lay out the bars, rows and headers the new way.</string>
 </resources>

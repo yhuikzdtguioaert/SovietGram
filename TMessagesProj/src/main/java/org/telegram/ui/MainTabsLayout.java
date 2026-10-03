@@ -132,6 +132,16 @@ public class MainTabsLayout extends AnimatedLinearLayout {
             }
         }
 
+        if (tw.nekomimi.nekogram.helpers.MainTabsHelper.isMax()) {
+            // MAX: every tab takes an equal share of the whole bar.
+            final float share = maxTotalWidthForTabs / (float) Math.max(1, visibleChildCount);
+            for (int a = 0, N = getChildCount(); a < N; a++) {
+                if (isViewVisible(getChildAt(a))) {
+                    tabsTextWidthWithMargin[a] = share;
+                }
+            }
+        }
+
         int l = 0;
         for (int a = 0, N = getChildCount(); a < N; a++) {
             if (!isViewVisible(getChildAt(a))) {
