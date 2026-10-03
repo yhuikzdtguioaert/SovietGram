@@ -111,7 +111,7 @@
     <string name="Other">Diğer</string>
     <string name="RestartApp">Uygulamayı Yeniden Başlat</string>
     <string name="ResetSettings">Ayarları Sıfırla</string>
-    <string name="ResetSettingsAlert">Tüm SovietGram Settings'i sıfırlamak istediğinizden emin misiniz?</string>
+    <string name="ResetSettingsAlert">Tüm SovietGram ayarlarını sıfırlamak istediğinizden emin misiniz?</string>
     <string name="DontAutoPlayNextVoice">Sonraki Sesli Mesajı Otomatik Oynatma</string>
     <string name="SaveToChatSubfolder">Ekleri Sohbet Adına Göre Kaydet</string>
     <string name="MessageColoredBackground">Renkli Mesaj Arka Planları</string>
