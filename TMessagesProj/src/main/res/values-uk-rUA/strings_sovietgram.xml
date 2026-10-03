@@ -752,4 +752,14 @@
     <string name="VlessMaskHappInfo">Багато провайдерів віддають справжній список серверів лише відомим застосункам. Коли ввімкнено, підписку запитують так само, як це робить Happ.</string>
     <string name="VlessInvalidValue">Невірне значення</string>
     <string name="VlessInvalidRange">Число або діапазон, наприклад 100-200</string>
+    <string name="CustomProfileMusic">Музика профілю</string>
+    <string name="CustomProfileMusicChoose">Вибрати аудіофайл</string>
+    <string name="CustomProfileMusicRemove">Прибрати поточну пісню</string>
+    <string name="CustomProfileMusicUploading">Надсилання в «Збережене»…</string>
+    <string name="CustomProfileMusicAdded">Пісню додано в профіль</string>
+    <string name="CustomProfileMusicRemoved">Пісню прибрано з профілю</string>
+    <string name="CustomProfileMusicNone">У профілі немає пісні</string>
+    <string name="CustomProfileMusicFailed">Не вдалося додати пісню</string>
+    <string name="muteProfileSounds">Без звуку в профілях</string>
+    <string name="MuteProfileSoundsInfo">Відео банера й тла в будь-яких профілях лишаються без звуку на цьому телефоні, тому під час заходу в чужий профіль музика не грає.</string>
 </resources>

@@ -60,6 +60,7 @@ public class CustomProfileActivity extends BaseNekoXSettingsActivity {
 
     private static final int REQUEST_BANNER = 1611;
     private static final int REQUEST_BACKGROUND = 1612;
+    private static final int REQUEST_PROFILE_MUSIC = 1615;
     private static final int REQUEST_NAME_FONT = 1613;
     private static final int REQUEST_THOUGHT_FONT = 1614;
 
@@ -213,6 +214,10 @@ public class CustomProfileActivity extends BaseNekoXSettingsActivity {
     private final AbstractConfigCell frameClearRow = new ConfigCellTextDynamic(
             () -> getString(R.string.CustomProfileFrameClear),
             () -> frameSummary(), this::clearFrame);
+
+    // The song under the avatar. Telegram keeps it on the account, so this is a shortcut to the two
+    // steps it takes there (send the file to Saved Messages, save it to the profile).
+    private final AbstractConfigCell profileMusicRow = new ConfigCellText("CustomProfileMusic", null, this::showMusicMenu);
 
     private final AbstractConfigCell headerLayoutRow = new ConfigCellText("CustomProfileHeaderLayout",
             () -> presentFragment(new CustomProfileHeaderActivity()));
@@ -416,6 +421,9 @@ public class CustomProfileActivity extends BaseNekoXSettingsActivity {
         if (!NekoConfig.customProfileAvatarPoints.String().isEmpty()) {
             cellGroup.appendCell(avatarOutlineRow);
         }
+        cellGroup.appendCell(new ConfigCellDivider());
+
+        cellGroup.appendCell(profileMusicRow);
         cellGroup.appendCell(new ConfigCellDivider());
 
         cellGroup.appendCell(headerFrame);
@@ -642,43 +650,84 @@ public class CustomProfileActivity extends BaseNekoXSettingsActivity {
         rebuild();
     }
 
+    private void showMusicMenu() {
+        if (getParentActivity() == null) {
+            return;
+        }
+        final org.telegram.ui.ActionBar.AlertDialog.Builder builder = new org.telegram.ui.ActionBar.AlertDialog.Builder(getParentActivity(), getResourceProvider());
+        builder.setTitle(getString(R.string.CustomProfileMusic));
+        builder.setItems(new CharSequence[]{
+                getString(R.string.CustomProfileMusicChoose),
+                getString(R.string.CustomProfileMusicRemove)
+        }, (dialog, which) -> {
+            if (which == 0) {
+                tw.nekomimi.nekogram.helpers.ProfileMusicHelper.pick(this, REQUEST_PROFILE_MUSIC);
+            } else {
+                tw.nekomimi.nekogram.helpers.ProfileMusicHelper.removeCurrent(this);
+            }
+        });
+        showDialog(builder.create());
+    }
+
     @Override
     public void onActivityResultFragment(int requestCode, int resultCode, Intent data) {
         if (resultCode != android.app.Activity.RESULT_OK || data == null || data.getData() == null) {
             return;
         }
+        if (requestCode == REQUEST_PROFILE_MUSIC) {
+            tw.nekomimi.nekogram.helpers.ProfileMusicHelper.upload(this, data.getData());
+            return;
+        }
         if (requestCode == REQUEST_NAME_FONT || requestCode == REQUEST_THOUGHT_FONT) {
             final boolean forName = requestCode == REQUEST_NAME_FONT;
-            final String path = CustomProfileHelper.importFont(data.getData(), forName);
-            if (path == null) {
-                BulletinFactory.of(this).createErrorBulletin(getString(R.string.UnknownError)).show();
-                return;
-            }
-            (forName ? NekoConfig.customProfileNameFontPath
-                    : NekoConfig.customProfileThoughtFontPath).setConfigString(path);
-            final int slot = forName
-                    ? CustomProfileMedia.SLOT_FONT : CustomProfileMedia.SLOT_THOUGHT_FONT;
-            // The descriptor still names the font being replaced, and the new one exists nowhere but
-            // this phone until the upload lands — so readers are told to stop looking for either
-            // rather than being served the old one meanwhile.
-            CustomProfileMedia.forget(slot);
-            CustomProfileMedia.publishAsync(slot, path);
-            CustomProfileHelper.onSettingsChanged();
-            rebuild();
+            final android.net.Uri picked = data.getData();
+            // Copying a picked file can take a while: never on the UI thread.
+            org.telegram.messenger.Utilities.globalQueue.postRunnable(() -> {
+                final String path = CustomProfileHelper.importFont(picked, forName);
+                org.telegram.messenger.AndroidUtilities.runOnUIThread(() -> {
+                    if (isFinished) {
+                        return;
+                    }
+                    if (path == null) {
+                        BulletinFactory.of(this).createErrorBulletin(getString(R.string.UnknownError)).show();
+                        return;
+                    }
+                    (forName ? NekoConfig.customProfileNameFontPath
+                            : NekoConfig.customProfileThoughtFontPath).setConfigString(path);
+                    final int slot = forName
+                            ? CustomProfileMedia.SLOT_FONT : CustomProfileMedia.SLOT_THOUGHT_FONT;
+                    // The descriptor still names the font being replaced, and the new one exists nowhere but
+                    // this phone until the upload lands — so readers are told to stop looking for either
+                    // rather than being served the old one meanwhile.
+                    CustomProfileMedia.forget(slot);
+                    CustomProfileMedia.publishAsync(slot, path);
+                    CustomProfileHelper.onSettingsChanged();
+                    rebuild();
+                });
+            });
             return;
         }
         if (requestCode != REQUEST_BANNER && requestCode != REQUEST_BACKGROUND) {
             return;
         }
         final boolean banner = requestCode == REQUEST_BANNER;
-        final String path = CustomProfileHelper.importMedia(data.getData(), banner);
-        if (path == null) {
-            BulletinFactory.of(this).createErrorBulletin(getString(R.string.UnknownError)).show();
-            return;
-        }
-        (banner ? NekoConfig.customProfileBannerPath : NekoConfig.customProfileBackgroundPath).setConfigString(path);
-        CustomProfileHelper.onSettingsChanged();
-        rebuild();
+        final android.net.Uri picked = data.getData();
+        // A banner or background can be a video of tens of megabytes; copying it blocks, so it is done off the UI thread.
+        org.telegram.messenger.Utilities.globalQueue.postRunnable(() -> {
+            final String path = CustomProfileHelper.importMedia(picked, banner);
+            org.telegram.messenger.AndroidUtilities.runOnUIThread(() -> {
+                if (isFinished) {
+                    return;
+                }
+                if (path == null) {
+                    BulletinFactory.of(this).createErrorBulletin(getString(R.string.UnknownError)).show();
+                    return;
+                }
+                (banner ? NekoConfig.customProfileBannerPath : NekoConfig.customProfileBackgroundPath).setConfigString(path);
+                CustomProfileHelper.onSettingsChanged();
+                rebuild();
+            });
+        });
     }
 
     private void exportSettings() {

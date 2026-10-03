@@ -302,6 +302,12 @@ public final class CustomProfileHeaderLayout {
             restoreAll();
             return;
         }
+        // The parts and their transforms are shared by every profile page alive at once (the Profile tab
+        // and a profile opened over it). A page that is not on screen must not take them over: two pages
+        // handing the same transforms back and forth each frame leave views with the wrong base values.
+        if (!root.isAttachedToWindow() || !root.isShown()) {
+            return;
+        }
         statusLead = Math.max(0f, lead);
         // During the entrance animation Telegram may draw the header before its status or avatar
         // has been measured. The collision solver cannot place Last Seen in that frame; request a
@@ -348,11 +354,34 @@ public final class CustomProfileHeaderLayout {
         keepStatusClearOfName(root, name, status, wantedX, wantedY, partsAmount);
 
         for (int i = 0; i < CustomProfileAnchors.COUNT; i++) {
-            transforms[i].apply(views[i], elements[i], wantedX[i], wantedY[i],
+            transforms[i].apply(views[i], textSafe(i, elements[i]), wantedX[i], wantedY[i],
                     i == CustomProfileAnchors.AVATAR ? avatarAmount : partsAmount);
         }
         settleStatusAgainstName(root, name, status, wantedX, wantedY, partsAmount);
         applyActionsContent(actions, partsAmount);
+    }
+
+    /**
+     * Text is scaled by its own view, badges and emoji status drawn after it included, so a scale that
+     * squeezes one axis far harder than the other turns the name into a thin bar and its badges into
+     * stretched slivers. The editor allows each axis on its own; for the text parts the two are kept
+     * within a factor of two of each other.
+     */
+    private static Element textSafe(int part, Element e) {
+        if (e == null || (part != CustomProfileAnchors.NAME && part != CustomProfileAnchors.STATUS
+                && part != CustomProfileAnchors.TITLE)) {
+            return e;
+        }
+        float sx = e.scaleX;
+        float sy = e.scaleY;
+        if (sx < sy * 0.5f) {
+            sx = sy * 0.5f;
+        } else if (sx > sy * 2f) {
+            sy = sx * 0.5f;
+        } else {
+            return e;
+        }
+        return new Element(e.x, e.y, e.rotate, sx, sy);
     }
 
     /**

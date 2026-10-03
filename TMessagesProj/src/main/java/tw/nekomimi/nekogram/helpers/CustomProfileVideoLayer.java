@@ -322,7 +322,7 @@ public final class CustomProfileVideoLayer {
             fadeCenterX = centerX;
             fadeCenterY = centerY;
             blendRadius = blend;
-            soundVolume = CustomProfileGfx.clamp(volume, 0, 65);
+            soundVolume = NekoConfig.muteProfileSounds.Bool() ? 0 : CustomProfileGfx.clamp(volume, 0, 65);
             if (player != null) {
                 final float level = soundVolume / 100f;
                 try {

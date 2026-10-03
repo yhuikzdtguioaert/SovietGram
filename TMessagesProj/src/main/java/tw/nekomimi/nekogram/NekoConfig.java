@@ -366,6 +366,8 @@ public class NekoConfig {
     public static ConfigItem customProfileAvatarFade = addConfig("customProfileAvatarFade", configTypeInt, 0);
     public static ConfigItem customProfileAvatarFadeRadius = addConfig("customProfileAvatarFadeRadius", configTypeInt, 50);
     public static ConfigItem customProfileStoryRing = addConfig("customProfileStoryRing", configTypeBool, true);
+    /** Local only, never synced: silences the video sound of every profile's banner and background. */
+    public static ConfigItem muteProfileSounds = addConfig("muteProfileSounds", configTypeBool, false);
 
     // Name: colour, glow, animation, typeface and size.
     public static ConfigItem customProfileNameColorEnabled = addConfig("customProfileNameColorEnabled", configTypeBool, false);

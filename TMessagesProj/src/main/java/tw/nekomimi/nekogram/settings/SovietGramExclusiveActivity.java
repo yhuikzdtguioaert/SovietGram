@@ -78,6 +78,8 @@ public class SovietGramExclusiveActivity extends BaseNekoXSettingsActivity {
     // Only the switch lives here. The look itself is edited from the profile page (⋮ → Настроить
     // профиль), the same place the reference plugin puts it, so there is no sub-screen to open.
     private final AbstractConfigCell customProfileRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.customProfileEnabled, getString(R.string.CustomProfileAbout)));
+    // Only for this phone: whoever's profile is opened, its banner and background videos stay silent.
+    private final AbstractConfigCell muteProfileSoundsRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.muteProfileSounds, getString(R.string.MuteProfileSoundsInfo)));
     private final AbstractConfigCell workshopRow = cellGroup.appendCell(new ConfigCellText("CustomProfileWorkshop", () -> presentFragment(new WorkshopActivity())));
     // The workshop's second gallery: avatar frames. Same screen, same sections — installing from it
     // changes only the frame, so a frame can be worn with any look.

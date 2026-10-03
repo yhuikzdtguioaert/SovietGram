@@ -752,4 +752,14 @@
     <string name="VlessMaskHappInfo">Many providers only give their real server list to known apps. With this on, the subscription is requested the way Happ requests it.</string>
     <string name="VlessInvalidValue">Invalid value</string>
     <string name="VlessInvalidRange">Use a number or a range such as 100-200</string>
+    <string name="CustomProfileMusic">Profile music</string>
+    <string name="CustomProfileMusicChoose">Choose an audio file</string>
+    <string name="CustomProfileMusicRemove">Remove the current song</string>
+    <string name="CustomProfileMusicUploading">Sending to Saved Messages…</string>
+    <string name="CustomProfileMusicAdded">The song is on your profile</string>
+    <string name="CustomProfileMusicRemoved">The song was removed from your profile</string>
+    <string name="CustomProfileMusicNone">There is no song on your profile</string>
+    <string name="CustomProfileMusicFailed">Could not add the song</string>
+    <string name="muteProfileSounds">Mute profile sounds</string>
+    <string name="MuteProfileSoundsInfo">Banner and background videos of every profile stay silent on this phone, so opening someone\'s profile never plays their music.</string>
 </resources>
