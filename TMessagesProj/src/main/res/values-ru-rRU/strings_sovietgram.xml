@@ -853,4 +853,6 @@
     <string name="TdataPasscodeHint">Локальный пароль</string>
     <string name="PasskeyThirdPartyInfo">Telegram принимает passkey только в своих официальных приложениях: telegram.org перечисляет разрешённые приложения, и SovietGram среди них нет. Войдите по QR-коду, коду из SMS, строке сессии или tdata.</string>
     <string name="TdataLoginNote">tdata с локальным паролем Telegram Desktop тоже подойдёт: приложение спросит пароль.</string>
+    <string name="AccountPasscodes">Пароли для аккаунтов</string>
+    <string name="AccountPasscodesInfo">Задайте отдельный пароль каждому аккаунту, скройте аккаунты или установите panic-код. Какой аккаунт откроется, решает код, введённый на экране блокировки.</string>
 </resources>

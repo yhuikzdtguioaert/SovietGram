@@ -847,4 +847,6 @@
     <string name="NotificationIconNagramX" translatable="false">Nagram X</string>
     <string name="NotificationIconNagram" translatable="false">Nagram</string>
     <string name="NotificationIconNeko" translatable="false">NekoX</string>
+    <string name="AccountPasscodes">Passcodes for accounts</string>
+    <string name="AccountPasscodesInfo">Give each account its own passcode, hide accounts or set a panic code. The code you enter on the lock screen decides which account opens.</string>
 </resources>

@@ -144,6 +144,8 @@ public class PasscodeActivity extends BaseFragment implements NotificationCenter
     @Keep
     private int autoLockRow;
     private int autoLockDetailRow;
+    private int accountPasscodesRow;
+    private int accountPasscodesDetailRow;
 
     private int captureHeaderRow;
     private int captureRow;
@@ -314,6 +316,8 @@ public class PasscodeActivity extends BaseFragment implements NotificationCenter
                         ((TextView)alertDialog.getButton(Dialog.BUTTON_POSITIVE)).setTextColor(Theme.getColor(Theme.key_text_RedBold));
                     } else if (position == changePasscodeRow) {
                         presentFragment(new PasscodeActivity(TYPE_SETUP_CODE));
+                    } else if (position == accountPasscodesRow) {
+                        presentFragment(new tw.nekomimi.nekogram.settings.NekoPasscodeSettingsActivity());
                     } else if (position == autoLockRow) {
                         if (getParentActivity() == null) {
                             return;
@@ -840,6 +844,8 @@ public class PasscodeActivity extends BaseFragment implements NotificationCenter
         }
         autoLockRow = rowCount++;
         autoLockDetailRow = rowCount++;
+        accountPasscodesRow = rowCount++;
+        accountPasscodesDetailRow = rowCount++;
         captureHeaderRow = rowCount++;
         captureRow = rowCount++;
         captureDetailRow = rowCount++;
@@ -1101,7 +1107,7 @@ public class PasscodeActivity extends BaseFragment implements NotificationCenter
         public boolean isEnabled(RecyclerView.ViewHolder holder) {
             int position = holder.getAdapterPosition();
             return position == fingerprintRow || position == autoLockRow || position == captureRow ||
-                    position == changePasscodeRow || position == disablePasscodeRow;
+                    position == changePasscodeRow || position == disablePasscodeRow || position == accountPasscodesRow;
         }
 
         @Override
@@ -1174,6 +1180,10 @@ public class PasscodeActivity extends BaseFragment implements NotificationCenter
                         textCell.setTextAndValue(LocaleController.getString(R.string.AutoLock), val, true);
                         textCell.setTag(Theme.key_windowBackgroundWhiteBlackText);
                         textCell.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
+                    } else if (position == accountPasscodesRow) {
+                        textCell.setText(LocaleController.getString(R.string.AccountPasscodes), false);
+                        textCell.setTag(Theme.key_windowBackgroundWhiteBlackText);
+                        textCell.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
                     } else if (position == disablePasscodeRow) {
                         textCell.setText(LocaleController.getString(R.string.DisablePasscode), false);
                         textCell.setTag(Theme.key_text_RedBold);
@@ -1204,6 +1214,9 @@ public class PasscodeActivity extends BaseFragment implements NotificationCenter
                     } else if (position == autoLockDetailRow) {
                         cell.setText(LocaleController.getString(R.string.AutoLockInfo));
                         cell.getTextView().setGravity(LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT);
+                    } else if (position == accountPasscodesDetailRow) {
+                        cell.setText(LocaleController.getString(R.string.AccountPasscodesInfo));
+                        cell.getTextView().setGravity(LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT);
                     } else if (position == captureDetailRow) {
                         cell.setText(LocaleController.getString(R.string.ScreenCaptureInfo));
                         cell.getTextView().setGravity(LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT);
@@ -1217,9 +1230,9 @@ public class PasscodeActivity extends BaseFragment implements NotificationCenter
         public int getItemViewType(int position) {
             if (position == fingerprintRow || position == captureRow) {
                 return VIEW_TYPE_CHECK;
-            } else if (position == changePasscodeRow || position == autoLockRow || position == disablePasscodeRow) {
+            } else if (position == changePasscodeRow || position == autoLockRow || position == disablePasscodeRow || position == accountPasscodesRow) {
                 return VIEW_TYPE_SETTING;
-            } else if (position == autoLockDetailRow || position == captureDetailRow || position == hintRow) {
+            } else if (position == autoLockDetailRow || position == captureDetailRow || position == hintRow || position == accountPasscodesDetailRow) {
                 return VIEW_TYPE_INFO;
             } else if (position == captureHeaderRow) {
                 return VIEW_TYPE_HEADER;
