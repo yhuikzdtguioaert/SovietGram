@@ -859,4 +859,8 @@
     <string name="VlessPingRunning">Проверка %1$d/%2$d, нажмите, чтобы остановить</string>
     <string name="VlessPingTimeout">нет ответа</string>
     <string name="DeletedMessagesDeleteConfirm">Удалить с этого телефона все сохранённые удалённые сообщения чата %1$s? Это нельзя отменить.</string>
+    <string name="CustomInterface">Свой интерфейс</string>
+    <string name="CustomInterfaceDefault">Обычный интерфейс Telegram</string>
+    <string name="CustomInterfaceMax">Интерфейс Max</string>
+    <string name="MaxColorWay">Цветовая тема Max</string>
 </resources>

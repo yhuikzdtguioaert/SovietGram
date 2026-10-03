@@ -9190,6 +9190,9 @@ public class Theme {
         if (NaConfig.INSTANCE.getHideDividers().Bool() && key_divider == key) {
             return 0x00ffffff;
         }
+        if (sovietgram.com.maxui.MaxInterface.active && sovietgram.com.maxui.MaxInterface.has(key)) {
+            return sovietgram.com.maxui.MaxInterface.color(key);
+        }
         if (serviceBitmapShader != null && (key_chat_serviceText == key || key_chat_serviceLink == key || key_chat_serviceIcon == key
                 || key_chat_stickerReplyLine == key || key_chat_stickerReplyNameText == key || key_chat_stickerReplyMessageText == key)) {
             return 0xffffffff;

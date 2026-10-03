@@ -853,4 +853,8 @@
     <string name="VlessPingRunning">Pinging %1$d/%2$d, tap to stop</string>
     <string name="VlessPingTimeout">timeout</string>
     <string name="DeletedMessagesDeleteConfirm">Remove every saved deleted message of %1$s from this phone? This cannot be undone.</string>
+    <string name="CustomInterface">Custom Interface</string>
+    <string name="CustomInterfaceDefault">Default Telegram Interface</string>
+    <string name="CustomInterfaceMax">Max Interface</string>
+    <string name="MaxColorWay">Max color theme</string>
 </resources>

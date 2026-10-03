@@ -339,6 +339,22 @@ object NaConfig {
             -1
         )
 
+    /** The look of the app: 0 Telegram's own, 1 the MAX messenger's. */
+    val customInterface =
+        addConfig(
+            "CustomInterface",
+            ConfigItem.configTypeInt,
+            0
+        )
+
+    /** Which of MAX's colour ways the Max interface wears (index into MaxPalette.WAYS; 7 is "Simple"). */
+    val maxColorWay =
+        addConfig(
+            "MaxColorWay",
+            ConfigItem.configTypeInt,
+            7
+        )
+
     /** How the servers are pinged: 0 via proxy GET, 1 via proxy HEAD, 2 TCP, 3 ICMP. */
     val vlessPingMethod =
         addConfig(

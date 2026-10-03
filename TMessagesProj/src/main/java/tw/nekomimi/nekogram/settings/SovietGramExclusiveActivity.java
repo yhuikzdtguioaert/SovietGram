@@ -79,6 +79,13 @@ public class SovietGramExclusiveActivity extends BaseNekoXSettingsActivity {
     // профиль), the same place the reference plugin puts it, so there is no sub-screen to open.
     private final AbstractConfigCell customProfileRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.customProfileEnabled, getString(R.string.CustomProfileAbout)));
     // Only for this phone: whoever's profile is opened, its banner and background videos stay silent.
+    // The look of the whole app: Telegram's own, or the MAX messenger's with the colour way of choice.
+    private final AbstractConfigCell customInterfaceRow = cellGroup.appendCell(new ConfigCellSelectBox(null, sovietgram.com.NaConfig.INSTANCE.getCustomInterface(), new String[]{
+            getString(R.string.CustomInterfaceDefault),
+            getString(R.string.CustomInterfaceMax),
+    }, null));
+    private final AbstractConfigCell maxColorWayRow = cellGroup.appendCell(new ConfigCellSelectBox(null, sovietgram.com.NaConfig.INSTANCE.getMaxColorWay(),
+            sovietgram.com.maxui.MaxInterface.colorWayNames(), null));
     private final AbstractConfigCell muteProfileSoundsRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.muteProfileSounds, getString(R.string.MuteProfileSoundsInfo)));
     private final AbstractConfigCell workshopRow = cellGroup.appendCell(new ConfigCellText("CustomProfileWorkshop", () -> presentFragment(new WorkshopActivity())));
     // The workshop's second gallery: avatar frames. Same screen, same sections — installing from it
@@ -123,6 +130,10 @@ public class SovietGramExclusiveActivity extends BaseNekoXSettingsActivity {
         }
         if (!NekoConfig.voiceChangerEnabled.Bool()) {
             cellGroup.rows.remove(voiceChangerPresetRow);
+        }
+        // The colour ways only mean something while the Max interface is on.
+        if (sovietgram.com.NaConfig.INSTANCE.getCustomInterface().Int() != sovietgram.com.maxui.MaxInterface.INTERFACE_MAX) {
+            cellGroup.rows.remove(maxColorWayRow);
         }
         if (!NekoConfig.customProfileEnabled.Bool()) {
             cellGroup.rows.remove(workshopRow);
@@ -309,6 +320,10 @@ public class SovietGramExclusiveActivity extends BaseNekoXSettingsActivity {
                 SovietGramSync.scheduleProfilePush();
             } else if (key.equals(NekoConfig.voiceChangerEnabled.getKey())) {
                 toggleRow(voiceChangerPresetRow, voiceChangerRow, (Boolean) newValue);
+            } else if (key.equals(sovietgram.com.NaConfig.INSTANCE.getCustomInterface().getKey())
+                    || key.equals(sovietgram.com.NaConfig.INSTANCE.getMaxColorWay().getKey())) {
+                sovietgram.com.maxui.MaxInterface.onSettingsChanged();
+                toggleRow(maxColorWayRow, customInterfaceRow, sovietgram.com.maxui.MaxInterface.isMax());
             } else if (key.equals(NekoConfig.customProfileEnabled.getKey())) {
                 toggleRow(workshopRow, customProfileRow, (Boolean) newValue);
                 toggleRow(framesRow, workshopRow, (Boolean) newValue);
