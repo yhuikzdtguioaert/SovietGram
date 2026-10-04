@@ -281,6 +281,32 @@ public final class CustomProfileHeaderLayout {
         apply(root, avatar, name, status, actions, expand, pull, avatarFlight, 1f, lead);
     }
 
+    private static java.lang.ref.WeakReference<View> settleRoot;
+    private static java.lang.ref.WeakReference<View> settleName;
+    private static java.lang.ref.WeakReference<View> settleStatus;
+    private static java.lang.ref.WeakReference<View> settleActions;
+    private static float settleAmount;
+
+    /**
+     * Run by the header just before it draws its children. The prediction in {@link #apply} works from sizes that
+     * were true at layout time; a name that gains its badges, a Last Seen whose text just changed or a rating
+     * badge fading in changes them with no new layout, and Last Seen then stayed over the name until something
+     * scrolled. This reads the real positions again right before they reach the screen and, if Last Seen still
+     * lies over the name, moves it. When nothing overlaps it does nothing, so it can run every frame.
+     */
+    public static void settleBeforeDraw(@Nullable View root) {
+        if (root == null || settleRoot == null || settleRoot.get() != root || !CustomProfileHelper.isEnabled() || !has()) {
+            return;
+        }
+        final View name = settleName.get();
+        final View status = settleStatus.get();
+        final View actions = settleActions.get();
+        if (name == null || status == null || !root.isShown()) {
+            return;
+        }
+        settleStatusAgainstName(root, name, status, actions, frameWantedX, frameWantedY, settleAmount);
+    }
+
     /** What sits in front of Last Seen's text and travels with it: the star-rating badge. */
     private static float statusLead;
 
@@ -359,6 +385,12 @@ public final class CustomProfileHeaderLayout {
         }
         settleStatusAgainstName(root, name, status, actions, wantedX, wantedY, partsAmount);
         applyActionsContent(actions, partsAmount);
+        // Remembered for the draw-time pass below.
+        settleRoot = new java.lang.ref.WeakReference<>(root);
+        settleName = new java.lang.ref.WeakReference<>(name);
+        settleStatus = new java.lang.ref.WeakReference<>(status);
+        settleActions = new java.lang.ref.WeakReference<>(actions);
+        settleAmount = partsAmount;
     }
 
     /**
@@ -405,8 +437,9 @@ public final class CustomProfileHeaderLayout {
         final float nameRight = nameDrawnRight(root, name, nameLeft,
                 CustomProfileAnchors.drawnSize(root, name, false),
                 CustomProfileAnchors.chainScale(root, name, false));
-        final float nameTop = CustomProfileAnchors.drawnStart(root, name, true);
-        final float nameBottom = nameTop + CustomProfileAnchors.drawnSize(root, name, true);
+        final float nameBoxTop = CustomProfileAnchors.drawnStart(root, name, true);
+        final float nameTop = textSpanY(root, name, nameBoxTop)[0];
+        final float nameBottom = textSpanY(root, name, nameBoxTop)[1];
 
         final float statusScale = CustomProfileAnchors.chainScale(root, status, false);
         final float statusStart = CustomProfileAnchors.drawnStart(root, status, false);
@@ -415,8 +448,9 @@ public final class CustomProfileHeaderLayout {
         final float statusLeft = CustomProfileAnchors.textStart(statusStart, statusBox, statusText,
                 CustomProfileAnchors.align(gravityOf(status))) - statusLead;
         final float statusRight = statusLeft + statusLead + statusText;
-        final float statusTop = CustomProfileAnchors.drawnStart(root, status, true);
-        final float statusBottom = statusTop + CustomProfileAnchors.drawnSize(root, status, true);
+        final float statusBoxTop = CustomProfileAnchors.drawnStart(root, status, true);
+        final float statusTop = textSpanY(root, status, statusBoxTop)[0];
+        final float statusBottom = textSpanY(root, status, statusBoxTop)[1];
 
         final float slack = AndroidUtilities.dpf2(3);
         if (statusTop + slack >= nameBottom || statusBottom - slack <= nameTop
@@ -479,6 +513,39 @@ public final class CustomProfileHeaderLayout {
         return bounds.width() > 0 ? Math.max(right, start + bounds.right * scale) : right;
     }
 
+    /**
+     * Where the text of a name or Last Seen is really drawn, vertically: {top, bottom}. These views are taller than
+     * their one line of text and draw it centred in the box, so anchoring or comparing the box put a part some
+     * tens of pixels away from where its letters are, and a Last Seen anchored "below the avatar" came out on the
+     * name's row.
+     *
+     * @param boxTop the drawn top of the whole view.
+     */
+    private static float[] textSpanY(View root, @Nullable View view, float boxTop) {
+        final float box = CustomProfileAnchors.drawnSize(root, view, true);
+        final float text = textHeight(view) * CustomProfileAnchors.chainScale(root, view, true);
+        if (text <= 0f || text >= box) {
+            return new float[]{boxTop, boxTop + box};
+        }
+        float offset = (box - text) / 2f;
+        if (view instanceof android.widget.TextView plain && !(view instanceof org.telegram.ui.ActionBar.SimpleTextView)) {
+            final int vertical = plain.getGravity() & android.view.Gravity.VERTICAL_GRAVITY_MASK;
+            offset = vertical == android.view.Gravity.BOTTOM ? box - text : vertical == android.view.Gravity.CENTER_VERTICAL ? offset : 0f;
+        }
+        return new float[]{boxTop + offset, boxTop + offset + text};
+    }
+
+    /** The height of one laid-out text, in the view's own pixels; 0 when it cannot be told. */
+    private static float textHeight(@Nullable View view) {
+        if (view instanceof org.telegram.ui.ActionBar.SimpleTextView simple) {
+            return simple.getTextHeight();
+        }
+        if (view instanceof android.widget.TextView text && text.getLayout() != null) {
+            return text.getLayout().getHeight();
+        }
+        return 0f;
+    }
+
     /** Keep Last Seen readable when a look moves the avatar across its usual text column. */
     private static void keepStatusClearOfAvatar(View root, @Nullable View avatar,
                                                 @Nullable View status, float[] wantedX,
@@ -498,12 +565,13 @@ public final class CustomProfileHeaderLayout {
         final float statusLeft = CustomProfileAnchors.drawnStart(root, status, false) - statusLead
                 - transforms[CustomProfileAnchors.STATUS].appliedNowX()
                 + wantedX[CustomProfileAnchors.STATUS] * amount;
-        final float statusTop = CustomProfileAnchors.drawnStart(root, status, true)
+        final float statusBoxTop = CustomProfileAnchors.drawnStart(root, status, true)
                 - transforms[CustomProfileAnchors.STATUS].appliedNowY()
                 + wantedY[CustomProfileAnchors.STATUS] * amount;
         final float statusWidth = Math.min(textWidth(status),
                 CustomProfileAnchors.drawnSize(root, status, false)) + statusLead;
-        final float statusBottom = statusTop + CustomProfileAnchors.drawnSize(root, status, true);
+        final float statusTop = textSpanY(root, status, statusBoxTop)[0];
+        final float statusBottom = textSpanY(root, status, statusBoxTop)[1];
         if (statusTop >= avatarBottom || statusBottom <= avatarTop
                 || statusLeft >= avatarRight || statusLeft + statusWidth <= avatarLeft) {
             return;
@@ -542,10 +610,11 @@ public final class CustomProfileHeaderLayout {
                 + wantedX[CustomProfileAnchors.NAME] * amount;
         final float nameLeft = CustomProfileAnchors.textStart(
                 nameWanted, nameBox, nameText, CustomProfileAnchors.align(gravityOf(name)));
-        final float nameTop = CustomProfileAnchors.drawnStart(root, name, true)
+        final float nameBoxTop = CustomProfileAnchors.drawnStart(root, name, true)
                 - transforms[CustomProfileAnchors.NAME].appliedNowY()
                 + wantedY[CustomProfileAnchors.NAME] * amount;
-        final float nameBottom = nameTop + CustomProfileAnchors.drawnSize(root, name, true);
+        final float nameTop = textSpanY(root, name, nameBoxTop)[0];
+        final float nameBottom = textSpanY(root, name, nameBoxTop)[1];
         // The badges after the name were drawn at their real size; trust that over the view's own width.
         final float nameRight = Math.max(nameLeft + nameText,
                 nameDrawnRight(root, name, nameStart, nameBox, nameScale) - nameStart + nameWanted);
@@ -553,12 +622,13 @@ public final class CustomProfileHeaderLayout {
         final float statusLeft = CustomProfileAnchors.drawnStart(root, status, false) - statusLead
                 - transforms[CustomProfileAnchors.STATUS].appliedNowX()
                 + wantedX[CustomProfileAnchors.STATUS] * amount;
-        final float statusTop = CustomProfileAnchors.drawnStart(root, status, true)
+        final float statusBoxTop = CustomProfileAnchors.drawnStart(root, status, true)
                 - transforms[CustomProfileAnchors.STATUS].appliedNowY()
                 + wantedY[CustomProfileAnchors.STATUS] * amount;
         final float statusWidth = Math.min(textWidth(status) * CustomProfileAnchors.chainScale(root, status, false),
                 CustomProfileAnchors.drawnSize(root, status, false)) + statusLead;
-        final float statusBottom = statusTop + CustomProfileAnchors.drawnSize(root, status, true);
+        final float statusTop = textSpanY(root, status, statusBoxTop)[0];
+        final float statusBottom = textSpanY(root, status, statusBoxTop)[1];
         // Rows that merely touch are fine; only a real overlap in both directions is moved.
         final float slack = AndroidUtilities.dpf2(3);
         if (statusTop + slack >= nameBottom || statusBottom - slack <= nameTop

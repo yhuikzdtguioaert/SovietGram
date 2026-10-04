@@ -5605,6 +5605,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
 
             @Override
             protected void dispatchDraw(Canvas canvas) {
+                CustomProfileHeaderLayout.settleBeforeDraw(this);
                 super.dispatchDraw(canvas);
                 // The look's avatar frame, over the avatar and outside it. Here rather than in the
                 // avatar's own onDraw for two reasons: a frame reaches past the picture it surrounds,
