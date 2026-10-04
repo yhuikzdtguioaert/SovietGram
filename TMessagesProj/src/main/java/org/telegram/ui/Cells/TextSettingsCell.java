@@ -80,6 +80,9 @@ public class TextSettingsCell extends FrameLayout {
 
         textView = new TextView(context);
         textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
+        if (sovietgram.com.maxui.MaxInterface.active) {
+            textView.setTypeface(AndroidUtilities.bold());
+        }
         textView.setLines(1);
         textView.setMaxLines(1);
         textView.setSingleLine(true);

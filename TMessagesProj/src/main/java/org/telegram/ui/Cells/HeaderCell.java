@@ -91,8 +91,15 @@ public class HeaderCell extends FrameLayout {
             addView(animatedTextView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, height - topMargin, (LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT) | Gravity.TOP, padding, topMargin, padding, text2 ? 0 : bottomMargin));
         } else {
             textView = new TextView(getContext());
-            textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
-            textView.setTypeface(AndroidUtilities.bold());
+            if (sovietgram.com.maxui.MaxInterface.active) {
+                // MAX's section caption: 12sp regular capitals with a little tracking.
+                textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 12);
+                textView.setAllCaps(true);
+                textView.setLetterSpacing(0.025f);
+            } else {
+                textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
+                textView.setTypeface(AndroidUtilities.bold());
+            }
             textView.setEllipsize(TextUtils.TruncateAt.END);
             textView.setGravity((LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT) | Gravity.CENTER_VERTICAL);
             textView.setMinHeight(AndroidUtilities.dp(height - topMargin));

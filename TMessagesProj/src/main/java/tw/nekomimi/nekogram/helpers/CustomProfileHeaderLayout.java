@@ -1087,6 +1087,7 @@ public final class CustomProfileHeaderLayout {
         }
         parsedPreset = preset;
         parsedFrom = raw;
+        android.util.Log.w("SGHdr", "parse preset=" + preset + " raw=" + raw);
         reopen();
 
         if (preset == PRESET_CUSTOM) {

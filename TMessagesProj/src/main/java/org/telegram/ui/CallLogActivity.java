@@ -749,11 +749,20 @@ public class CallLogActivity extends BaseFragment implements NotificationCenter.
 					}
 				} else if (id == delete) {
 					showDeleteAlert(false);
+				} else if (id == 989) {
+					openCreateCall();
 				}
 			}
 		});
 
 		ActionBarMenu menu = actionBar.createMenu();
+		if (sovietgram.com.maxui.MaxInterface.active && hasMainTabs) {
+			// MAX: the title at the left and a "new call" action in the toolbar instead of a floating button.
+			actionBar.maxMainForm = true;
+			ActionBarMenuItem newCall = menu.addItem(989, R.drawable.max_icon_plus);
+			newCall.setContentDescription(getString(R.string.Call));
+			sovietgram.com.maxui.MaxUi.toolbarSquare(newCall, false);
+		}
 		otherItem = menu.addItem(10, R.drawable.ic_ab_other);
 		otherItem.setContentDescription(getString(R.string.AccDescrMoreOptions));
 		otherItem.setOnClickListener(v -> showItemOptions());
@@ -878,7 +887,7 @@ public class CallLogActivity extends BaseFragment implements NotificationCenter.
 				int firstViewTop = topChild != null ? topChild.getTop() : 0;
 
 				if (dy != 0 && scrollUpdated) {
-					floatingButton.setButtonVisible(dy < 0, true);
+					floatingButton.setButtonVisible(dy < 0 && !sovietgram.com.maxui.MaxInterface.active, true);
 				}
 				scrollUpdated = true;
 
@@ -902,6 +911,9 @@ public class CallLogActivity extends BaseFragment implements NotificationCenter.
 		floatingButton.setContentDescription(getString(R.string.Call));
 		floatingButton.setOnClickListener(v -> openCreateCall());
 		contentView.addView(floatingButton, FragmentFloatingButton.createDefaultLayoutParams());
+		if (sovietgram.com.maxui.MaxInterface.active) {
+			floatingButton.setVisibility(View.GONE);
+		}
 
 		topPanelLayout = new DialogsActivityTopPanelLayout(context);
 		topPanelLayout.setPadding(dp(11), dp(21), dp(11), dp(21));

@@ -3340,6 +3340,9 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         });
         if (initialDialogsType == DIALOGS_TYPE_ADD_USERS_TO || isArchive() && getDialogsArray(currentAccount, initialDialogsType, folderId, false).isEmpty()) {
             searchItem.setVisibility(View.GONE);
+        if (sovietgram.com.maxui.MaxInterface.active && initialDialogsType == DIALOGS_TYPE_DEFAULT && !onlySelect) {
+            sovietgram.com.maxui.MaxUi.toolbarSquare(searchItem, false);
+        }
         }
         searchItem.setVisibility(View.GONE);
 
@@ -3360,7 +3363,14 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             proxyMenuSubItem.setContentDescription(getString(R.string.ProxySettings));
 
             if (sovietgram.com.maxui.MaxInterface.active && initialDialogsType == DIALOGS_TYPE_DEFAULT) {
-                menu.addItem(MAX_COMPOSE, R.drawable.max_icon_plus);
+                ActionBarMenuItem composeItem = menu.addItem(MAX_COMPOSE, R.drawable.max_icon_plus);
+                composeItem.setContentDescription(getString(R.string.NewMessageTitle));
+                composeItem.setOnLongClickListener(v -> {
+                    getContactsController().loadGlobalPrivacySetting();
+                    showItemOptions();
+                    return true;
+                });
+                sovietgram.com.maxui.MaxUi.toolbarSquare(composeItem, true);
             }
             passcodeItem = menu.addItem(1, R.drawable.outline_header_lock_24);
             passcodeItem.setContentDescription(getString(R.string.AccDescrPasscodeLock));
@@ -3634,8 +3644,12 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 if (NaConfig.INSTANCE.getCustomTitleUserName().Bool() && actionBar != null) {
                     actionBar.setTitleScrollNonFitText(true);
                 }
-                statusDrawable = new AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable(null, dp(26));
-                statusDrawable.center = true;
+                if (!sovietgram.com.maxui.MaxInterface.active) {
+                    statusDrawable = new AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable(null, dp(26));
+                    statusDrawable.center = true;
+                } else {
+                    actionBar.maxMainForm = true;
+                }
                 // MAX's chat list is simply called "Chats".
                 actionBar.setTitle(actionBarTitleNax = sovietgram.com.maxui.MaxInterface.active ? getString(R.string.MainTabsChats) : TypefaceHelper.getTitleText(currentAccount), statusDrawable);
                 actionBar.setOnLongClickListener(v -> {
@@ -14393,7 +14407,8 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         final float factor1 = 1f - animatorSearchVisible.getFloatValue();
         final float factor2 = 1f - getRightSlidingProgress();
         final float factor3 = 1f - animatorDoneButtonVisible.getFloatValue();
-        final float factor = factor1 * factor2 * factor3;
+        // MAX's chat list has no overflow menu; its options sit behind a long press on the "start a chat" button.
+        final float factor = factor1 * factor2 * factor3 * (sovietgram.com.maxui.MaxInterface.active ? 0f : 1f);
         FragmentFloatingButton.setAnimatedVisibility(optionsItem, factor);
     }
 
@@ -14757,7 +14772,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     }
 
     private boolean shouldShowIdleSearchField() {
-        return !NaConfig.INSTANCE.getHideDialogsSearchField().Bool();
+        return !sovietgram.com.maxui.MaxInterface.active && !NaConfig.INSTANCE.getHideDialogsSearchField().Bool();
     }
 
     private int getIdleSearchFieldHeight() {

@@ -316,7 +316,50 @@ public class AlertDialog extends Dialog implements Drawable.Callback, Notificati
             shadowDrawable.setColorFilter(new PorterDuffColorFilter(backgroundColor, PorterDuff.Mode.MULTIPLY));
             shadowDrawable.getPadding(backgroundPaddings);
         }
+        if (maxSheet()) {
+            blurredBackground = false;
+            blurredNativeBackground = false;
+            shadowDrawable = sovietgram.com.maxui.MaxUi.topRound(android.graphics.Color.WHITE, 20f);
+            shadowDrawable.setColorFilter(new PorterDuffColorFilter(backgroundColor, PorterDuff.Mode.MULTIPLY));
+            backgroundPaddings.set(0, 0, 0, 0);
+        }
         withCancelDialog = progressViewStyle == ALERT_TYPE_SPINNER;
+    }
+
+    private boolean maxStyling;
+
+    /** MAX shows its dialogs as bottom sheets: full width, rounded on top, a grab handle, wide stacked buttons. */
+    private boolean maxSheet() {
+        return sovietgram.com.maxui.MaxInterface.active && progressViewStyle == ALERT_TYPE_MESSAGE && !needStarsBalance;
+    }
+
+    private static boolean isRedish(int color) {
+        return android.graphics.Color.red(color) > 190 && android.graphics.Color.green(color) < 120 && android.graphics.Color.blue(color) < 120;
+    }
+
+    /** Fills one of the sheet's buttons the way MAX does: the main action in the accent (red when it destroys), the rest grey. */
+    private void styleMaxButton(TextView button, boolean main, int requestedColor) {
+        if (maxStyling) {
+            return;
+        }
+        maxStyling = true;
+        try {
+            final boolean destructive = isRedish(requestedColor);
+            final int fill;
+            final int text;
+            if (main) {
+                fill = sovietgram.com.maxui.MaxUi.color(destructive ? sovietgram.com.maxui.MaxTokens.BUTTON_NEGATIVE : sovietgram.com.maxui.MaxTokens.BUTTON_PRIMARY);
+                text = android.graphics.Color.WHITE;
+            } else {
+                fill = sovietgram.com.maxui.MaxUi.color(sovietgram.com.maxui.MaxTokens.BUTTON_SECONDARY_CONTRAST);
+                text = sovietgram.com.maxui.MaxUi.color(destructive ? sovietgram.com.maxui.MaxTokens.TEXT_NEGATIVE : sovietgram.com.maxui.MaxTokens.TEXT_PRIMARY);
+            }
+            button.setTextColor(text);
+            button.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 17);
+            button.setBackground(sovietgram.com.maxui.MaxUi.ripple(fill, 16f));
+        } finally {
+            maxStyling = false;
+        }
     }
 
     private long shownAt;
@@ -662,8 +705,14 @@ public class AlertDialog extends Dialog implements Drawable.Callback, Notificati
                 containerView.setPadding(0, 0, 0, 0);
                 containerView.setBackground(shadowDrawable);
 
-                containerView.setOutlineProvider(ViewOutlineProviderImpl.boundsWithPaddingRoundRect(dp(8), dp(20)));
-                containerView.setClipToOutline(true);
+                if (!maxSheet()) {
+                    containerView.setOutlineProvider(ViewOutlineProviderImpl.boundsWithPaddingRoundRect(dp(8), dp(20)));
+                    containerView.setClipToOutline(true);
+                } else {
+                    View handle = new View(getContext());
+                    handle.setBackground(sovietgram.com.maxui.MaxUi.round(sovietgram.com.maxui.MaxUi.color(sovietgram.com.maxui.MaxTokens.ICON_MUTE), 2f));
+                    containerView.addView(handle, LayoutHelper.createLinear(40, 4, Gravity.CENTER_HORIZONTAL, 0, 6, 0, 0));
+                }
 
                 drawBackground = false;
             }
@@ -794,6 +843,14 @@ public class AlertDialog extends Dialog implements Drawable.Callback, Notificati
             titleTextView.setTypeface(AndroidUtilities.bold());
             titleTextView.setGravity((topAnimationIsNew ? Gravity.CENTER_HORIZONTAL : LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT) | Gravity.TOP);
             titleContainer.addView(titleTextView, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, (topAnimationIsNew ? Gravity.CENTER_HORIZONTAL : LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT) | Gravity.TOP, 0, 19, 0, topAnimationIsNew ? 4 : (subtitle != null ? 2 : (items != null ? 14 : 10))));
+            if (maxSheet()) {
+                titleTextView.setGravity(Gravity.CENTER_HORIZONTAL | Gravity.TOP);
+                titleTextView.setTextColor(sovietgram.com.maxui.MaxUi.color(sovietgram.com.maxui.MaxTokens.TEXT_PRIMARY));
+                FrameLayout.LayoutParams titleParams = (FrameLayout.LayoutParams) titleTextView.getLayoutParams();
+                titleParams.gravity = Gravity.CENTER_HORIZONTAL | Gravity.TOP;
+                titleParams.topMargin = dp(20);
+                titleParams.bottomMargin = dp(12);
+            }
         }
 
         if (secondTitle != null && title != null) {
@@ -856,7 +913,10 @@ public class AlertDialog extends Dialog implements Drawable.Callback, Notificati
             messageTextView.setClickable(false);
             messageTextView.setEnabled(false);
         }
-        messageTextView.setGravity((topAnimationIsNew ? Gravity.CENTER_HORIZONTAL : LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT) | Gravity.TOP);
+        messageTextView.setGravity((topAnimationIsNew || maxSheet() ? Gravity.CENTER_HORIZONTAL : LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT) | Gravity.TOP);
+        if (maxSheet()) {
+            messageTextView.setTextColor(sovietgram.com.maxui.MaxUi.color(sovietgram.com.maxui.MaxTokens.TEXT_SECONDARY));
+        }
         if (progressViewStyle == ALERT_TYPE_LOADING) {
             setCanceledOnTouchOutside(false);
             setCancelable(false);
@@ -932,6 +992,10 @@ public class AlertDialog extends Dialog implements Drawable.Callback, Notificati
             scrollContainer.addView(customView, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, customViewHeight));
         }
         if (hasButtons) {
+            if (maxSheet()) {
+                verticalButtons = true;
+                buttonsInTwoRows = false;
+            }
             if (!verticalButtons) {
                 int buttonsWidth = 0;
                 TextPaint paint = new TextPaint();
@@ -1121,8 +1185,14 @@ public class AlertDialog extends Dialog implements Drawable.Callback, Notificati
 
                     @Override
                     public void setTextColor(int color) {
+                        if (maxSheet() && !maxStyling) {
+                            styleMaxButton(this, true, color);
+                            return;
+                        }
                         super.setTextColor(color);
-                        setBackground(Theme.getRoundRectSelectorDrawable(dp(20), color));
+                        if (!maxSheet()) {
+                            setBackground(Theme.getRoundRectSelectorDrawable(dp(20), color));
+                        }
                     }
                 };
                 textView.setMinWidth(dp(64));
@@ -1160,8 +1230,14 @@ public class AlertDialog extends Dialog implements Drawable.Callback, Notificati
 
                     @Override
                     public void setTextColor(int color) {
+                        if (maxSheet() && !maxStyling) {
+                            styleMaxButton(this, false, color);
+                            return;
+                        }
                         super.setTextColor(color);
-                        setBackground(Theme.getRoundRectSelectorDrawable(dp(20), color));
+                        if (!maxSheet()) {
+                            setBackground(Theme.getRoundRectSelectorDrawable(dp(20), color));
+                        }
                     }
                 };
                 textView.setMinWidth(dp(64));
@@ -1201,8 +1277,14 @@ public class AlertDialog extends Dialog implements Drawable.Callback, Notificati
 
                     @Override
                     public void setTextColor(int color) {
+                        if (maxSheet() && !maxStyling) {
+                            styleMaxButton(this, false, color);
+                            return;
+                        }
                         super.setTextColor(color);
-                        setBackground(Theme.getRoundRectSelectorDrawable(dp(20), color));
+                        if (!maxSheet()) {
+                            setBackground(Theme.getRoundRectSelectorDrawable(dp(20), color));
+                        }
                     }
                 };
                 textView.setMinWidth(dp(64));
@@ -1242,8 +1324,14 @@ public class AlertDialog extends Dialog implements Drawable.Callback, Notificati
 
                     @Override
                     public void setTextColor(int color) {
+                        if (maxSheet() && !maxStyling) {
+                            styleMaxButton(this, false, color);
+                            return;
+                        }
                         super.setTextColor(color);
-                        setBackgroundDrawable(Theme.getRoundRectSelectorDrawable(dp(20), color));
+                        if (!maxSheet()) {
+                            setBackgroundDrawable(Theme.getRoundRectSelectorDrawable(dp(20), color));
+                        }
                     }
                 };
                 textView.setMinWidth(dp(64));
@@ -1276,6 +1364,26 @@ public class AlertDialog extends Dialog implements Drawable.Callback, Notificati
             if (verticalButtons) {
                 for (int i = 1; i < buttonsLayout.getChildCount(); i++) {
                     ((ViewGroup.MarginLayoutParams) buttonsLayout.getChildAt(i).getLayoutParams()).topMargin = dp(6);
+                }
+            }
+            if (maxSheet()) {
+                // The main action goes on top, every button is a full-width 52dp bar.
+                buttonsLayout.getLayoutParams().height = ViewGroup.LayoutParams.WRAP_CONTENT;
+                buttonsLayout.setPadding(dp(12), dp(8), dp(12), dp(12));
+                buttonsLayout.setTranslationY(0);
+                java.util.ArrayList<View> ordered = new java.util.ArrayList<>();
+                final int[] order = {Dialog.BUTTON_POSITIVE, Dialog.BUTTON_NEUTRAL, AlertDialog.BUTTON_NEGATIVE_2, Dialog.BUTTON_NEGATIVE};
+                for (int tag : order) {
+                    View button = buttonsLayout.findViewWithTag(tag);
+                    if (button != null) {
+                        ordered.add(button);
+                    }
+                }
+                buttonsLayout.removeAllViews();
+                for (int i = 0; i < ordered.size(); i++) {
+                    LinearLayout.LayoutParams buttonParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(52));
+                    buttonParams.topMargin = i == 0 ? 0 : dp(8);
+                    buttonsLayout.addView(ordered.get(i), buttonParams);
                 }
             }
         }
@@ -1314,6 +1422,11 @@ public class AlertDialog extends Dialog implements Drawable.Callback, Notificati
             }
 
             params.width = Math.min(maxWidth, calculatedWidth) + backgroundPaddings.left + backgroundPaddings.right;
+            if (maxSheet()) {
+                params.width = WindowManager.LayoutParams.MATCH_PARENT;
+                params.gravity = Gravity.BOTTOM;
+                params.windowAnimations = R.style.MaxSheetAnimation;
+            }
         }
         if (customView == null || !checkFocusable || !canTextInput(customView)) {
             params.flags |= WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM;

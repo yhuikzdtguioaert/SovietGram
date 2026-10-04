@@ -194,6 +194,7 @@ public class ContactsActivity extends BaseFragment implements FactorAnimator.Tar
     private long permissionRequestTime;
 
     private final static int search_button = 0;
+    private final static int max_add_button = 988;
     private final static int sort_button = 1;
 
     private final static int delete = 100;
@@ -343,6 +344,12 @@ public class ContactsActivity extends BaseFragment implements FactorAnimator.Tar
                     sortByName = SharedConfig.sortContactsByName;
                     listViewAdapter.setSortType(sortByName ? 1 : 2, false);
                     sortItem.setIcon(sortByName ? R.drawable.msg_contacts_time : R.drawable.msg_contacts_name);
+                } else if (id == max_add_button) {
+                    if (MessagesController.getInstance(currentAccount).isFrozen()) {
+                        AccountFrozenAlert.show(currentAccount);
+                        return;
+                    }
+                    new NewContactBottomSheet(ContactsActivity.this, getContext()).show();
                 } else if (id == search_button) {
                     listView.smoothScrollToPosition(0);
 //                    animatorSearchFieldVisible.setValue(true, true);
@@ -359,6 +366,15 @@ public class ContactsActivity extends BaseFragment implements FactorAnimator.Tar
 
         searchItem = menu.addItem(search_button, R.drawable.outline_header_search);
         searchItem.setContentDescription(getString(R.string.SearchContacts));
+        final boolean maxTabs = sovietgram.com.maxui.MaxInterface.active && hasMainTabs;
+        if (maxTabs) {
+            // MAX's contacts tab: the title at the left, a search square and a plus.
+            actionBar.maxMainForm = true;
+            sovietgram.com.maxui.MaxUi.toolbarSquare(searchItem, false);
+            ActionBarMenuItem addItem = menu.addItem(max_add_button, R.drawable.max_icon_plus);
+            addItem.setContentDescription(getString(R.string.CreateNewContact));
+            sovietgram.com.maxui.MaxUi.toolbarSquare(addItem, false);
+        }
 
         searchField.editText.addTextChangedListener(new SearchTextWatcher(searchField.editText, new ActionBarMenuItem.ActionBarMenuItemSearchListener() {
             @Override
@@ -412,6 +428,9 @@ public class ContactsActivity extends BaseFragment implements FactorAnimator.Tar
         if (!createSecretChat && !returnAsResult) {
             sortItem = menu.addItem(sort_button, sortByName ? R.drawable.msg_contacts_time : R.drawable.msg_contacts_name);
             sortItem.setContentDescription(getString(R.string.AccDescrContactSorting));
+            if (maxTabs) {
+                sortItem.setVisibility(View.GONE);
+            }
         }
 
         listView = new RecyclerListView(context);
@@ -1673,6 +1692,11 @@ public class ContactsActivity extends BaseFragment implements FactorAnimator.Tar
     }
 
     private void checkUi_floatingButtonVisible() {
+        if (sovietgram.com.maxui.MaxInterface.active && floatingButton != null) {
+            // MAX has no floating button on its tabs.
+            floatingButton.setVisibility(View.GONE);
+            return;
+        }
         if (floatingButton != null && listViewAdapter != null) {
             floatingButton.setButtonVisible(floatingButtonVisibleByScroll && !searching && !listViewAdapter.isEmpty(), true);
         }

@@ -868,7 +868,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
             args.putBoolean("hasMainTabs", true);
             return new ContactsActivity(args);
         } else if (position == MainTabsHelper.getCallsOrSettingsPosition()) {
-            if (getUserConfig().showCallsTab) {
+            if (MainTabsHelper.isMax() || getUserConfig().showCallsTab) {
                 Bundle args = new Bundle();
                 args.putBoolean("needFinishFragment", false);
                 args.putBoolean("hasMainTabs", true);
@@ -883,6 +883,11 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
             dialogsActivity = new DialogsActivity(args);
             dialogsActivity.setMainTabsActivityController(new MainTabsActivityControllerImpl());
             return dialogsActivity;
+        } else if (position == MainTabsHelper.getProfilePosition() && MainTabsHelper.isMax()) {
+            // MAX's last tab is "Settings": the user's photo and name above the list of settings.
+            Bundle args = new Bundle();
+            args.putBoolean("hasMainTabs", true);
+            return new SettingsActivity(args);
         } else if (position == MainTabsHelper.getProfilePosition()) {
             Bundle args = new Bundle();
             args.putLong("user_id", UserConfig.getInstance(currentAccount).getClientUserId());
@@ -1176,6 +1181,10 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
     }
 
     private void checkUi_callTabVisible(boolean callTabsVisible, boolean animated) {
+        if (MainTabsHelper.isMax()) {
+            // MAX always has its Calls tab.
+            callTabsVisible = true;
+        }
         if (tabsView != null) {
             // MAX's own list has the one Settings tab, the one with the user's photo.
             tabsView.setViewVisible(tabs[INDEX_SETTINGS], !callTabsVisible && !MainTabsHelper.isMax(), animated);

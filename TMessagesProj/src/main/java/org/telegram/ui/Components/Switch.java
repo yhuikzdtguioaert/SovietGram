@@ -397,8 +397,57 @@ public class Switch extends View {
     }
 
     @Override
+    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        if (sovietgram.com.maxui.MaxInterface.active) {
+            // MAX's switch is a 52x32dp pill whatever room the row gives it.
+            setMeasuredDimension(AndroidUtilities.dp(52), AndroidUtilities.dp(32));
+            return;
+        }
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+    }
+
+    private final Paint maxPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final RectF maxRect = new RectF();
+
+    /** MAX's switch: an accent pill with a white thumb when on, an outlined empty pill with a grey thumb when off. */
+    private void drawMaxSwitch(Canvas canvas) {
+        final float p = progress;
+        final float w = AndroidUtilities.dp(52);
+        final float h = AndroidUtilities.dp(32);
+        final float left = (getMeasuredWidth() - w) / 2f;
+        final float top = (getMeasuredHeight() - h) / 2f;
+        final float radius = h / 2f;
+        final int accent = sovietgram.com.maxui.MaxUi.color(sovietgram.com.maxui.MaxTokens.BUTTON_PRIMARY);
+        final int outline = sovietgram.com.maxui.MaxUi.color(sovietgram.com.maxui.MaxTokens.DIVIDER_PRIMARY);
+        final int offThumb = sovietgram.com.maxui.MaxUi.color(sovietgram.com.maxui.MaxTokens.ICON_TERTIARY);
+
+        maxPaint.setStyle(Paint.Style.FILL);
+        maxPaint.setColor(accent);
+        maxPaint.setAlpha((int) (255 * p));
+        maxRect.set(left, top, left + w, top + h);
+        canvas.drawRoundRect(maxRect, radius, radius, maxPaint);
+
+        maxPaint.setStyle(Paint.Style.STROKE);
+        maxPaint.setStrokeWidth(AndroidUtilities.dp(2));
+        maxPaint.setColor(outline);
+        maxPaint.setAlpha((int) (Color.alpha(outline) * (1f - p)));
+        maxRect.inset(AndroidUtilities.dp(1), AndroidUtilities.dp(1));
+        canvas.drawRoundRect(maxRect, radius, radius, maxPaint);
+
+        final float thumb = AndroidUtilities.dp(20 + 4 * p);
+        final float cx = left + AndroidUtilities.dp(15) + AndroidUtilities.dp(20) * p;
+        maxPaint.setStyle(Paint.Style.FILL);
+        maxPaint.setColor(lerpColor(offThumb, Color.WHITE, p));
+        canvas.drawCircle(cx, top + h / 2f, thumb / 2f, maxPaint);
+    }
+
+    @Override
     protected void onDraw(Canvas canvas) {
         if (getVisibility() != VISIBLE) {
+            return;
+        }
+        if (sovietgram.com.maxui.MaxInterface.active) {
+            drawMaxSwitch(canvas);
             return;
         }
 

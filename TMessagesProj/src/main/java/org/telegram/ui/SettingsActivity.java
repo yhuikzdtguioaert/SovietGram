@@ -330,6 +330,9 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
         actionBar.setAllowOverlayTitle(true);
         actionBar.setUseContainerForTitles();
         actionBar.setTitle(getString(R.string.Settings));
+        if (sovietgram.com.maxui.MaxInterface.active && hasMainTabs) {
+            actionBar.maxMainForm = true;
+        }
         actionBar.setActionBarMenuOnItemClick(new ActionBar.ActionBarMenuOnItemClick() {
             @Override
             public void onItemClick(int id) {
@@ -1257,7 +1260,12 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
         public void updateColors() {
             titleView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText, resourcesProvider));
             subtitleView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText, resourcesProvider));
-            valueView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlueText, resourcesProvider));
+            valueView.setTextColor(sovietgram.com.maxui.MaxInterface.active
+                    ? sovietgram.com.maxui.MaxUi.color(sovietgram.com.maxui.MaxTokens.TEXT_TERTIARY)
+                    : Theme.getColor(Theme.key_windowBackgroundWhiteBlueText, resourcesProvider));
+            if (sovietgram.com.maxui.MaxInterface.active) {
+                titleView.setTypeface(AndroidUtilities.bold());
+            }
             iconBackground.setDrawBorder(resourcesProvider != null ? resourcesProvider.isDark() : Theme.isCurrentThemeDark());
         }
 
@@ -1281,6 +1289,8 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
 
             iconBackground.setColor(iconColorTop, iconColorBottom);
             iconView.setImageResource(icon);
+            iconView.setColorFilter(sovietgram.com.maxui.MaxInterface.active
+                    ? new android.graphics.PorterDuffColorFilter(sovietgram.com.maxui.MaxUi.color(sovietgram.com.maxui.MaxTokens.ICON_PRIMARY), android.graphics.PorterDuff.Mode.SRC_IN) : null);
             titleView.setText(title);
             subtitleView.setVisibility((twoLines = !TextUtils.isEmpty(subtitle)) ? View.VISIBLE : View.GONE);
             subtitleView.setText(subtitle);
@@ -1324,6 +1334,10 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
 
             @Override
             public void draw(@NonNull Canvas canvas) {
+                if (sovietgram.com.maxui.MaxInterface.active) {
+                    // MAX puts a plain glyph in front of a row, no coloured tile behind it.
+                    return;
+                }
                 final float r = dp(10);
                 AndroidUtilities.rectTmp.set(getBounds());
                 matrix.reset();

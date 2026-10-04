@@ -4311,7 +4311,14 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                 canvas.translate(timeLeft, timeTop);
 
                 final TextPaint timeTextPaint = getTimeTextPaint();
-                if (getIsPinned()) {
+                if (getIsPinned() && maxRow) {
+                    // MAX: the pin sits at the end of the first line, after the time, with no pill behind it.
+                    final Drawable pinDrawable = Theme.dialogs_pinnedDrawable2;
+                    final int pinX = timeLayout.getWidth() + dp(6);
+                    final int pinY = (timeLayout.getHeight() - pinDrawable.getIntrinsicHeight()) / 2;
+                    pinDrawable.setBounds(pinX, pinY, pinX + pinDrawable.getIntrinsicWidth(), pinY + pinDrawable.getIntrinsicHeight());
+                    pinDrawable.draw(canvas);
+                } else if (getIsPinned()) {
                     canvas.translate(dp(20), 0);
 
                     final float y = timeLayout.getHeight() / 2f - dp(17 / 2f);

@@ -173,10 +173,12 @@ object MaxInterface {
         put(Theme.key_windowBackgroundWhiteBlueText5, t.TEXT_THEMED)
         put(Theme.key_windowBackgroundWhiteBlueText6, t.TEXT_THEMED)
         put(Theme.key_windowBackgroundWhiteBlueText7, t.TEXT_THEMED)
-        put(Theme.key_windowBackgroundWhiteBlueHeader, t.TEXT_THEMED)
+        // MAX's section captions are small grey capitals, not accent-coloured titles.
+        put(Theme.key_windowBackgroundWhiteBlueHeader, t.TEXT_TERTIARY)
         put(Theme.key_windowBackgroundWhiteBlueButton, t.BUTTON_PRIMARY)
         put(Theme.key_windowBackgroundWhiteBlueIcon, t.ICON_THEMED)
-        put(Theme.key_windowBackgroundWhiteValueText, t.TEXT_THEMED)
+        // A row's value ("Everyone", a language) is grey in MAX.
+        put(Theme.key_windowBackgroundWhiteValueText, t.TEXT_TERTIARY)
         put(Theme.key_windowBackgroundWhiteLinkText, t.TEXT_THEMED)
         put(Theme.key_windowBackgroundWhiteLinkSelection, t.BUTTON_PRIMARY, 0x40)
         put(Theme.key_windowBackgroundWhiteGreenText, t.TEXT_POSITIVE)
