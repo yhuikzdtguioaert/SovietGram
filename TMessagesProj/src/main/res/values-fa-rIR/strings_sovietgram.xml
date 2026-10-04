@@ -780,4 +780,21 @@
     <string name="CustomInterfaceMax">Max Interface</string>
     <string name="MaxColorWay">Max color theme</string>
     <string name="CustomInterfaceRestart">The colours changed at once. Restart the app to lay out the bars, rows and headers the new way.</string>
+    <string name="CustomProfileIntegrationContributions">Contributions</string>
+    <string name="CustomProfileIntegrationStyle">Display</string>
+    <string name="CustomProfileIntegrationStyleText">Plain text</string>
+    <string name="CustomProfileIntegrationStyleCard">Card with picture</string>
+    <string name="CustomProfileIntegrationRefresh">Update every</string>
+    <string name="CustomProfileIntegrationRefreshAuto">Automatic</string>
+    <string name="CustomProfileIntegrationRefreshSeconds">%d s</string>
+    <string name="CustomProfileIntegrationRefreshMinutes">%d min</string>
+    <string name="CustomProfileIntegrationListening">Listening to %s</string>
+    <string name="CustomProfileIntegrationPaused">Paused on %s</string>
+    <string name="CustomProfileIntegrationLastPlayed">Last listened on %s</string>
+    <string name="CustomProfileIntegrationLatestOn">Latest track on %s</string>
+    <string name="CustomProfileIntegrationGamePlaying">Playing on %s</string>
+    <string name="CustomProfileIntegrationContribs">%s contributions in the last year</string>
+    <string name="CustomProfileIntegrationLess">Less</string>
+    <string name="CustomProfileIntegrationMore">More</string>
+    <string name="CustomProfileIntegrationStyleInfo">A card shows the cover and the progress of what is playing, or the contribution calendar for GitHub. The update interval is how often the profile asks for fresh data while it is open.</string>
 </resources>

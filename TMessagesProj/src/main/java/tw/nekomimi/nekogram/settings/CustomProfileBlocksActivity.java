@@ -225,6 +225,29 @@ public class CustomProfileBlocksActivity extends CustomProfileListActivity {
                     rebuild();
                 });
             }
+            setting(getString(R.string.CustomProfileIntegrationStyle),
+                    getString(block.intStyle == 1 ? R.string.CustomProfileIntegrationStyleCard : R.string.CustomProfileIntegrationStyleText),
+                    () -> PopupHelper.show(new ArrayList<>(java.util.Arrays.asList(
+                                    getString(R.string.CustomProfileIntegrationStyleText), getString(R.string.CustomProfileIntegrationStyleCard))),
+                            getString(R.string.CustomProfileIntegrationStyle), block.intStyle, getParentActivity(), choice -> {
+                                block.intStyle = choice;
+                                CustomProfileExtraRows.store(blocks);
+                                rebuild();
+                            }));
+            setting(getString(R.string.CustomProfileIntegrationRefresh), refreshName(block.intRefresh), () -> {
+                ArrayList<String> names = new ArrayList<>();
+                int selected = 0;
+                for (int i = 0; i < REFRESH_CHOICES.length; i++) {
+                    names.add(refreshName(REFRESH_CHOICES[i]));
+                    if (REFRESH_CHOICES[i] == block.intRefresh) selected = i;
+                }
+                PopupHelper.show(names, getString(R.string.CustomProfileIntegrationRefresh), selected, getParentActivity(), choice -> {
+                    block.intRefresh = REFRESH_CHOICES[choice];
+                    CustomProfileExtraRows.store(blocks);
+                    rebuild();
+                });
+            });
+            info(getString(R.string.CustomProfileIntegrationStyleInfo));
             info(getString(R.string.CustomProfileIntegrationPrivacy));
             if (CustomProfileIntegrations.isConnected(block.service)) info(getString(R.string.CustomProfileIntegrationAvailability));
         }
@@ -318,6 +341,16 @@ public class CustomProfileBlocksActivity extends CustomProfileListActivity {
 
         setting(getString(R.string.Delete), null, () -> confirmDelete(blocks));
         shadow();
+    }
+
+    /** Seconds between updates an integration block can be set to; 0 is the service's own pace. */
+    private static final int[] REFRESH_CHOICES = {0, 5, 10, 15, 30, 60, 120, 300};
+
+    private String refreshName(int seconds) {
+        if (seconds <= 0) return getString(R.string.CustomProfileIntegrationRefreshAuto);
+        return seconds >= 60
+                ? org.telegram.messenger.LocaleController.formatString(R.string.CustomProfileIntegrationRefreshMinutes, seconds / 60)
+                : org.telegram.messenger.LocaleController.formatString(R.string.CustomProfileIntegrationRefreshSeconds, seconds);
     }
 
     private boolean sameOwner(long owner) {

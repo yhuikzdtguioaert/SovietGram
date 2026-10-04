@@ -780,4 +780,21 @@
     <string name="CustomInterfaceMax">Інтерфейс Max</string>
     <string name="MaxColorWay">Колірна тема Max</string>
     <string name="CustomInterfaceRestart">Кольори змінилися одразу. Перезапустіть застосунок, щоб панелі, рядки й шапки перебудувалися.</string>
+    <string name="CustomProfileIntegrationContributions">Контриб\'юції</string>
+    <string name="CustomProfileIntegrationStyle">Вигляд</string>
+    <string name="CustomProfileIntegrationStyleText">Звичайний текст</string>
+    <string name="CustomProfileIntegrationStyleCard">Картка з картинкою</string>
+    <string name="CustomProfileIntegrationRefresh">Оновлювати кожні</string>
+    <string name="CustomProfileIntegrationRefreshAuto">Авто</string>
+    <string name="CustomProfileIntegrationRefreshSeconds">%d с</string>
+    <string name="CustomProfileIntegrationRefreshMinutes">%d хв</string>
+    <string name="CustomProfileIntegrationListening">Слухає в %s</string>
+    <string name="CustomProfileIntegrationPaused">Пауза в %s</string>
+    <string name="CustomProfileIntegrationLastPlayed">Нещодавно слухав у %s</string>
+    <string name="CustomProfileIntegrationLatestOn">Останній трек на %s</string>
+    <string name="CustomProfileIntegrationGamePlaying">Грає в %s</string>
+    <string name="CustomProfileIntegrationContribs">%s контриб\'юцій за останній рік</string>
+    <string name="CustomProfileIntegrationLess">Менше</string>
+    <string name="CustomProfileIntegrationMore">Більше</string>
+    <string name="CustomProfileIntegrationStyleInfo">Картка показує обкладинку і прогрес того, що грає, а для GitHub — календар контриб\'юцій. Інтервал — як часто відкритий профіль запитує свіжі дані.</string>
 </resources>

@@ -60,19 +60,52 @@ object XraySettings {
 
     // ----- the identity a subscription server is shown (see VlessSubscription) -----
 
-    /** Stable per install: panels count devices by this, so it must not change between refreshes. */
+    /**
+     * The device identity a provider panel counts against its device limit (Happ allows a handful, some
+     * panels twenty). It is chosen once and then never changes, whatever happens to the app:
+     *
+     *  - it is kept in its own preferences file as well as in the settings, so wiping or re-importing
+     *    the settings cannot lose it;
+     *  - the first time it is derived from the install's ANDROID_ID, which survives reinstalling and
+     *    clearing data, so even a fresh install announces itself as the same device;
+     *  - an id that is already registered is never replaced by a derived one.
+     */
     @JvmStatic
     @Synchronized
     fun hwid(): String {
         val p = prefs()
-        var id = p.getString(P + "hwid", "") ?: ""
+        val own = org.telegram.messenger.ApplicationLoader.applicationContext
+            .getSharedPreferences("sg_device_identity", android.content.Context.MODE_PRIVATE)
+        var id = own.getString("hwid", "") ?: ""
         if (id.length < 16) {
-            val raw = ByteArray(8)
-            java.security.SecureRandom().nextBytes(raw)
-            id = raw.joinToString("") { "%02x".format(it) }
+            id = p.getString(P + "hwid", "") ?: ""
+        }
+        if (id.length < 16) {
+            id = derivedHwid()
+        }
+        if ((own.getString("hwid", "") ?: "") != id) {
+            own.edit().putString("hwid", id).commit()
+        }
+        if ((p.getString(P + "hwid", "") ?: "") != id) {
             p.edit().putString(P + "hwid", id).commit()
         }
         return id
+    }
+
+    private fun derivedHwid(): String {
+        val androidId = runCatching {
+            android.provider.Settings.Secure.getString(
+                org.telegram.messenger.ApplicationLoader.applicationContext.contentResolver,
+                android.provider.Settings.Secure.ANDROID_ID
+            )
+        }.getOrNull().orEmpty()
+        val bytes = if (androidId.length >= 8) {
+            java.security.MessageDigest.getInstance("SHA-256")
+                .digest(("sovietgram-hwid:$androidId").toByteArray(Charsets.UTF_8))
+        } else {
+            ByteArray(8).also { java.security.SecureRandom().nextBytes(it) }
+        }
+        return bytes.take(8).joinToString("") { "%02x".format(it) }
     }
 
     // ----- what the last subscription refresh told us about itself -----

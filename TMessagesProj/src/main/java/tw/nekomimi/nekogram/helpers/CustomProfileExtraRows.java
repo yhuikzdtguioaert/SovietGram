@@ -94,6 +94,10 @@ public final class CustomProfileExtraRows {
         public int mode;
         public JSONArray parts = new JSONArray();
         public JSONObject accounts = new JSONObject();
+        /** How an integration is shown: 0 as lines of text, 1 as a card with the cover or the calendar. */
+        public int intStyle;
+        /** Seconds between asking for fresh data; 0 lets the service's own pace decide. */
+        public int intRefresh;
         public long emoji;
         public int viewX;
         public int viewY;
@@ -233,6 +237,8 @@ public final class CustomProfileExtraRows {
                 o.put("mode", block.mode);
                 o.put("parts", block.parts);
                 o.put("accounts", block.accounts);
+                o.put("int_style", block.intStyle);
+                o.put("int_refresh", block.intRefresh);
             }
             return o;
         } catch (Throwable e) {
@@ -339,6 +345,8 @@ public final class CustomProfileExtraRows {
             return null;
         }
         b.service = clamp(o.optInt("service"), 0, 5);
+        b.intStyle = clamp(o.optInt("int_style"), 0, 1);
+        b.intRefresh = clamp(o.optInt("int_refresh"), 0, 3600);
         b.mode = clamp(o.optInt("mode"), 0, CustomProfileIntegrations.modeCount(b.service) - 1);
         JSONArray modes = o.optJSONArray("parts");
         if (modes != null) {

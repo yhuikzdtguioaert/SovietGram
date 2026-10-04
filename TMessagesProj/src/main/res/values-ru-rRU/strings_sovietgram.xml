@@ -864,4 +864,21 @@
     <string name="CustomInterfaceMax">Интерфейс Max</string>
     <string name="MaxColorWay">Цветовая тема Max</string>
     <string name="CustomInterfaceRestart">Цвета изменились сразу. Перезапустите приложение, чтобы панели, строки и шапки перестроились.</string>
+    <string name="CustomProfileIntegrationContributions">Контрибуции</string>
+    <string name="CustomProfileIntegrationStyle">Вид</string>
+    <string name="CustomProfileIntegrationStyleText">Обычный текст</string>
+    <string name="CustomProfileIntegrationStyleCard">Карточка с картинкой</string>
+    <string name="CustomProfileIntegrationRefresh">Обновлять каждые</string>
+    <string name="CustomProfileIntegrationRefreshAuto">Авто</string>
+    <string name="CustomProfileIntegrationRefreshSeconds">%d с</string>
+    <string name="CustomProfileIntegrationRefreshMinutes">%d мин</string>
+    <string name="CustomProfileIntegrationListening">Слушает в %s</string>
+    <string name="CustomProfileIntegrationPaused">Пауза в %s</string>
+    <string name="CustomProfileIntegrationLastPlayed">Недавно слушал в %s</string>
+    <string name="CustomProfileIntegrationLatestOn">Последний трек на %s</string>
+    <string name="CustomProfileIntegrationGamePlaying">Играет в %s</string>
+    <string name="CustomProfileIntegrationContribs">%s контрибуций за последний год</string>
+    <string name="CustomProfileIntegrationLess">Меньше</string>
+    <string name="CustomProfileIntegrationMore">Больше</string>
+    <string name="CustomProfileIntegrationStyleInfo">Карточка показывает обложку и прогресс того, что играет, а для GitHub — календарь контрибуций. Интервал — как часто открытый профиль запрашивает свежие данные.</string>
 </resources>

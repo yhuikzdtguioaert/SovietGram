@@ -38,6 +38,7 @@ public class CustomProfileBlockCell extends FrameLayout {
     private final TextView titleView;
     private final TextView valueView;
     private final BackupImageView imageView;
+    private final IntegrationCardView card;
     private final Paint buttonPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final RectF buttonRect = new RectF();
 
@@ -53,16 +54,31 @@ public class CustomProfileBlockCell extends FrameLayout {
         @Override public void run() {
             if (!isAttachedToWindow() || block == null || block.type != CustomProfileExtraRows.TYPE_INTEGRATION) return;
             loadIntegration();
-            AndroidUtilities.runOnUIThread(this, 31000);
+            AndroidUtilities.runOnUIThread(this, tw.nekomimi.nekogram.helpers.CustomProfileIntegrations.refreshMs(block));
         }
     };
 
     private void loadIntegration() {
         final int generation = binding;
         final CustomProfileExtraRows.Block expected = block;
-        tw.nekomimi.nekogram.helpers.CustomProfileIntegrations.load(integrationAccount, integrationOwner, expected, text -> {
+        tw.nekomimi.nekogram.helpers.CustomProfileIntegrations.loadRich(integrationAccount, integrationOwner, expected, rich -> {
             if (binding != generation || block != expected) return;
-            if (!text.contentEquals(valueView.getText())) { valueView.setText(text); requestLayout(); }
+            final boolean asCard = expected.intStyle == 1 && rich.hasCard();
+            if (asCard) {
+                card.set(expected, rich);
+                if (card.getVisibility() != VISIBLE) card.setVisibility(VISIBLE);
+                if (titleView.getVisibility() != GONE) titleView.setVisibility(GONE);
+                if (valueView.getVisibility() != GONE) valueView.setVisibility(GONE);
+                requestLayout();
+                return;
+            }
+            if (card.getVisibility() != GONE) {
+                card.setVisibility(GONE);
+                titleView.setVisibility(expected.title.isEmpty() ? GONE : VISIBLE);
+                valueView.setVisibility(VISIBLE);
+                requestLayout();
+            }
+            if (!rich.text.contentEquals(valueView.getText())) { valueView.setText(rich.text); requestLayout(); }
         });
     }
 
@@ -100,6 +116,10 @@ public class CustomProfileBlockCell extends FrameLayout {
         imageView = new BackupImageView(context);
         addView(imageView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 180,
                 Gravity.TOP, 21, 8, 21, 8));
+
+        card = new IntegrationCardView(context, resourcesProvider);
+        card.setVisibility(GONE);
+        addView(card, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.TOP));
     }
 
     /** Puts one block on screen. Everything not part of this block's type is simply hidden. */
@@ -132,6 +152,8 @@ public class CustomProfileBlockCell extends FrameLayout {
         titleView.setVisibility(showsTitle ? VISIBLE : GONE);
         valueView.setVisibility(showsValue ? VISIBLE : GONE);
         imageView.setVisibility(showsMedia ? VISIBLE : GONE);
+        // A card appears once the data for it has arrived; until then (and when there is none) the text shows.
+        card.setVisibility(GONE);
 
         if (showsTitle) {
             titleView.setText(block.title);
@@ -155,7 +177,8 @@ public class CustomProfileBlockCell extends FrameLayout {
         }
         if (type == CustomProfileExtraRows.TYPE_INTEGRATION) {
             loadIntegration();
-            if (isAttachedToWindow()) AndroidUtilities.runOnUIThread(refreshIntegration, 31000);
+            if (isAttachedToWindow()) AndroidUtilities.runOnUIThread(refreshIntegration,
+                    tw.nekomimi.nekogram.helpers.CustomProfileIntegrations.refreshMs(block));
         }
         if (showsMedia) {
             final FrameLayout.LayoutParams params = (LayoutParams) imageView.getLayoutParams();
@@ -210,6 +233,10 @@ public class CustomProfileBlockCell extends FrameLayout {
                         ? AndroidUtilities.dp(block.mediaHeight + 16) : 0;
                 case CustomProfileExtraRows.TYPE_BUTTON -> height = AndroidUtilities.dp(56);
                 default -> {
+                    if (card.getVisibility() == VISIBLE) {
+                        height = card.heightFor(width);
+                        break;
+                    }
                     height = AndroidUtilities.dp(block.title.isEmpty() ? 4 : 26);
                     if (!block.text.isEmpty() || block.type == CustomProfileExtraRows.TYPE_INTEGRATION) {
                         valueView.measure(MeasureSpec.makeMeasureSpec(

@@ -29,6 +29,13 @@ object VlessSubscription {
 
     class Result(val servers: List<String>, val info: XraySettings.SubscriptionInfo)
 
+    // The provider is asked at most once in a while for the same link: a panel that registers a device on
+    // every request would otherwise be hammered by a few quick taps on "Refresh".
+    private const val REUSE_MS = 20_000L
+    private var lastUrl = ""
+    private var lastAt = 0L
+    private var lastResult: Result? = null
+
     /** Kept for callers that only want the servers. */
     @JvmStatic
     fun fetch(url: String): List<String> = fetchDetailed(url).servers
@@ -48,6 +55,12 @@ object VlessSubscription {
         }
         if (!target.startsWith("http://", true) && !target.startsWith("https://", true)) {
             throw FetchException("Subscription URL must start with http:// or https://")
+        }
+        synchronized(this) {
+            val held = lastResult
+            if (held != null && lastUrl == target && System.currentTimeMillis() - lastAt < REUSE_MS) {
+                return held
+            }
         }
         val settings = XraySettings.snapshot()
         val response = try {
@@ -77,7 +90,13 @@ object VlessSubscription {
             announce = decodeHeader(headers["announce"]),
             updatedAt = System.currentTimeMillis()
         )
-        return Result(servers, info)
+        val result = Result(servers, info)
+        synchronized(this) {
+            lastUrl = target
+            lastAt = System.currentTimeMillis()
+            lastResult = result
+        }
+        return result
     }
 
     private fun mirrorOf(target: String): String? {
@@ -94,13 +113,16 @@ object VlessSubscription {
             if (maskAsHapp) {
                 builder.header("User-Agent", "Happ/$HAPP_VERSION/android")
                 builder.header("Accept", "*/*")
-                builder.header("x-hwid", XraySettings.hwid())
-                builder.header("x-device-os", "Android")
-                builder.header("x-ver-os", asciiOnly(Build.VERSION.RELEASE))
-                builder.header("x-device-model", asciiOnly(Build.MODEL))
             } else {
                 builder.header("User-Agent", "SovietGram")
             }
+            // The device is announced the same way every time, masked or not: a panel that counts
+            // devices by these headers then sees one device, instead of one more for every fetch that
+            // arrived without them.
+            builder.header("x-hwid", XraySettings.hwid())
+            builder.header("x-device-os", "Android")
+            builder.header("x-ver-os", asciiOnly(Build.VERSION.RELEASE))
+            builder.header("x-device-model", asciiOnly(Build.MODEL))
             HttpClient.instance.newCall(builder.build()).execute().use { response ->
                 if (!response.isSuccessful) {
                     // Only the status code, never the URL.
