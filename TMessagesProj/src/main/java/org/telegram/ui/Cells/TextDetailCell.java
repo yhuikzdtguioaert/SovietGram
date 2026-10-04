@@ -47,6 +47,12 @@ public class TextDetailCell extends FrameLayout {
     private final TextView showMoreTextView = null;
     private final ImageView imageView;
     private boolean needDivider;
+    /**
+     * The last row of a card has nothing below it to be divided from. Its line sat on the card's bottom edge,
+     * and where that edge curves (the rounded corners) the line stuck out beneath the card as a short dark
+     * stripe, plainly visible on a coloured profile.
+     */
+    private boolean lastInCard;
     private boolean contentDescriptionValueFirst;
     private boolean multiline;
 
@@ -268,9 +274,16 @@ public class TextDetailCell extends FrameLayout {
         textView.invalidate();
     }
 
+    public void setLastInCard(boolean last) {
+        if (lastInCard != last) {
+            lastInCard = last;
+            invalidate();
+        }
+    }
+
     @Override
     protected void onDraw(Canvas canvas) {
-        if (needDivider) {
+        if (needDivider && !lastInCard) {
             Paint paint = resourcesProvider != null ? resourcesProvider.getPaint(Theme.key_paint_divider) : Theme.dividerPaint;
             if (paint == null) paint = Theme.dividerPaint;
             canvas.drawLine(

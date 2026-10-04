@@ -14696,6 +14696,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         detailCell.setImage(null);
                         detailCell.setImageClickListener(null);
                     }
+                    detailCell.setLastInCard(position == infoEndRow);
                     detailCell.setTag(position);
                     detailCell.textView.setLoading(loadingSpan);
                     detailCell.valueTextView.setLoading(loadingSpan);
