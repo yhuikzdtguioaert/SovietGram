@@ -55,7 +55,7 @@ public class CustomProfileHeaderActivity extends CustomProfileListActivity {
     // ---------------------------------------------------------------- the whole header
 
     private void buildTop() {
-        final int preset = CustomProfileHeaderLayout.preset();
+        final int preset = CustomProfileHeaderLayout.ownPreset();
         header(getString(R.string.CustomProfileHeaderLayout));
         setting(getString(R.string.CustomProfileHeaderPreset), presetName(preset), this::pickPreset);
         shadow();
@@ -127,7 +127,7 @@ public class CustomProfileHeaderActivity extends CustomProfileListActivity {
                 CustomProfileHeaderLayout.PRESET_LEFT, CustomProfileHeaderLayout.PRESET_CUSTOM};
         int checked = 0;
         for (int i = 0; i < values.length; i++) {
-            if (values[i] == CustomProfileHeaderLayout.preset()) {
+            if (values[i] == CustomProfileHeaderLayout.ownPreset()) {
                 checked = i;
             }
         }

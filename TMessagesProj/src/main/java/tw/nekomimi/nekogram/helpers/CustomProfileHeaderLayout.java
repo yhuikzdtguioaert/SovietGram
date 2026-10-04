@@ -208,6 +208,16 @@ public final class CustomProfileHeaderLayout {
         return preset == PRESET_LEFT || preset == PRESET_CUSTOM ? preset : PRESET_TELEGRAM;
     }
 
+    /**
+     * The preset the user's own look wears, for the editor. {@link #preset()} answers for the look on screen
+     * and says "as Telegram draws it" whenever no profile is up, which is always the case while the editor is:
+     * the editor then showed that preset, hid the rows of the parts and could not change anything.
+     */
+    public static int ownPreset() {
+        final int preset = NekoConfig.customProfileHeaderLayout.Int();
+        return preset == PRESET_LEFT || preset == PRESET_CUSTOM ? preset : PRESET_TELEGRAM;
+    }
+
     /** Whether anything at all has to be moved. */
     public static boolean has() {
         if (!CustomProfileHelper.isEnabled()) {
@@ -1416,7 +1426,7 @@ public final class CustomProfileHeaderLayout {
     private static void write(Element[] parts, int[] anchorValues, Extras values) {
         NekoConfig.customProfileHeaderConfig.setConfigString(encode(parts, anchorValues, values));
         // Editing anything here means the custom preset is the one being edited.
-        if (preset() != PRESET_CUSTOM) {
+        if (ownPreset() != PRESET_CUSTOM) {
             NekoConfig.customProfileHeaderLayout.setConfigInt(PRESET_CUSTOM);
         }
         invalidate();

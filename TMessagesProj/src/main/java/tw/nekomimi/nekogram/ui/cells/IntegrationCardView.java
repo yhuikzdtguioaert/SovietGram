@@ -124,7 +124,7 @@ public class IntegrationCardView extends View {
 
     private int cardColor() {
         if (block != null && block.iconBackground != 0) return block.iconBackground;
-        return dark() ? 0x33FFFFFF : 0x14000000;
+        return dark() ? 0x1CFFFFFF : 0x12000000;
     }
 
     private float radius() {
@@ -253,7 +253,13 @@ public class IntegrationCardView extends View {
             canvas.drawText(TextUtils.ellipsize(track.artist, text, textWidth, TextUtils.TruncateAt.END).toString(),
                     textLeft, coverTop + dp(38), text);
         }
-        if (track.durationMs > 0) {
+        if (track.durationMs > 0 && !track.playing && track.progressMs == 0) {
+            // Something that is not being played (a latest upload, a last listened track) has a length
+            // but no position: the bar would only ever sit at zero.
+            text.setTextSize(dp(12));
+            text.setColor(secondary());
+            canvas.drawText(clock(track.durationMs), textLeft, coverTop + coverSize - dp(2), text);
+        } else if (track.durationMs > 0) {
             final long position = Math.min(track.positionNow(), track.durationMs);
             final float barY = coverTop + coverSize - dp(20);
             final float barLeft = textLeft;
