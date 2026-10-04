@@ -93,12 +93,16 @@ public class AyuDeletedDialogsActivity extends BaseFragment implements Notificat
     private boolean loading;
     // Dialog ids the user pinned to the top of this list. Kept per account, in the shared preferences.
     private final HashSet<Long> pinned = new HashSet<>();
+    // How many saved messages of each dialog were there when its row was last opened: the badge on the right
+    // counts only what came after that, like an unread counter, and goes away once the dialog is opened.
+    private final HashMap<Long, Integer> seen = new HashMap<>();
 
     @Override
     public boolean onFragmentCreate() {
         super.onFragmentCreate();
         NotificationCenter.getInstance(currentAccount).addObserver(this, AyuConstants.MESSAGES_DELETED_NOTIFICATION);
         loadPinned();
+        loadSeen();
         loadDialogs();
         return true;
     }
@@ -114,6 +118,45 @@ public class AyuDeletedDialogsActivity extends BaseFragment implements Notificat
                 pinned.add(Long.parseLong(id));
             }
         } catch (Exception ignored) {
+        }
+    }
+
+    private String seenKey() {
+        return "ayuDeletedSeen_" + UserConfig.getInstance(currentAccount).getClientUserId();
+    }
+
+    private void loadSeen() {
+        seen.clear();
+        try {
+            for (String entry : NekoConfig.getPreferences().getStringSet(seenKey(), new HashSet<>())) {
+                final int colon = entry.indexOf(':');
+                if (colon > 0) {
+                    seen.put(Long.parseLong(entry.substring(0, colon)), Integer.parseInt(entry.substring(colon + 1)));
+                }
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    private void saveSeen() {
+        final HashSet<String> out = new HashSet<>();
+        for (java.util.Map.Entry<Long, Integer> e : seen.entrySet()) {
+            out.add(e.getKey() + ":" + e.getValue());
+        }
+        NekoConfig.getPreferences().edit().putStringSet(seenKey(), out).apply();
+    }
+
+    private int unreadOf(DeletedDialogSummary summary) {
+        final Integer was = seen.get(summary.dialogId);
+        return Math.max(0, summary.count - (was == null ? 0 : was));
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        // Coming back from a dialog that was just read: its badge is gone.
+        if (adapter != null) {
+            adapter.notifyDataSetChanged();
         }
     }
 
@@ -273,6 +316,8 @@ public class AyuDeletedDialogsActivity extends BaseFragment implements Notificat
     }
 
     private void openSummary(DeletedDialogSummary summary) {
+        seen.put(summary.dialogId, summary.count);
+        saveSeen();
         // No transition: the screen is a list read from the phone, so it is there at once.
         presentFragment(new AyuViewDeleted(summary.dialogId, mergedDialogIds.get(summary.dialogId)), false, true);
     }
@@ -302,6 +347,8 @@ public class AyuDeletedDialogsActivity extends BaseFragment implements Notificat
         items.remove(summary);
         pinned.remove(summary.dialogId);
         savePinned();
+        seen.remove(summary.dialogId);
+        saveSeen();
         applySearchFilter();
         Utilities.globalQueue.postRunnable(() -> {
             for (long id : ids) {
@@ -584,7 +631,7 @@ public class AyuDeletedDialogsActivity extends BaseFragment implements Notificat
             row.message = TextUtils.isEmpty(text) ? LocaleController.formatPluralString("DeletedMessagesCount", summary.count) : text;
             row.date = dateOf(summary);
             // The badge counts the saved messages, the way a chat counts what you have not read.
-            row.unread_count = summary.count;
+            row.unread_count = unreadOf(summary);
             row.pinned = pinned.contains(summary.dialogId);
             row.muted = false;
             cell.setDialog(row);
