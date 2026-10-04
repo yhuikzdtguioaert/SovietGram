@@ -110,7 +110,7 @@ public final class CustomProfileHeaderLayout {
     /** The other keys a layout carries beside the five elements and the anchors. */
     public static final class Extras {
         public static final Extras NONE = new Extras(NAME_CENTER, false, false,
-                CONTENT_SCALE_DEFAULT, CONTENT_SCALE_DEFAULT);
+                CONTENT_SCALE_DEFAULT, CONTENT_SCALE_DEFAULT, false);
 
         public final int nameAnchor;
         /** Keep resolving anchors instead of settling once they stop moving. A debugging aid. */
@@ -119,9 +119,17 @@ public final class CustomProfileHeaderLayout {
         public final boolean plainContent;
         public final int contentScaleX;
         public final int contentScaleY;
+        /**
+         * Keep Last Seen under the name instead of wherever its own offset throws it. A look built from
+         * numbers alone moves the name and the status by unrelated amounts, and the status then ends up
+         * far from the name it belongs to; with this on it is tied to the name, and only an anchor the
+         * look spells out for the status overrides that.
+         */
+        public final boolean statusFollow;
 
         Extras(int nameAnchor, boolean anchorAlways, boolean plainContent,
-               int contentScaleX, int contentScaleY) {
+               int contentScaleX, int contentScaleY, boolean statusFollow) {
+            this.statusFollow = statusFollow;
             this.nameAnchor = nameAnchor;
             this.anchorAlways = anchorAlways;
             this.plainContent = plainContent;
@@ -1047,10 +1055,24 @@ public final class CustomProfileHeaderLayout {
         return out;
     }
 
+    /** Whether Last Seen is tied to the name by {@link Extras#statusFollow} rather than by an anchor of its own. */
+    private static boolean followActive;
+
     private static int anchorValue(int part, int key) {
         if (!anchored || part < 0 || part >= CustomProfileAnchors.COUNT
                 || key < 0 || key >= ANCHOR_PARTS) {
             return anchorFallback(key);
+        }
+        if (followActive && part == CustomProfileAnchors.STATUS) {
+            // Its top edge against the name's bottom edge, both centred: directly under the name.
+            switch (key) {
+                case TARGET: return CustomProfileAnchors.targetOf(CustomProfileAnchors.NAME);
+                case TO_X: return CustomProfileAnchors.POINT_CENTER;
+                case TO_Y: return CustomProfileAnchors.POINT_END;
+                case FROM_X: return CustomProfileAnchors.POINT_CENTER;
+                case FROM_Y: return CustomProfileAnchors.POINT_START;
+                default: return 0;
+            }
         }
         return anchors[part * ANCHOR_PARTS + key];
     }
@@ -1103,12 +1125,17 @@ public final class CustomProfileHeaderLayout {
                     clamp((int) whole(raw, "actions_content_scale_x", CONTENT_SCALE_DEFAULT),
                             CONTENT_SCALE_MIN, CONTENT_SCALE_MAX),
                     clamp((int) whole(raw, "actions_content_scale_y", CONTENT_SCALE_DEFAULT),
-                            CONTENT_SCALE_MIN, CONTENT_SCALE_MAX));
+                            CONTENT_SCALE_MIN, CONTENT_SCALE_MAX),
+                    whole(raw, "status_follow", 1) != 0);
+            followActive = extras.statusFollow
+                    && anchors[CustomProfileAnchors.STATUS * ANCHOR_PARTS + TARGET] == CustomProfileAnchors.TARGET_NONE;
+            anchored |= followActive;
         } else {
             elements = idleElements();
             readAnchors(key -> presetAnchor(preset, key));
             extras = new Extras(preset == PRESET_LEFT ? NAME_LEFT : NAME_CENTER, false, false,
-                    CONTENT_SCALE_DEFAULT, CONTENT_SCALE_DEFAULT);
+                    CONTENT_SCALE_DEFAULT, CONTENT_SCALE_DEFAULT, false);
+            followActive = false;
         }
         // apply() runs every frame; squaring the text parts' scales once here keeps it from building
         // a new Element per text part per frame.
@@ -1304,6 +1331,7 @@ public final class CustomProfileHeaderLayout {
         out.append(",\"actions_plain_content\":").append(e.plainContent ? 1 : 0);
         out.append(",\"actions_content_scale_x\":").append(e.contentScaleX);
         out.append(",\"actions_content_scale_y\":").append(e.contentScaleY);
+        out.append(",\"status_follow\":").append(e.statusFollow ? 1 : 0);
         out.append('}');
         return out.toString();
     }
@@ -1329,7 +1357,13 @@ public final class CustomProfileHeaderLayout {
 
     public static Extras makeExtras(int nameAnchor, boolean anchorAlways, boolean plainContent,
                                     int scaleX, int scaleY) {
-        return new Extras(nameAnchor, anchorAlways, plainContent, scaleX, scaleY);
+        parseOwn();
+        return new Extras(nameAnchor, anchorAlways, plainContent, scaleX, scaleY, extras.statusFollow);
+    }
+
+    public static Extras makeExtras(int nameAnchor, boolean anchorAlways, boolean plainContent,
+                                    int scaleX, int scaleY, boolean statusFollow) {
+        return new Extras(nameAnchor, anchorAlways, plainContent, scaleX, scaleY, statusFollow);
     }
 
     // ---------------------------------------------------------------- editing
@@ -1392,7 +1426,10 @@ public final class CustomProfileHeaderLayout {
     /** Read for the editor: the anchor keys of one part, in the order {@link #encode} writes them. */
     public static int anchorOf(int part, int key) {
         parseOwn();
-        return anchorValue(part, key);
+        if (!anchored && !followActive || part < 0 || part >= CustomProfileAnchors.COUNT || key < 0 || key >= ANCHOR_PARTS) {
+            return anchorFallback(key);
+        }
+        return anchors[part * ANCHOR_PARTS + key];
     }
 
     public static final int ANCHOR_TARGET = TARGET;

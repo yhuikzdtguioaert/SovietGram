@@ -100,6 +100,11 @@ public class CustomProfileHeaderActivity extends CustomProfileListActivity {
                                 CustomProfileHeaderLayout.makeExtras(extras.nameAnchor,
                                         extras.anchorAlways, extras.plainContent,
                                         extras.contentScaleX, value))));
+        check(getString(R.string.CustomProfileHeaderStatusFollow), extras.statusFollow,
+                () -> CustomProfileHeaderLayout.setExtras(CustomProfileHeaderLayout.makeExtras(
+                        extras.nameAnchor, extras.anchorAlways, extras.plainContent,
+                        extras.contentScaleX, extras.contentScaleY, !extras.statusFollow)));
+        info(getString(R.string.CustomProfileHeaderStatusFollowInfo));
         check(getString(R.string.CustomProfileHeaderAnchorAlways), extras.anchorAlways,
                 () -> CustomProfileHeaderLayout.setExtras(CustomProfileHeaderLayout.makeExtras(
                         extras.nameAnchor, !extras.anchorAlways, extras.plainContent,
