@@ -758,7 +758,7 @@ public class CallLogActivity extends BaseFragment implements NotificationCenter.
 		ActionBarMenu menu = actionBar.createMenu();
 		if (sovietgram.com.maxui.MaxInterface.active && hasMainTabs) {
 			// MAX: the title at the left and a "new call" action in the toolbar instead of a floating button.
-			actionBar.maxMainForm = true;
+			actionBar.setMaxMainForm(true);
 			ActionBarMenuItem newCall = menu.addItem(989, R.drawable.max_icon_plus);
 			newCall.setContentDescription(getString(R.string.Call));
 			sovietgram.com.maxui.MaxUi.toolbarSquare(newCall, false);

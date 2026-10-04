@@ -128,6 +128,12 @@ public class TextCheckCell extends FrameLayout {
         checkBox = new Switch(context, resourcesProvider);
         checkBox.setColors(Theme.key_switchTrack, Theme.key_switchTrackChecked, Theme.key_windowBackgroundWhite, Theme.key_windowBackgroundWhite);
         addView(checkBox, LayoutHelper.createFrame(38, 22, (LocaleController.isRTL ? Gravity.LEFT : Gravity.RIGHT) | Gravity.CENTER_VERTICAL, 22, 0, 22, 0));
+        if (sovietgram.com.maxui.MaxInterface.active) {
+            // MAX's 52dp switch sits 12dp from the edge of its card.
+            FrameLayout.LayoutParams switchParams = (FrameLayout.LayoutParams) checkBox.getLayoutParams();
+            switchParams.leftMargin = AndroidUtilities.dp(12);
+            switchParams.rightMargin = AndroidUtilities.dp(12);
+        }
 
         setClipChildren(false);
         isRTL = LocaleController.isRTL;

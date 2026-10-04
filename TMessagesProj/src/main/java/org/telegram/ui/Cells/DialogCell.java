@@ -5131,7 +5131,8 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
     }
 
     private TextPaint getTimeTextPaint() {
-        return drawCount ? (isCounterMuted() ? Theme.dialogs_timePaintBold : Theme.dialogs_timePaintBoldAccent) : Theme.dialogs_timePaint;
+        // MAX never recolours the time of a chat with unread messages.
+        return drawCount && !maxRow ? (isCounterMuted() ? Theme.dialogs_timePaintBold : Theme.dialogs_timePaintBoldAccent) : Theme.dialogs_timePaint;
     }
 
     private boolean isCounterMuted() {

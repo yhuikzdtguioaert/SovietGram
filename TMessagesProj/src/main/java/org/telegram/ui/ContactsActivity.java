@@ -369,7 +369,7 @@ public class ContactsActivity extends BaseFragment implements FactorAnimator.Tar
         final boolean maxTabs = sovietgram.com.maxui.MaxInterface.active && hasMainTabs;
         if (maxTabs) {
             // MAX's contacts tab: the title at the left, a search square and a plus.
-            actionBar.maxMainForm = true;
+            actionBar.setMaxMainForm(true);
             sovietgram.com.maxui.MaxUi.toolbarSquare(searchItem, false);
             ActionBarMenuItem addItem = menu.addItem(max_add_button, R.drawable.max_icon_plus);
             addItem.setContentDescription(getString(R.string.CreateNewContact));

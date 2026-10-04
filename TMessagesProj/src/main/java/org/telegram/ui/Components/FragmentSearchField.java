@@ -212,7 +212,7 @@ public class FragmentSearchField extends FrameLayout implements FactorAnimator.T
     }
 
     public void setupBlurredBackground(BlurredBackgroundDrawable drawable) {
-        drawable.setRadius(dp(20));
+        drawable.setRadius(dp(sovietgram.com.maxui.MaxInterface.active ? 10 : 20));
         drawable.setPadding(dp(4));
         blurredBackgroundDrawable = drawable;
     }
@@ -277,7 +277,12 @@ public class FragmentSearchField extends FrameLayout implements FactorAnimator.T
     @Override
     public void updateColors() {
         final boolean isDark = resourcesProvider != null ? resourcesProvider.isDark() : Theme.isCurrentThemeDark();
-        bg = isSectionBackground ?
+        bg = sovietgram.com.maxui.MaxInterface.active
+            // MAX's search field: a 10dp-cornered box in the secondary button colour.
+            ? sovietgram.com.maxui.MaxUi.round(isSectionBackground || isWhiteBackground
+                ? sovietgram.com.maxui.MaxUi.color(sovietgram.com.maxui.MaxTokens.BACKGROUND_CARD)
+                : sovietgram.com.maxui.MaxUi.color(sovietgram.com.maxui.MaxTokens.BUTTON_SECONDARY), 10f) :
+            isSectionBackground ?
             Theme.createRoundRectDrawableShadowed(dp(20), getThemedColor(Theme.key_windowBackgroundWhite)) :
             Theme.createRoundRectDrawable(dp(20), isWhiteBackground ? getThemedColor(Theme.key_windowBackgroundWhite) : getThemedColor(Theme.key_windowBackgroundWhiteBlackText, isDark ? 0.07f : 0.05f));
         searchIcon.setColorFilter(getThemedColor(Theme.key_windowBackgroundWhiteBlackText, 0.6f), PorterDuff.Mode.MULTIPLY);

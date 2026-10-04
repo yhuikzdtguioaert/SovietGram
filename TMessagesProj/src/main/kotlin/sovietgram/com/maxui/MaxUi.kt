@@ -55,23 +55,25 @@ object MaxUi {
      * and carries a white glyph; the search action is filled with the secondary button colour.
      */
     @JvmStatic
-    fun toolbarSquare(item: ActionBarMenuItem?, accent: Boolean) {
+    fun toolbarSquare(item: ActionBarMenuItem?, accent: Boolean): Drawable? {
         if (item == null) {
-            return
+            return null
         }
         val fill = color(if (accent) MaxTokens.BUTTON_PRIMARY else MaxTokens.BUTTON_SECONDARY)
-        item.background = ripple(fill, 12f)
+        val background = ripple(fill, 12f)
+        item.background = background
         item.setIconColor(if (accent) Color.WHITE else color(MaxTokens.ICON_PRIMARY))
         val params = LinearLayout.LayoutParams(dp(32f), dp(32f))
         params.gravity = Gravity.CENTER_VERTICAL
         params.marginStart = dp(4f)
-        params.marginEnd = dp(4f)
+        params.marginEnd = dp(12f)
         item.layoutParams = params
         val icon = item.iconView
         if (icon != null) {
             val inset = dp(4f)
             icon.setPadding(inset, inset, inset, inset)
         }
+        return background
     }
 
     @JvmStatic

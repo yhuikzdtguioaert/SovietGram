@@ -2564,6 +2564,17 @@ public class ActionBar extends FrameLayout implements FactorAnimator.Target, The
     /** MAX's main screens (the chat list) put the title at the left; every other screen has it centred. */
     public boolean maxMainForm;
 
+    public void setMaxMainForm(boolean main) {
+        maxMainForm = main;
+        // The title may already exist, created centred; MAX's main screens keep it at the left.
+        for (int i = 0; i < titleTextView.length; i++) {
+            if (titleTextView[i] != null) {
+                titleTextView[i].setGravity((isCentered() ? Gravity.CENTER : Gravity.LEFT | Gravity.CENTER_VERTICAL));
+            }
+        }
+        requestLayout();
+    }
+
     private boolean isCentered() {
         if (sovietgram.com.maxui.MaxInterface.active) {
             return !maxMainForm;

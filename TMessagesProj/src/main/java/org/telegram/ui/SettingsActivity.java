@@ -261,6 +261,13 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
         super.clearViews();
     }
 
+    private void openOwnProfile() {
+        Bundle args = new Bundle();
+        args.putLong("user_id", UserConfig.getInstance(currentAccount).getClientUserId());
+        args.putBoolean("my_profile", true);
+        presentFragment(new ProfileActivity(args));
+    }
+
     @Override
     public View createView(Context context) {
         additionNavigationBarHeight = hasMainTabs ? dp(MainTabsHelper.getMainTabsHeightWithMargins()) : 0;
@@ -331,7 +338,7 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
         actionBar.setUseContainerForTitles();
         actionBar.setTitle(getString(R.string.Settings));
         if (sovietgram.com.maxui.MaxInterface.active && hasMainTabs) {
-            actionBar.maxMainForm = true;
+            actionBar.setMaxMainForm(true);
         }
         actionBar.setActionBarMenuOnItemClick(new ActionBar.ActionBarMenuOnItemClick() {
             @Override
@@ -340,6 +347,8 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
                     finishFragment();
                 } else if (id == 2) {
                     presentSettingFragment(new LogoutActivity());
+                } else if (id == 3) {
+                    openOwnProfile();
                 }
             }
         });
@@ -375,6 +384,10 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
 
         otherItem = menu.addItem(1, R.drawable.ic_ab_other);
         otherItem.setContentDescription(getString(R.string.AccDescrMoreOptions));
+        if (sovietgram.com.maxui.MaxInterface.active) {
+            // MAX has no separate profile tab; the profile page is one tap from the settings header.
+            otherItem.addSubItem(3, R.drawable.msg_openprofile, getString(R.string.MyProfile));
+        }
         otherItem.addSubItem(2, R.drawable.msg_leave, getString(R.string.LogOut));
 
         search = new ProfileActivity.SearchAdapter(this, context) {
@@ -495,6 +508,9 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
         titleView.setGravity(Gravity.CENTER);
         titleView.setSingleLine();
         titleView.setEllipsize(TextUtils.TruncateAt.END);
+        if (sovietgram.com.maxui.MaxInterface.active) {
+            titleView.setOnClickListener(v -> openOwnProfile());
+        }
         topView.addView(titleView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL | Gravity.TOP, 16, 138.333f - 12, 16, 0));
 
         subtitleView = new TextView(context);
@@ -502,6 +518,9 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
         subtitleView.setGravity(Gravity.CENTER);
         subtitleView.setSingleLine();
         subtitleView.setEllipsize(TextUtils.TruncateAt.END);
+        if (sovietgram.com.maxui.MaxInterface.active) {
+            subtitleView.setOnClickListener(v -> openOwnProfile());
+        }
         topView.addView(subtitleView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL | Gravity.TOP, 0, 168 - 12, 0, 0));
 
         versionView = new TextView(context);

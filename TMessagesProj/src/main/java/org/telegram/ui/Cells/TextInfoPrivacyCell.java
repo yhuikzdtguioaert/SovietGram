@@ -77,7 +77,7 @@ public class TextInfoPrivacyCell extends FrameLayout {
                 return super.overrideColor();
             }
         };
-        textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
+        textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, sovietgram.com.maxui.MaxInterface.active ? 13 : 14);
         textView.setGravity(LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT);
         textView.setPadding(0, AndroidUtilities.dp(10), 0, AndroidUtilities.dp(17));
         textView.setMovementMethod(LinkMovementMethod.getInstance());

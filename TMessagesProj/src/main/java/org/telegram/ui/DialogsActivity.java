@@ -3648,7 +3648,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                     statusDrawable = new AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable(null, dp(26));
                     statusDrawable.center = true;
                 } else {
-                    actionBar.maxMainForm = true;
+                    actionBar.setMaxMainForm(true);
                 }
                 // MAX's chat list is simply called "Chats".
                 actionBar.setTitle(actionBarTitleNax = sovietgram.com.maxui.MaxInterface.active ? getString(R.string.MainTabsChats) : TypefaceHelper.getTitleText(currentAccount), statusDrawable);
@@ -14445,11 +14445,18 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         final float factor2 = 1f - getRightSlidingProgress();
         final float factor3 = 1f - animatorDoneButtonVisible.getFloatValue();
         final float factor = factor0 * factor1 * factor2 * factor3;
+        if (sovietgram.com.maxui.MaxInterface.active && searchItem != null && initialDialogsType == DIALOGS_TYPE_DEFAULT && !onlySelect
+                && (maxSearchBackground == null || searchItem.getBackground() != maxSearchBackground)) {
+            // The search item resets its own background when it is set up as a search field; MAX's square goes back on.
+            maxSearchBackground = sovietgram.com.maxui.MaxUi.toolbarSquare(searchItem, false);
+        }
         FragmentFloatingButton.setAnimatedVisibility(searchItem, factor);
         if (dialogStoriesCell != null) {
             dialogStoriesCell.invalidate();
         }
     }
+
+    private android.graphics.drawable.Drawable maxSearchBackground;
 
     private boolean isSupportSearch() {
         return initialDialogsType != DIALOGS_TYPE_ADD_USERS_TO;
