@@ -883,4 +883,6 @@
     <string name="CustomProfileIntegrationStyleInfo">Карточка показывает обложку и прогресс того, что играет, а для GitHub — календарь контрибуций. Интервал — как часто открытый профиль запрашивает свежие данные.</string>
     <string name="CustomProfileHeaderStatusFollow">Держать «Был(а) в сети» под именем</string>
     <string name="CustomProfileHeaderStatusFollowInfo">Если включено, «Был(а) в сети» идёт за именем, куда бы его ни поставили числа выше, и не улетает на своём смещении. Якорь, который вы задали статусу сами, важнее.</string>
+    <string name="CustomProfileIntegrationLatestTrack">Последний трек</string>
+    <string name="CustomProfileIntegrationLikedOn">Лайк на %s</string>
 </resources>

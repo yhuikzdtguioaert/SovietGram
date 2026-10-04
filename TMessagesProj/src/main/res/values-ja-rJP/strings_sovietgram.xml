@@ -799,4 +799,6 @@
     <string name="CustomProfileIntegrationStyleInfo">A card shows the cover and the progress of what is playing, or the contribution calendar for GitHub. The update interval is how often the profile asks for fresh data while it is open.</string>
     <string name="CustomProfileHeaderStatusFollow">Keep Last Seen under the name</string>
     <string name="CustomProfileHeaderStatusFollowInfo">With this on, Last Seen follows the name wherever the numbers above put it, instead of flying off on its own offset. An anchor you set for the status yourself takes precedence.</string>
+    <string name="CustomProfileIntegrationLatestTrack">Latest track</string>
+    <string name="CustomProfileIntegrationLikedOn">Liked on %s</string>
 </resources>

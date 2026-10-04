@@ -33,6 +33,12 @@ public class RLottieImageView extends ImageView {
     private boolean startOnAttach;
     private Integer layerNum;
     private boolean onlyLastFrame;
+    /**
+     * Draw nothing until the animation itself has loaded. The placeholder that comes first (a stripped
+     * thumbnail) is a rough silhouette: under a flat tint it is a solid blot, and a small tinted icon
+     * whose real picture is slow to arrive is left looking like scrambled glyphs.
+     */
+    public boolean withoutThumb;
     public boolean cached;
     private boolean reverse;
 
@@ -129,7 +135,7 @@ public class RLottieImageView extends ImageView {
         imageReceiver = new ImageReceiver() {
             @Override
             protected boolean setImageBitmapByKey(Drawable drawable, String key, int type, boolean memCache, int guid) {
-                if (drawable != null) {
+                if (drawable != null && (!withoutThumb || type != ImageReceiver.TYPE_THUMB)) {
                     onLoaded();
                 }
                 return super.setImageBitmapByKey(drawable, key, type, memCache, guid);
@@ -143,16 +149,21 @@ public class RLottieImageView extends ImageView {
             thumbFilter = w + "_" + h;
         }
         TLRPC.PhotoSize thumb = FileLoader.getClosestPhotoSizeWithSize(document.thumbs, 90);
+        final ImageLocation documentThumb = withoutThumb ? null : ImageLocation.getForDocument(thumb, document);
+        if (withoutThumb) {
+            thumbLocation = null;
+            thumbFilter = null;
+        }
         if (onlyLastFrame) {
-            imageReceiver.setImage(ImageLocation.getForDocument(document), w + "_" + h + "_lastframe", ImageLocation.getForDocument(thumb, document), w + "_" + h, thumbLocation, thumbFilter, null, 0, null, document, 1);
+            imageReceiver.setImage(ImageLocation.getForDocument(document), w + "_" + h + "_lastframe", documentThumb, withoutThumb ? null : w + "_" + h, thumbLocation, thumbFilter, null, 0, null, document, 1);
         } else if ("video/webm".equals(document.mime_type)) {
-            imageReceiver.setImage(ImageLocation.getForDocument(document), w + "_" + h + (cached ? "_pcache" : "") + "_" + ImageLoader.AUTOPLAY_FILTER, thumbLocation != null ? thumbLocation : ImageLocation.getForDocument(thumb, document), thumbFilter, null, document.size, null, document, 1);
+            imageReceiver.setImage(ImageLocation.getForDocument(document), w + "_" + h + (cached ? "_pcache" : "") + "_" + ImageLoader.AUTOPLAY_FILTER, thumbLocation != null ? thumbLocation : documentThumb, thumbFilter, null, document.size, null, document, 1);
         } else {
-            SvgHelper.SvgDrawable svgThumb = DocumentObject.getSvgThumb(document.thumbs, Theme.key_windowBackgroundWhiteGrayIcon, 0.2f);
+            SvgHelper.SvgDrawable svgThumb = withoutThumb ? null : DocumentObject.getSvgThumb(document.thumbs, Theme.key_windowBackgroundWhiteGrayIcon, 0.2f);
             if (svgThumb != null) {
                 svgThumb.overrideWidthAndHeight(512, 512);
             }
-            imageReceiver.setImage(ImageLocation.getForDocument(document), w + "_" + h + (cached ? "_pcache" : ""), ImageLocation.getForDocument(thumb, document), w + "_" + h, thumbLocation, thumbFilter, svgThumb, 0, null, document, 1);
+            imageReceiver.setImage(ImageLocation.getForDocument(document), w + "_" + h + (cached ? "_pcache" : ""), documentThumb, withoutThumb ? null : w + "_" + h, thumbLocation, thumbFilter, svgThumb, 0, null, document, 1);
         }
         imageReceiver.setAspectFit(true);
         imageReceiver.setParentView(this);

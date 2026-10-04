@@ -637,6 +637,8 @@ public class StickerCategoriesListView extends RecyclerListView {
 
             setImageColor(isGlassDesign ? getGlassIconColor(0.4f) : getThemedColor(Theme.key_chat_emojiPanelIcon));
             setScaleType(ScaleType.CENTER);
+            // A tinted icon: its rough placeholder under one flat colour is a blot, not an icon.
+            withoutThumb = true;
 
             setLayerNum(layerNum);
         }

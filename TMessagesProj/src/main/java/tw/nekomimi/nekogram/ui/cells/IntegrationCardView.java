@@ -199,7 +199,8 @@ public class IntegrationCardView extends View {
             return LocaleController.formatString(R.string.CustomProfileIntegrationGamePlaying, service);
         }
         if (rich.service == 5) {
-            return LocaleController.formatString(R.string.CustomProfileIntegrationLatestOn, service);
+            return LocaleController.formatString(track.liked
+                    ? R.string.CustomProfileIntegrationLikedOn : R.string.CustomProfileIntegrationLatestOn, service);
         }
         if (track.stale) {
             return LocaleController.formatString(R.string.CustomProfileIntegrationLastPlayed, service);

@@ -24,13 +24,15 @@ public final class CustomProfileIntegrations {
         {R.string.CustomProfileIntegrationPlaying, R.string.CustomProfileIntegrationSince, R.string.CustomProfileIntegrationHoursRecent, R.string.CustomProfileExtraRowTitle, R.string.CustomProfileIntegrationLevel, R.string.CustomProfileIntegrationGames, R.string.CustomProfileIntegrationHours, R.string.CustomProfileIntegrationLastGame},
         {R.string.CustomProfileIntegrationNow, R.string.CustomProfileIntegrationLastLike, R.string.CustomProfileIntegrationLikedTracks, R.string.CustomProfileIntegrationPlaylists},
         {R.string.CustomProfileIntegrationNow, R.string.CustomProfileIntegrationLastTrack, R.string.CustomProfileIntegrationArtist, R.string.CustomProfileIntegrationFollowers},
-        {R.string.CustomProfileIntegrationLastTrack, R.string.CustomProfileIntegrationFollowers, R.string.CustomProfileIntegrationTracks, R.string.CustomProfileIntegrationLikes}
+        {R.string.CustomProfileIntegrationLatestTrack, R.string.CustomProfileIntegrationFollowers, R.string.CustomProfileIntegrationTracks, R.string.CustomProfileIntegrationLikes, R.string.CustomProfileIntegrationLastLike}
     };
     /** A track, a game or anything else that is "on right now", with what a card needs to draw it. */
     public static final class Track {
         public String title = "", artist = "", album = "", cover = "", url = "";
         public long durationMs, progressMs;
         public boolean playing, stale;
+        /** A track the account liked rather than made or played. */
+        public boolean liked;
         /** {@link android.os.SystemClock#elapsedRealtime()} when {@link #progressMs} was true. */
         public long receivedAt;
         /**
@@ -324,6 +326,7 @@ public final class CustomProfileIntegrations {
                 track.progressMs = Math.max(0, t.optLong("progressMs"));
                 track.playing = t.optBoolean("playing");
                 track.stale = t.optBoolean("stale");
+                track.liked = t.optBoolean("liked");
                 track.receivedAt = android.os.SystemClock.elapsedRealtime();
                 track.trustMs = trust;
             }
