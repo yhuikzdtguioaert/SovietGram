@@ -270,6 +270,19 @@ public abstract class CustomProfileListActivity extends BaseFragment {
                 .show();
     }
 
+    private boolean shownOnce;
+
+    /**
+     * A page opened from this one (a single row, a deeper list) changes what this one lists: a row deleted
+     * there stayed on screen here until the page was left and opened again.
+     */
+    @Override
+    public void onResume() {
+        super.onResume();
+        if (shownOnce && adapter != null) rebuild();
+        shownOnce = true;
+    }
+
     @Override
     public View createView(Context context) {
         actionBar.setBackButtonImage(R.drawable.ic_ab_back);

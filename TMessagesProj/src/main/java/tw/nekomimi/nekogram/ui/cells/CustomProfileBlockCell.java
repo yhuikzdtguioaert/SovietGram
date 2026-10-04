@@ -58,11 +58,21 @@ public class CustomProfileBlockCell extends FrameLayout {
         }
     };
 
+    /**
+     * Nothing is playing: the row has nothing to say, so it takes no room at all rather than leaving a
+     * heading above a dash.
+     */
+    private boolean collapsed;
+
     private void loadIntegration() {
         final int generation = binding;
         final CustomProfileExtraRows.Block expected = block;
         tw.nekomimi.nekogram.helpers.CustomProfileIntegrations.loadRich(integrationAccount, integrationOwner, expected, rich -> {
             if (binding != generation || block != expected) return;
+            if (collapsed != rich.empty) {
+                collapsed = rich.empty;
+                requestLayout();
+            }
             final boolean asCard = expected.intStyle == 1 && rich.hasCard();
             if (asCard) {
                 card.set(expected, rich);
@@ -133,6 +143,7 @@ public class CustomProfileBlockCell extends FrameLayout {
 
     public void set(CustomProfileExtraRows.Block block, int account, long profileOwner) {
         ++binding;
+        collapsed = false;
         AndroidUtilities.cancelRunOnUIThread(refreshIntegration);
         integrationAccount = account;
         integrationOwner = profileOwner;
@@ -250,6 +261,7 @@ public class CustomProfileBlockCell extends FrameLayout {
                 }
             }
         }
+        if (collapsed) height = 0;
         super.onMeasure(MeasureSpec.makeMeasureSpec(width, MeasureSpec.EXACTLY),
                 MeasureSpec.makeMeasureSpec(height, MeasureSpec.EXACTLY));
     }

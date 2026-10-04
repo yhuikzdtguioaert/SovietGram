@@ -33,11 +33,19 @@ public final class CustomProfileIntegrations {
         public boolean playing, stale;
         /** {@link android.os.SystemClock#elapsedRealtime()} when {@link #progressMs} was true. */
         public long receivedAt;
+        /**
+         * How long after {@link #receivedAt} the bar may keep moving by itself. The next answer is due by
+         * then; if it never comes (no network, a request stuck) the bar stops where it last knew the
+         * track to be instead of running on for minutes after the music was paused.
+         */
+        public long trustMs = 30_000L;
 
         /** Where the track is now: the reported position plus the time since, while it plays. */
         public long positionNow() {
             long position = progressMs;
-            if (playing) position += Math.max(0, android.os.SystemClock.elapsedRealtime() - receivedAt);
+            if (playing) {
+                position += Math.max(0, Math.min(trustMs, android.os.SystemClock.elapsedRealtime() - receivedAt));
+            }
             return durationMs > 0 ? Math.min(position, durationMs) : position;
         }
     }
@@ -54,12 +62,19 @@ public final class CustomProfileIntegrations {
         public final Track track;
         public final Graph graph;
         public final int service;
+        /** Nothing to show: every line the block asks for came back empty (nothing is playing). */
+        public final boolean empty;
 
         Rich(String text, Track track, Graph graph, int service) {
+            this(text, track, graph, service, false);
+        }
+
+        Rich(String text, Track track, Graph graph, int service, boolean empty) {
             this.text = text;
             this.track = track;
             this.graph = graph;
             this.service = service;
+            this.empty = empty;
         }
 
         static Rich plain(String text, int service) {
@@ -76,6 +91,9 @@ public final class CustomProfileIntegrations {
     // UI-thread only. Bounded, scoped by both Telegram identity and provider configuration.
     private static final LinkedHashMap<String, Held> CACHE = new LinkedHashMap<>();
     private static final Map<String, List<Consumer<Rich>>> PENDING = new HashMap<>();
+    private static final Map<String, Long> PENDING_SINCE = new HashMap<>();
+    /** A request older than this is presumed lost and asked again, rather than waited for forever. */
+    private static final long PENDING_LIMIT_MS = 25_000L;
     /** The newest data per block, so a tap on a card can open the track it shows. */
     private static final Map<String, Rich> LATEST = new HashMap<>();
 
@@ -257,34 +275,43 @@ public final class CustomProfileIntegrations {
         if (held != null && held.until > android.os.SystemClock.elapsedRealtime()) { sink.accept(held.rich); return; }
         if (held != null) sink.accept(held.rich);
         List<Consumer<Rich>> waiters = PENDING.get(cacheKey);
-        if (waiters != null) { waiters.add(sink); return; }
-        if (PENDING.size() >= 16) { sink.accept(Rich.plain(LocaleController.getString(R.string.CustomProfileIntegrationUnavailable), service)); return; }
-        waiters = new ArrayList<>(); waiters.add(sink); PENDING.put(cacheKey, waiters);
+        final long asked = android.os.SystemClock.elapsedRealtime();
+        final Long since = PENDING_SINCE.get(cacheKey);
+        if (waiters != null && since != null && asked - since < PENDING_LIMIT_MS) { waiters.add(sink); return; }
+        if (waiters == null && PENDING.size() >= 16) { sink.accept(Rich.plain(LocaleController.getString(R.string.CustomProfileIntegrationUnavailable), service)); return; }
+        final List<Consumer<Rich>> mine = new ArrayList<>();
+        if (waiters != null) mine.addAll(waiters);
+        mine.add(sink);
+        PENDING.put(cacheKey, mine);
+        PENDING_SINCE.put(cacheKey, asked);
         int requestedGeneration = cacheGeneration;
         final String blockId = block.id;
+        final long trust = refreshMs(block) + 8000L;
         SovietGramApiClient.get(account, path, (body, error) -> AndroidUtilities.runOnUIThread(() -> {
-            Rich value = describe(service, body);
+            Rich value = describe(service, body, trust);
             if (CACHE.size() >= 256) CACHE.remove(CACHE.keySet().iterator().next());
             if (requestedGeneration == cacheGeneration) CACHE.put(cacheKey, new Held(value,
                     android.os.SystemClock.elapsedRealtime() + (error == null ? keep : 15000)));
             if (LATEST.size() >= 128) LATEST.remove(LATEST.keySet().iterator().next());
             LATEST.put(blockId, value);
-            List<Consumer<Rich>> listeners = PENDING.remove(cacheKey);
-            if (listeners != null) for (Consumer<Rich> listener : listeners) listener.accept(value);
+            if (PENDING.get(cacheKey) == mine) { PENDING.remove(cacheKey); PENDING_SINCE.remove(cacheKey); }
+            for (Consumer<Rich> listener : mine) listener.accept(value);
         }));
     }
-    private static Rich describe(int service, JSONObject body) {
+    private static Rich describe(int service, JSONObject body, long trust) {
         JSONArray parts = body == null ? null : body.optJSONArray("parts");
         if (parts == null || body.optBoolean("unavailable")) return Rich.plain(LocaleController.getString(R.string.CustomProfileIntegrationUnavailable), service);
         StringBuilder value = new StringBuilder();
         Track track = null;
         Graph graph = null;
+        boolean anything = false;
         for (int i = 0; i < parts.length() && i < 8; i++) {
             JSONObject part = parts.optJSONObject(i);
             if (part == null) continue;
             if (value.length() > 0) value.append('\n');
             value.append(modeName(service, part.optInt("mode"))).append(": ");
             value.append(part.isNull("value") ? "—" : part.optString("value", "—"));
+            anything |= !part.isNull("value") || part.optJSONObject("track") != null || part.optJSONObject("graph") != null;
             JSONObject t = part.optJSONObject("track");
             if (track == null && t != null && !t.optString("title").isEmpty()) {
                 track = new Track();
@@ -298,6 +325,7 @@ public final class CustomProfileIntegrations {
                 track.playing = t.optBoolean("playing");
                 track.stale = t.optBoolean("stale");
                 track.receivedAt = android.os.SystemClock.elapsedRealtime();
+                track.trustMs = trust;
             }
             JSONObject g = part.optJSONObject("graph");
             if (graph == null && g != null && g.optString("levels").length() >= 28) {
@@ -307,6 +335,6 @@ public final class CustomProfileIntegrations {
                 graph.total = Math.max(0, g.optInt("total"));
             }
         }
-        return new Rich(value.toString(), track, graph, service);
+        return new Rich(value.toString(), track, graph, service, !anything && parts.length() > 0);
     }
 }
