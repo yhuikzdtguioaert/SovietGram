@@ -83,6 +83,11 @@ object MaxInterface {
             return 0
         }
         val currentDark = Theme.isCurrentThemeDark()
+        if (key == Theme.key_chats_unreadCounterMuted || key == Theme.key_topics_unreadCounterMuted) {
+            // The chat list paints this fill opaque, so MAX's translucent muted counter becomes the grey it looks like
+            // over its surface, with the same white digits as the other counter.
+            return if (currentDark) 0xFF5A5B60.toInt() else 0xFFA9ABB1.toInt()
+        }
         val currentWay = colorWay()
         if (currentWay != way || currentDark != dark || table.isEmpty()) {
             way = currentWay

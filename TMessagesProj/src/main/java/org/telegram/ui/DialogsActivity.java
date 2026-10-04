@@ -301,6 +301,8 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
 
     private static final boolean TMP_DISABLE_TOPICS_TWO_COLUMNS = false;
 
+    /** The plus in the Max interface's toolbar, which starts a chat. */
+    private static final int MAX_COMPOSE = 987;
     public static final int MAIN_TABS_HEIGHT = MainTabsHelper.MAIN_TABS_HEIGHT;
     public static final int MAIN_TABS_MARGIN = MainTabsHelper.MAIN_TABS_MARGIN;
     public static final int MAIN_TABS_HEIGHT_WITH_MARGINS = MAIN_TABS_HEIGHT + MAIN_TABS_MARGIN * 2;
@@ -3357,6 +3359,9 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             proxyMenuSubItem.setTextAndIcon(getString(R.string.MenuProxyTitle), 0, proxyDrawable);
             proxyMenuSubItem.setContentDescription(getString(R.string.ProxySettings));
 
+            if (sovietgram.com.maxui.MaxInterface.active && initialDialogsType == DIALOGS_TYPE_DEFAULT) {
+                menu.addItem(MAX_COMPOSE, R.drawable.max_icon_plus);
+            }
             passcodeItem = menu.addItem(1, R.drawable.outline_header_lock_24);
             passcodeItem.setContentDescription(getString(R.string.AccDescrPasscodeLock));
 
@@ -4045,6 +4050,8 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                     } else if (onlySelect || folderId != 0 || communityId != 0) {
                         finishFragment();
                     }
+                } else if (id == MAX_COMPOSE) {
+                    openWriteContacts();
                 } else if (id == 1) {
                     if (getParentActivity() == null) {
                         return;
@@ -9044,7 +9051,8 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     }
 
     private void updateFloatingButtonVisibility(boolean animated) {
-        final boolean isVisible = !(onlySelect && initialDialogsType != 10 || folderId != 0 || communityId != 0 || inPreviewMode || (searching && !onlySelect) || floatingButtonHidden);
+        // MAX has no floating button: starting a chat is the plus in the toolbar.
+        final boolean isVisible = !sovietgram.com.maxui.MaxInterface.active && !(onlySelect && initialDialogsType != 10 || folderId != 0 || communityId != 0 || inPreviewMode || (searching && !onlySelect) || floatingButtonHidden);
 
         if (floatingButton3 != null) {
             floatingButton3.setButtonVisible(isVisible, animated);

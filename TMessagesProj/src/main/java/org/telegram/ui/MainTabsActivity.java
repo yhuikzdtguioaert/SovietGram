@@ -1177,7 +1177,8 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
 
     private void checkUi_callTabVisible(boolean callTabsVisible, boolean animated) {
         if (tabsView != null) {
-            tabsView.setViewVisible(tabs[INDEX_SETTINGS], !callTabsVisible, animated);
+            // MAX's own list has the one Settings tab, the one with the user's photo.
+            tabsView.setViewVisible(tabs[INDEX_SETTINGS], !callTabsVisible && !MainTabsHelper.isMax(), animated);
             tabsView.setViewVisible(tabs[INDEX_CALLS], callTabsVisible, animated);
         }
     }

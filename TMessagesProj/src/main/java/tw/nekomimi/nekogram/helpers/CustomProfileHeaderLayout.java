@@ -385,6 +385,11 @@ public final class CustomProfileHeaderLayout {
         }
         settleStatusAgainstName(root, name, status, actions, wantedX, wantedY, partsAmount);
         applyActionsContent(actions, partsAmount);
+        dbg("apply root=" + root.getWidth() + "x" + root.getHeight() + " amount=" + amount + " parts=" + partsAmount
+                + " pull=" + pull + " preset=" + preset() + " nameAnchor=" + extras.nameAnchor + " anchors=" + java.util.Arrays.toString(anchors) + " anchored=" + anchored + " ready=" + anchorsReady + " wantedX=" + java.util.Arrays.toString(wantedX)
+                + " wantedY=" + java.util.Arrays.toString(wantedY) + " shiftX=" + java.util.Arrays.toString(shiftX)
+                + " shiftY=" + java.util.Arrays.toString(shiftY) + " " + describe("avatar", avatar, root) + " " + describe("name", name, root)
+                + " " + describe("status", status, root));
         // Remembered for the draw-time pass below.
         settleRoot = new java.lang.ref.WeakReference<>(root);
         settleName = new java.lang.ref.WeakReference<>(name);
@@ -917,6 +922,30 @@ public final class CustomProfileHeaderLayout {
             shiftY[i] = dy;
         }
         stableResolves = CustomProfileAnchors.nextStableCount(stableResolves, moved);
+        dbg("resolve start=" + java.util.Arrays.toString(startX) + "/" + java.util.Arrays.toString(startY)
+                + " size=" + java.util.Arrays.toString(sizeX) + "/" + java.util.Arrays.toString(sizeY)
+                + " out=" + java.util.Arrays.toString(outX) + "/" + java.util.Arrays.toString(outY)
+                + " targets=" + java.util.Arrays.toString(targets) + " lead=" + statusLead);
+    }
+
+    private static String lastDbg = "";
+
+    /** Header diagnostics for logcat (tag SGHdr); only a line that differs from the previous one is written. */
+    private static void dbg(String line) {
+        if (!line.equals(lastDbg)) {
+            lastDbg = line;
+            android.util.Log.w("SGHdr", line);
+        }
+    }
+
+    private static String describe(String name, View view, View root) {
+        if (view == null) {
+            return name + "=null";
+        }
+        return name + "[l=" + view.getLeft() + " t=" + view.getTop() + " w=" + view.getWidth() + " h=" + view.getHeight()
+                + " tx=" + view.getTranslationX() + " ty=" + view.getTranslationY() + " sx=" + view.getScaleX() + " sy=" + view.getScaleY()
+                + " px=" + view.getPivotX() + " vis=" + view.getVisibility() + " drawnX=" + CustomProfileAnchors.drawnStart(root, view, false)
+                + " drawnY=" + CustomProfileAnchors.drawnStart(root, view, true) + "]";
     }
 
     /** Whether everything an anchor depends on has a size yet. */
