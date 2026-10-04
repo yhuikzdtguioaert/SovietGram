@@ -116,7 +116,8 @@ object MaxInterface {
         put(Theme.key_windowBackgroundGray, t.BACKGROUND_SURFACE)
         put(Theme.key_graySection, t.BACKGROUND_SURFACE)
         put(Theme.key_graySectionText, t.TEXT_SECONDARY)
-        put(Theme.key_divider, t.DIVIDER_PRIMARY)
+        // MAX draws no lines between list rows.
+        put(Theme.key_divider, t.DIVIDER_PRIMARY, 0)
         put(Theme.key_listSelector, t.TEXT_PRIMARY, 0x14)
         put(Theme.key_dialogBackground, t.FLOAT_MODAL)
         put(Theme.key_dialogBackgroundGray, t.BACKGROUND_SURFACE)
@@ -143,9 +144,9 @@ object MaxInterface {
         put(Theme.key_actionBarActionModeDefaultTop, t.BACKGROUND_PRIMARY)
         put(Theme.key_actionBarActionModeDefaultIcon, t.ICON_PRIMARY)
         put(Theme.key_actionBarActionModeDefaultSelector, t.TEXT_PRIMARY, 0x14)
-        put(Theme.key_actionBarTabActiveText, t.TEXT_PRIMARY)
+        put(Theme.key_actionBarTabActiveText, t.TEXT_THEMED)
         put(Theme.key_actionBarTabUnactiveText, t.TEXT_TERTIARY)
-        put(Theme.key_actionBarTabLine, t.BUTTON_PRIMARY)
+        put(Theme.key_actionBarTabLine, t.STROKE_THEMED)
         put(Theme.key_actionBarTabSelector, t.TEXT_PRIMARY, 0x14)
 
         // ---- texts on the main surface

@@ -3631,7 +3631,8 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 }
                 statusDrawable = new AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable(null, dp(26));
                 statusDrawable.center = true;
-                actionBar.setTitle(actionBarTitleNax = TypefaceHelper.getTitleText(currentAccount), statusDrawable);
+                // MAX's chat list is simply called "Chats".
+                actionBar.setTitle(actionBarTitleNax = sovietgram.com.maxui.MaxInterface.active ? getString(R.string.MainTabsChats) : TypefaceHelper.getTitleText(currentAccount), statusDrawable);
                 actionBar.setOnLongClickListener(v -> {
                     if (NekoConfig.hideAllTab.Bool() && filterTabsView != null && filterTabsView.getCurrentTabId() != Integer.MAX_VALUE) {
                         filterTabsView.toggleAllTabs(true);

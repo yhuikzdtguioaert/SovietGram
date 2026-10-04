@@ -931,6 +931,7 @@ public class FilterTabsView extends FrameLayout {
 
     private int scrollingToChild = -1;
     private final GradientDrawable selectorDrawable;
+    private GradientDrawable maxLine;
 
     private int tabLineColorKey = Theme.key_actionBarTabLine;
     private int activeTextColorKey = Theme.key_actionBarTabActiveText;
@@ -1018,7 +1019,8 @@ public class FilterTabsView extends FrameLayout {
         this.resourcesProvider = resourcesProvider;
         textCounterPaint.setTextSize(dpf2(11f));
         textCounterPaint.setTypeface(AndroidUtilities.bold());
-        textPaint.setTextSize(dpf2(14f));
+        // MAX: 16sp medium labels.
+        textPaint.setTextSize(dpf2(sovietgram.com.maxui.MaxInterface.active ? 16f : 14f));
         textPaint.setTypeface(AndroidUtilities.bold());
         deletePaint.setStyle(Paint.Style.STROKE);
         deletePaint.setStrokeCap(Paint.Cap.ROUND);
@@ -1651,11 +1653,23 @@ public class FilterTabsView extends FrameLayout {
 
             final float add = additionalTabWidth / 2f;
 
-            final int y = height / 2 - dp(14);
-            float internalPadding = FolderIconHelper.getTabInternalPadding();
-            selectorDrawable.setBounds((int) (indicatorX - dp(internalPadding) - add), y, (int) (indicatorX + indicatorWidth + dp(internalPadding) + add), y + dp(28));
-            selectorDrawable.setAlpha(31);
-            selectorDrawable.draw(canvas);
+            if (sovietgram.com.maxui.MaxInterface.active) {
+                // MAX: a 3dp underline with 4dp top corners under the whole selected tab, in the accent colour.
+                if (maxLine == null) {
+                    maxLine = new GradientDrawable();
+                    final float r4 = dp(4);
+                    maxLine.setCornerRadii(new float[]{r4, r4, r4, r4, 0, 0, 0, 0});
+                }
+                maxLine.setColor(Theme.getColor(tabLineColorKey, resourcesProvider));
+                maxLine.setBounds((int) (indicatorX - add), height - dp(3), (int) (indicatorX + indicatorWidth + add), height);
+                maxLine.draw(canvas);
+            } else {
+                final int y = height / 2 - dp(14);
+                float internalPadding = FolderIconHelper.getTabInternalPadding();
+                selectorDrawable.setBounds((int) (indicatorX - dp(internalPadding) - add), y, (int) (indicatorX + indicatorWidth + dp(internalPadding) + add), y + dp(28));
+                selectorDrawable.setAlpha(31);
+                selectorDrawable.draw(canvas);
+            }
             canvas.restore();
         }
     }
