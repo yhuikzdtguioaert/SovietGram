@@ -348,7 +348,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
         tabs[INDEX_CONTACTS] = GlassTabView.createMainTab(context, resourceProvider, GlassTabView.TabAnimation.CONTACTS, R.string.MainTabsContacts);
         tabs[INDEX_SETTINGS] = GlassTabView.createMainTab(context, resourceProvider, GlassTabView.TabAnimation.SETTINGS, R.string.Settings);
         tabs[INDEX_CALLS] = GlassTabView.createMainTab(context, resourceProvider, GlassTabView.TabAnimation.CALLS, R.string.MainTabsCalls);
-        tabs[INDEX_PROFILE] = GlassTabView.createAvatar(context, resourceProvider, currentAccount, R.string.MainTabsProfile);
+        tabs[INDEX_PROFILE] = GlassTabView.createAvatar(context, resourceProvider, currentAccount, maxBar ? R.string.Settings : R.string.MainTabsProfile);
         tabs[INDEX_CHATS].setOnLongClickListener(this::openFoldersSelector);
         tabs[INDEX_CONTACTS].setOnLongClickListener(this::openContactsSelector);
         tabs[INDEX_CALLS].setOnLongClickListener(this::openCallsSelector);
@@ -363,7 +363,11 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
         tabsView.addTabToIgnoreClick(tabs[INDEX_PROFILE]);
         tabsView.addTabToIgnoreClick(tabs[INDEX_CALLS]);
 
-        for (int index = 0; index < tabs.length; index++) {
+        // MAX lists its tabs Contacts, Calls, Chats, Settings (the one with the user's photo); only the bar is reordered,
+        // the pages keep their own order.
+        final int[] maxOrder = {INDEX_CONTACTS, INDEX_CALLS, INDEX_SETTINGS, INDEX_CHATS, INDEX_PROFILE};
+        for (int orderIndex = 0; orderIndex < tabs.length; orderIndex++) {
+            final int index = maxBar ? maxOrder[orderIndex] : orderIndex;
             final GlassTabView view = tabs[index];
             final int tabIndex = index;
             final int position = indexToPosition(index);

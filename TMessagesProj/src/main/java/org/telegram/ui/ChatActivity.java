@@ -4096,6 +4096,10 @@ public class ChatActivity extends BaseFragment implements
             chatAttachAlert = null;
         }
 
+        // MAX sets message text at 17sp; a size the user chose themselves is left alone.
+        if (sovietgram.com.maxui.MaxInterface.active && SharedConfig.fontSizeIsDefault) {
+            SharedConfig.fontSize = 17;
+        }
         Theme.createChatResources(context, false);
 
         legacyChatHeader = sovietgram.com.maxui.MaxInterface.active;
