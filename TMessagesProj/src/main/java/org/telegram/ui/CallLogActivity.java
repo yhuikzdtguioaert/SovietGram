@@ -976,7 +976,7 @@ public class CallLogActivity extends BaseFragment implements NotificationCenter.
 
 		if (hasActiveCalls || hasCalls) {
 			items.add(UItem.asButton(ID_CREATE_CALL, R.drawable.menu_call_create, getString(R.string.GroupCallCreate2)).accent());
-			if (hasVisibleBottomNavigationBar && !getUserConfig().showCallsTab) {
+			if (hasVisibleBottomNavigationBar && !getUserConfig().showCallsTab && !sovietgram.com.maxui.MaxInterface.active) {
 				items.add(UItem.asButton(ID_SHOW_IN_MAIN_TABS, R.drawable.menu_add_tab_24, getString(R.string.GroupCallShowInMainTabs)).accent());
 			}
 			items.add(UItem.asShadow(null));

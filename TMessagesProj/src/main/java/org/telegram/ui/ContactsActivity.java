@@ -1675,7 +1675,7 @@ public class ContactsActivity extends BaseFragment implements FactorAnimator.Tar
         final float factor1 = 1f - animatorSearchHasQuery.getFloatValue();
         final float factor2 = listViewAdapter == null || listViewAdapter.isEmpty() ? 0 : 1;
         final float factor = factor1 * factor2;
-        FragmentFloatingButton.setAnimatedVisibility(sortItem, factor);
+        FragmentFloatingButton.setAnimatedVisibility(sortItem, sovietgram.com.maxui.MaxInterface.active && hasMainTabs ? 0f : factor);
     }
 
     private void checkUi_searchButton() {
