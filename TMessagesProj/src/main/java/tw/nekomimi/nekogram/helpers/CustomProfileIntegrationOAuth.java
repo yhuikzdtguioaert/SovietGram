@@ -73,7 +73,30 @@ public final class CustomProfileIntegrationOAuth {
         return "/v1/integration-accounts/" + CustomProfileIntegrations.key(service);
     }
 
+    /** SoundCloud: its own sign-in page opens inside the app and the token is taken from it, nothing to copy. */
+    private void startSoundcloud() {
+        fragment.presentFragment(new tw.nekomimi.nekogram.settings.CustomProfileSoundcloudSignIn(path() + "/preview",
+                new tw.nekomimi.nekogram.settings.CustomProfileSoundcloudSignIn.Listener() {
+                    @Override public void onSignedIn(String token, JSONObject who) {
+                        if (!alive()) return;
+                        final JSONObject payload = new JSONObject();
+                        try { payload.put("token", token); } catch (Exception ignored) { return; }
+                        confirm(payload, who);
+                    }
+
+                    @Override public void onManual() {
+                        if (!alive()) return;
+                        openBrowser("https://soundcloud.com/signin");
+                        askToken(null);
+                    }
+                }));
+    }
+
     private void start() {
+        if (service == 6) {
+            startSoundcloud();
+            return;
+        }
         final JSONObject body = new JSONObject();
         try { body.put("package", ApplicationLoader.applicationContext.getPackageName()); }
         catch (Exception ignored) { }
@@ -264,16 +287,23 @@ public final class CustomProfileIntegrationOAuth {
                 askToken(getString(R.string.CustomProfileIntegrationUnavailable));
                 return;
             }
-            dialog = new AlertDialog.Builder(fragment.getParentActivity())
-                    .setTitle(CustomProfileIntegrations.serviceName(service))
-                    .setMessage(getString(R.string.CustomProfileIntegrationUseAccount) + "\n\n"
-                            + who.optString("name") + "\n" + who.optString("id"))
-                    .setPositiveButton(getString(R.string.Done), (d, which) -> save(payload))
-                    .setNegativeButton(getString(R.string.Cancel), (d, which) -> cancel())
-                    .create();
-            dialog.setOnCancelListener(d -> cancel());
-            dialog.show();
+            confirm(payload, who);
         });
+    }
+
+    /** Shows whose account the token belongs to and links it once the user says so. */
+    private void confirm(JSONObject payload, JSONObject who) {
+        final Activity activity = fragment.getParentActivity();
+        if (!alive() || activity == null) return;
+        dialog = new AlertDialog.Builder(activity)
+                .setTitle(CustomProfileIntegrations.serviceName(service))
+                .setMessage(getString(R.string.CustomProfileIntegrationUseAccount) + "\n\n"
+                        + who.optString("name") + "\n" + who.optString("id"))
+                .setPositiveButton(getString(R.string.Done), (d, which) -> save(payload))
+                .setNegativeButton(getString(R.string.Cancel), (d, which) -> cancel())
+                .create();
+        dialog.setOnCancelListener(d -> cancel());
+        dialog.show();
     }
 
     private void save(JSONObject payload) {
