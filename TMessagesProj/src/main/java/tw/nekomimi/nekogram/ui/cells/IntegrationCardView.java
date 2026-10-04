@@ -43,6 +43,7 @@ public class IntegrationCardView extends View {
             0xFFFFCC00, // Yandex Music
             0xFF1DB954, // Spotify
             0xFFFF5500, // SoundCloud
+            0xFFFF5500, // SoundCloud, signed in
     };
     private static final int[] GITHUB_DARK = {0xFF151B23, 0xFF033A16, 0xFF196C2E, 0xFF2EA043, 0xFF56D364};
     private static final int[] GITHUB_LIGHT = {0xFFEBEDF0, 0xFF9BE9A8, 0xFF40C463, 0xFF30A14E, 0xFF216E39};
@@ -201,6 +202,9 @@ public class IntegrationCardView extends View {
         if (rich.service == 5) {
             return LocaleController.formatString(track.liked
                     ? R.string.CustomProfileIntegrationLikedOn : R.string.CustomProfileIntegrationLatestOn, service);
+        }
+        if (track.liked) {
+            return LocaleController.formatString(R.string.CustomProfileIntegrationLikedOn, service);
         }
         if (track.stale) {
             return LocaleController.formatString(R.string.CustomProfileIntegrationLastPlayed, service);

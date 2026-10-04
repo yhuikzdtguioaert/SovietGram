@@ -801,4 +801,7 @@
     <string name="CustomProfileHeaderStatusFollowInfo">Якщо ввімкнено, «Був(ла) в мережі» йде за іменем, куди б його не поставили числа вище, і не відлітає на своєму зсуві. Якір, який ви задали статусу самі, важливіший.</string>
     <string name="CustomProfileIntegrationLatestTrack">Останній трек</string>
     <string name="CustomProfileIntegrationLikedOn">Лайк на %s</string>
+    <string name="CustomProfileIntegrationSoundcloudAccount">SoundCloud (ваш акаунт)</string>
+    <string name="CustomProfileIntegrationCopyScript">Скопіювати рядок</string>
+    <string name="CustomProfileIntegrationPasteTokenSoundcloud">У SoundCloud немає свого токена, тому він береться з вашої відкритої сесії:\n1. Увійдіть на soundcloud.com у браузері, що відкрився.\n2. Натисніть тут «Скопіювати рядок», потім в адресному рядку того браузера наберіть javascript: і одразу після нього вставте рядок. Натисніть «Перейти».\n3. З\'явиться віконце з токеном: скопіюйте його. SovietGram підхопить його, коли ви повернетесь, або вставте нижче.\nТокен зберігається на сервері в зашифрованому вигляді й потрібен лише щоб читати, що ви слухаєте й лайкаєте.</string>
 </resources>

@@ -16,15 +16,17 @@ import java.util.function.Consumer;
 
 /** Integration metadata travels with the profile; credentials never belong in a block. */
 public final class CustomProfileIntegrations {
-    private static final String[] KEYS = {"lastfm", "github", "steam", "yamusic", "spotify", "soundcloud"};
-    private static final String[] NAMES = {"Last.fm", "GitHub", "Steam", "Yandex Music", "Spotify", "SoundCloud"};
+    private static final String[] KEYS = {"lastfm", "github", "steam", "yamusic", "spotify", "soundcloud", "soundcloud-me"};
+    private static final String[] NAMES = {"Last.fm", "GitHub", "Steam", "Yandex Music", "Spotify", "SoundCloud", "SoundCloud"};
     private static final int[][] MODES = {
         {R.string.CustomProfileIntegrationNow, R.string.CustomProfileIntegrationScrobbles, R.string.CustomProfileIntegrationArtist, R.string.CustomProfileIntegrationAlbum},
         {R.string.CustomProfileIntegrationRepos, R.string.CustomProfileIntegrationStars, R.string.CustomProfileIntegrationFollowers, R.string.CustomProfileIntegrationFollowing, R.string.CustomProfileIntegrationSince, R.string.CustomProfileIntegrationContributions},
         {R.string.CustomProfileIntegrationPlaying, R.string.CustomProfileIntegrationSince, R.string.CustomProfileIntegrationHoursRecent, R.string.CustomProfileExtraRowTitle, R.string.CustomProfileIntegrationLevel, R.string.CustomProfileIntegrationGames, R.string.CustomProfileIntegrationHours, R.string.CustomProfileIntegrationLastGame},
         {R.string.CustomProfileIntegrationNow, R.string.CustomProfileIntegrationLastLike, R.string.CustomProfileIntegrationLikedTracks, R.string.CustomProfileIntegrationPlaylists},
         {R.string.CustomProfileIntegrationNow, R.string.CustomProfileIntegrationLastTrack, R.string.CustomProfileIntegrationArtist, R.string.CustomProfileIntegrationFollowers},
-        {R.string.CustomProfileIntegrationLatestTrack, R.string.CustomProfileIntegrationFollowers, R.string.CustomProfileIntegrationTracks, R.string.CustomProfileIntegrationLikes, R.string.CustomProfileIntegrationLastLike}
+        {R.string.CustomProfileIntegrationLatestTrack, R.string.CustomProfileIntegrationFollowers, R.string.CustomProfileIntegrationTracks, R.string.CustomProfileIntegrationLikes, R.string.CustomProfileIntegrationLastLike},
+        // SoundCloud with the user's own session: what was played last and liked last come from their account.
+        {R.string.CustomProfileIntegrationNow, R.string.CustomProfileIntegrationLastLike, R.string.CustomProfileIntegrationFollowers, R.string.CustomProfileIntegrationLikes}
     };
     /** A track, a game or anything else that is "on right now", with what a card needs to draw it. */
     public static final class Track {
@@ -113,7 +115,7 @@ public final class CustomProfileIntegrations {
     public static long refreshMs(CustomProfileExtraRows.Block block) {
         if (block.intRefresh > 0) return Math.max(5, block.intRefresh) * 1000L;
         return switch (block.service) {
-            case 3, 4 -> 10_000L;
+            case 3, 4, 6 -> 10_000L;
             case 0 -> 15_000L;
             case 2 -> 30_000L;
             case 5 -> 120_000L;
@@ -188,12 +190,12 @@ public final class CustomProfileIntegrations {
         });
     }
     /** Services whose statistics come from the user's own signed-in account rather than a public name. */
-    public static boolean isConnected(int service) { return service == 3 || service == 4; }
-    public static String key(int service) { return KEYS[Math.max(0, Math.min(5, service))]; }
-    public static String serviceName(int service) { return NAMES[Math.max(0, Math.min(5, service))]; }
-    public static int modeCount(int service) { return MODES[Math.max(0, Math.min(5, service))].length; }
+    public static boolean isConnected(int service) { return service == 3 || service == 4 || service == 6; }
+    public static String key(int service) { return KEYS[Math.max(0, Math.min(6, service))]; }
+    public static String serviceName(int service) { return NAMES[Math.max(0, Math.min(6, service))]; }
+    public static int modeCount(int service) { return MODES[Math.max(0, Math.min(6, service))].length; }
     public static String modeName(int service, int mode) {
-        int[] modes = MODES[Math.max(0, Math.min(5, service))];
+        int[] modes = MODES[Math.max(0, Math.min(6, service))];
         return LocaleController.getString(modes[Math.max(0, Math.min(modes.length - 1, mode))]);
     }
     public static String account(CustomProfileExtraRows.Block block) {
@@ -228,7 +230,7 @@ public final class CustomProfileIntegrations {
             case 2 -> "https://steamcommunity.com/" + (name.matches("[0-9]{17}") ? "profiles/" : "id/") + Uri.encode(name);
             case 3 -> "https://music.yandex.ru/";
             case 4 -> "https://open.spotify.com/user/" + Uri.encode(name);
-            case 5 -> "https://soundcloud.com/" + Uri.encode(name);
+            case 5, 6 -> "https://soundcloud.com/" + Uri.encode(name);
             default -> "";
         };
     }

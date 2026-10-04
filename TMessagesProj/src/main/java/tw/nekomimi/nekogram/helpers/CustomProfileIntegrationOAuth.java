@@ -59,7 +59,7 @@ public final class CustomProfileIntegrationOAuth {
         this.connected = connected;
     }
 
-    /** Starts the sign-in for {@code service} (3 Yandex Music, 4 Spotify). */
+    /** Starts the sign-in for {@code service} (3 Yandex Music, 4 Spotify, 6 SoundCloud). */
     public static void begin(BaseFragment fragment, int account, int service, Consumer<JSONObject> connected) {
         new CustomProfileIntegrationOAuth(fragment, account, service, connected).start();
     }
@@ -172,21 +172,34 @@ public final class CustomProfileIntegrationOAuth {
         input.setSingleLine(true);
         input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
         input.setHint(getString(R.string.CustomProfileIntegrationPasteHint));
+        final boolean soundcloud = service == 6;
         // Whatever is on the clipboard when the dialog opens was there before the sign-in, so it is
         // only remembered, not used: a token copied on the provider's page afterwards is picked up
         // by the watch below the moment the user comes back, without anything to paste or press.
         staleClip = clipboardText(activity);
-        dialog = new AlertDialog.Builder(activity)
+        final AlertDialog.Builder builder = new AlertDialog.Builder(activity)
                 .setTitle(CustomProfileIntegrations.serviceName(service))
-                .setMessage((problem == null ? "" : problem + "\n\n") + getString(R.string.CustomProfileIntegrationPasteToken))
+                .setMessage((problem == null ? "" : problem + "\n\n") + getString(soundcloud
+                        ? R.string.CustomProfileIntegrationPasteTokenSoundcloud : R.string.CustomProfileIntegrationPasteToken))
                 .setView(input)
                 .setPositiveButton(getString(R.string.Done), (d, which) -> {
                     final String token = extractToken(input.getText().toString());
                     if (token == null) askToken(getString(R.string.CustomProfileIntegrationUnavailable));
                     else preview(token);
                 })
-                .setNegativeButton(getString(R.string.Cancel), (d, which) -> cancel())
-                .create();
+                .setNegativeButton(getString(R.string.Cancel), (d, which) -> cancel());
+        if (soundcloud) {
+            // SoundCloud shows its token nowhere: a line typed into the address bar of a browser signed in to it reads
+            // the token out of the page and offers it in a box to copy. The line is put on the clipboard for that.
+            builder.setNeutralButton(getString(R.string.CustomProfileIntegrationCopyScript), (d, which) -> {
+                try {
+                    final ClipboardManager clipboard = (ClipboardManager) activity.getSystemService(Context.CLIPBOARD_SERVICE);
+                    clipboard.setPrimaryClip(ClipData.newPlainText("script", SOUNDCLOUD_SCRIPT));
+                } catch (RuntimeException ignored) { }
+                askToken(null);
+            });
+        }
+        dialog = builder.create();
         dialog.setOnCancelListener(d -> cancel());
         dialog.show();
         AndroidUtilities.cancelRunOnUIThread(watchClipboard);
@@ -194,6 +207,9 @@ public final class CustomProfileIntegrationOAuth {
     }
 
     private String staleClip = "";
+
+    /** Typed after "javascript:" in the address bar of a browser signed in to soundcloud.com (the prefix is typed by hand: a browser drops it from pasted text). */
+    private static final String SOUNDCLOUD_SCRIPT = "prompt('SoundCloud token',document.cookie.match(/oauth_token=([^;]+)/)[1])";
 
     private static String clipboardText(Context context) {
         try {
@@ -214,7 +230,7 @@ public final class CustomProfileIntegrationOAuth {
             final String text = clipboardText(activity);
             // Only something that is plainly a Yandex token is taken on its own; anything else a user
             // happens to copy stays on the clipboard and is never sent anywhere.
-            final String token = text.equals(staleClip) || !looksLikeYandexToken(text) ? null : extractToken(text);
+            final String token = text.equals(staleClip) || !looksLikeToken(text) ? null : extractToken(text);
             if (token != null) {
                 dismiss();
                 preview(token);
@@ -224,8 +240,9 @@ public final class CustomProfileIntegrationOAuth {
         }
     };
 
-    private static boolean looksLikeYandexToken(String text) {
+    private boolean looksLikeToken(String text) {
         final String t = text == null ? "" : text.trim();
+        if (service == 6) return t.matches("[0-9]-[0-9]+-[0-9]+-[A-Za-z0-9]{6,64}");
         return t.contains("access_token=") || t.startsWith("y0_") || t.startsWith("AQAAAA");
     }
 
