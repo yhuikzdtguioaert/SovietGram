@@ -309,6 +309,35 @@ public class SimpleTextView extends View implements Drawable.Callback {
         textPaint.setTypeface(typeface);
     }
 
+    private boolean keepBadgeAspect;
+
+    /**
+     * Keeps the badges drawn beside the text (premium star, emoji status, verification) round while the view is
+     * stretched unevenly: a name scaled 83% wide and 159% tall by a custom profile layout turned them into thin
+     * tall bars. With this on they are drawn with the opposite stretch, at the mean of the two scales.
+     */
+    public void setKeepBadgeAspect(boolean keep) {
+        if (keepBadgeAspect != keep) {
+            keepBadgeAspect = keep;
+            invalidate();
+        }
+    }
+
+    private void drawBadge(Canvas canvas, Drawable badge) {
+        final float sx = getScaleX();
+        final float sy = getScaleY();
+        if (!keepBadgeAspect || sx <= 0.01f || sy <= 0.01f || Math.abs(sx - sy) < 0.02f) {
+            badge.draw(canvas);
+            return;
+        }
+        final float uniform = (float) Math.sqrt(sx * sy);
+        final android.graphics.Rect bounds = badge.getBounds();
+        canvas.save();
+        canvas.scale(uniform / sx, uniform / sy, bounds.exactCenterX(), bounds.exactCenterY());
+        badge.draw(canvas);
+        canvas.restore();
+    }
+
     public int getSideDrawablesSize() {
         int size = 0;
         if (leftDrawable != null) {
@@ -871,7 +900,7 @@ public class SimpleTextView extends View implements Drawable.Callback {
                 y = getPaddingTop() + (textHeight - leftDrawable.getIntrinsicHeight()) / 2 + leftDrawableTopPadding;
             }
             leftDrawable.setBounds(x, y, x + leftDrawable.getIntrinsicWidth(), y + leftDrawable.getIntrinsicHeight());
-            leftDrawable.draw(canvas);
+            drawBadge(canvas, leftDrawable);
             if ((gravity & Gravity.HORIZONTAL_GRAVITY_MASK) == Gravity.LEFT || (gravity & Gravity.HORIZONTAL_GRAVITY_MASK) == Gravity.CENTER_HORIZONTAL) {
                 textOffsetX += drawablePadding + leftDrawable.getIntrinsicWidth();
             }
@@ -917,7 +946,7 @@ public class SimpleTextView extends View implements Drawable.Callback {
             rightDrawable.setBounds(x, y, x + dw, y + dh);
             rightDrawableX = x + (dw >> 1);
             rightDrawableY = y + (dh >> 1);
-            rightDrawable.draw(canvas);
+            drawBadge(canvas, rightDrawable);
             totalWidth += drawablePadding + dw;
         }
         if (rightDrawable2 != null && !rightDrawableHidden && rightDrawableScale > 0 && !rightDrawableOutside && !rightDrawableInside) {
@@ -938,7 +967,7 @@ public class SimpleTextView extends View implements Drawable.Callback {
                 y = getPaddingTop() + (textHeight - dh) / 2 + rightDrawableTopPadding;
             }
             rightDrawable2.setBounds(x, y, x + dw, y + dh);
-            rightDrawable2.draw(canvas);
+            drawBadge(canvas, rightDrawable2);
             totalWidth += drawablePadding + dw;
         }
         int nextScrollX = totalWidth + dp(DIST_BETWEEN_SCROLLING_TEXT);
@@ -953,7 +982,7 @@ public class SimpleTextView extends View implements Drawable.Callback {
                     y = getPaddingTop() + (textHeight - leftDrawable.getIntrinsicHeight()) / 2 + leftDrawableTopPadding;
                 }
                 leftDrawable.setBounds(x, y, x + leftDrawable.getIntrinsicWidth(), y + leftDrawable.getIntrinsicHeight());
-                leftDrawable.draw(canvas);
+                drawBadge(canvas, leftDrawable);
             }
             if (rightDrawable != null && !rightDrawableOutside) {
                 int dw = (int) (rightDrawable.getIntrinsicWidth() * rightDrawableScale);
@@ -968,7 +997,7 @@ public class SimpleTextView extends View implements Drawable.Callback {
                 rightDrawable.setBounds(x, y, x + dw, y + dh);
                 rightDrawableX = x + (dw >> 1);
                 rightDrawableY = y + (dh >> 1);
-                rightDrawable.draw(canvas);
+                drawBadge(canvas, rightDrawable);
             }
             if (rightDrawable2 != null && !rightDrawableOutside) {
                 int dw = (int) (rightDrawable2.getIntrinsicWidth() * rightDrawableScale);
@@ -984,7 +1013,7 @@ public class SimpleTextView extends View implements Drawable.Callback {
                     y = getPaddingTop() + (textHeight - dh) / 2 + rightDrawableTopPadding;
                 }
                 rightDrawable2.setBounds(x, y, x + dw, y + dh);
-                rightDrawable2.draw(canvas);
+                drawBadge(canvas, rightDrawable2);
             }
         }
 
@@ -1058,7 +1087,7 @@ public class SimpleTextView extends View implements Drawable.Callback {
                 rightDrawable.setBounds(x, y, x + dw, y + dh);
                 rightDrawableX = x + (dw >> 1);
                 rightDrawableY = y + (dh >> 1);
-                rightDrawable.draw(canvas);
+                drawBadge(canvas, rightDrawable);
                 totalWidth += drawablePadding + dw;
             }
             if (rightDrawable2 != null && !rightDrawableHidden && rightDrawableScale > 0 && !rightDrawableOutside && rightDrawableInside) {
@@ -1079,7 +1108,7 @@ public class SimpleTextView extends View implements Drawable.Callback {
                     y = getPaddingTop() + (textHeight - dh) / 2 + rightDrawableTopPadding;
                 }
                 rightDrawable2.setBounds(x, y, x + dw, y + dh);
-                rightDrawable2.draw(canvas);
+                drawBadge(canvas, rightDrawable2);
                 totalWidth += drawablePadding + dw;
             }
             if (fade) {
@@ -1123,7 +1152,7 @@ public class SimpleTextView extends View implements Drawable.Callback {
                 y = getPaddingTop() + (textHeight - dh) / 2 + leftDrawableTopPadding;
             }
             leftDrawable.setBounds(x, y, x + dw, y + dh);
-            leftDrawable.draw(canvas);
+            drawBadge(canvas, leftDrawable);
         }
         if (rightDrawable != null && rightDrawableOutside) {
             int x = Math.min(textOffsetX + textWidth + drawablePadding + (scrollingOffset == 0 ? -nextScrollX : (int) -scrollingOffset) + nextScrollX, getMaxTextWidth() - paddingRight + drawablePadding);
@@ -1138,7 +1167,7 @@ public class SimpleTextView extends View implements Drawable.Callback {
             rightDrawable.setBounds(x, y, x + dw, y + dh);
             rightDrawableX = x + (dw >> 1);
             rightDrawableY = y + (dh >> 1);
-            rightDrawable.draw(canvas);
+            drawBadge(canvas, rightDrawable);
         }
         if (rightDrawable2 != null && rightDrawableOutside) {
             int x = Math.min(
@@ -1157,7 +1186,7 @@ public class SimpleTextView extends View implements Drawable.Callback {
                 y = getPaddingTop() + (textHeight - dh) / 2 + rightDrawableTopPadding;
             }
             rightDrawable2.setBounds(x, y, x + dw, y + dh);
-            rightDrawable2.draw(canvas);
+            drawBadge(canvas, rightDrawable2);
         }
     }
 

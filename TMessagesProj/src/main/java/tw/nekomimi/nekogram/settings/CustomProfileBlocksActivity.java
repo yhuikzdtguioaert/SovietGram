@@ -192,6 +192,16 @@ public class CustomProfileBlocksActivity extends CustomProfileListActivity {
                         () -> askText(getString(R.string.CustomProfileIntegrationAccount), block.url, 128, value -> {
                             block.url = value;
                             CustomProfileExtraRows.store(blocks);
+                            if (block.service == 5 && CustomProfileIntegrations.isShortSoundcloud(value)) {
+                                // A SoundCloud share link names no account: follow it once and keep the profile address.
+                                CustomProfileIntegrations.resolveShort(value, account -> {
+                                    if (!account.isEmpty() && value.equals(block.url)) {
+                                        block.url = "https://soundcloud.com/" + account;
+                                        CustomProfileExtraRows.store(blocks);
+                                        rebuild();
+                                    }
+                                });
+                            }
                         }));
             } else {
                 setting(getString(R.string.CustomProfileIntegrationConnect), preview(block.url), () -> connect(block));

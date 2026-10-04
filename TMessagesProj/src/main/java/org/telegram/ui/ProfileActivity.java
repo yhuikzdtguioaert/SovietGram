@@ -10171,6 +10171,10 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             }
             nameTextView[a].setTypeface(typeface != null ? typeface : AndroidUtilities.bold());
             nameTextView[a].setTextSizePx((int) (dp(17.5f) * scale));
+            nameTextView[a].setKeepBadgeAspect(custom);
+            if (onlineTextView != null && onlineTextView[a] != null) {
+                onlineTextView[a].setKeepBadgeAspect(custom);
+            }
             nameTextView[a].setLayerType(glow ? View.LAYER_TYPE_SOFTWARE : View.LAYER_TYPE_NONE, null);
         }
     }

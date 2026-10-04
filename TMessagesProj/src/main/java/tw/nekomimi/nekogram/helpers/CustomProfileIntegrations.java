@@ -32,6 +32,71 @@ public final class CustomProfileIntegrations {
     private static final Map<String, List<Consumer<String>>> PENDING = new HashMap<>();
     private static int cacheGeneration;
     private CustomProfileIntegrations() { }
+
+    // SoundCloud's own "share" links (on.soundcloud.com/XXXX) name no account: they redirect to the page that was
+    // shared. Each one is followed once and the account found there is remembered; "" means it led nowhere.
+    private static final Map<String, String> SHORT = new HashMap<>();
+    private static final Map<String, List<Consumer<String>>> SHORT_WAITING = new HashMap<>();
+
+    public static boolean isShortSoundcloud(String link) {
+        if (link == null) return false;
+        try {
+            Uri uri = Uri.parse(link.trim());
+            return "on.soundcloud.com".equalsIgnoreCase(uri.getHost()) && uri.getPathSegments().size() == 1;
+        } catch (Throwable ignore) {
+            return false;
+        }
+    }
+
+    /** UI thread. {@code done} gets the account the share link points to, or "" when it points to none. */
+    public static void resolveShort(String link, Consumer<String> done) {
+        final String key = link.trim();
+        final String known = SHORT.get(key);
+        if (known != null) {
+            done.accept(known);
+            return;
+        }
+        List<Consumer<String>> waiting = SHORT_WAITING.get(key);
+        if (waiting != null) {
+            waiting.add(done);
+            return;
+        }
+        waiting = new ArrayList<>();
+        waiting.add(done);
+        SHORT_WAITING.put(key, waiting);
+        org.telegram.messenger.Utilities.globalQueue.postRunnable(() -> {
+            String account = "";
+            try {
+                String next = key;
+                for (int hop = 0; hop < 6 && account.isEmpty(); hop++) {
+                    java.net.HttpURLConnection connection = (java.net.HttpURLConnection) new java.net.URL(next).openConnection();
+                    connection.setInstanceFollowRedirects(false);
+                    connection.setConnectTimeout(8000);
+                    connection.setReadTimeout(8000);
+                    connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/124 Mobile Safari/537.36");
+                    final int code = connection.getResponseCode();
+                    final String location = connection.getHeaderField("Location");
+                    connection.disconnect();
+                    if (code < 300 || code >= 400 || location == null) break;
+                    next = new java.net.URL(new java.net.URL(next), location).toString();
+                    Uri uri = Uri.parse(next);
+                    String host = uri.getHost();
+                    List<String> segments = uri.getPathSegments();
+                    if (host != null && (host.equals("soundcloud.com") || host.equals("www.soundcloud.com") || host.equals("m.soundcloud.com"))
+                            && !segments.isEmpty() && segments.get(0).matches("[a-zA-Z0-9._-]{1,64}")) {
+                        account = segments.get(0);
+                    }
+                }
+            } catch (Throwable ignore) {
+            }
+            final String result = account;
+            AndroidUtilities.runOnUIThread(() -> {
+                SHORT.put(key, result);
+                List<Consumer<String>> listeners = SHORT_WAITING.remove(key);
+                if (listeners != null) for (Consumer<String> listener : listeners) listener.accept(result);
+            });
+        });
+    }
     /** Services whose statistics come from the user's own signed-in account rather than a public name. */
     public static boolean isConnected(int service) { return service == 3 || service == 4; }
     public static String key(int service) { return KEYS[Math.max(0, Math.min(5, service))]; }
@@ -49,6 +114,10 @@ public final class CustomProfileIntegrations {
             String host = uri.getHost();
             List<String> segments = uri.getPathSegments();
             if (host == null || segments.isEmpty()) return "";
+            if (block.service == 5 && isShortSoundcloud(name)) {
+                final String resolved = SHORT.get(name);
+                return resolved == null ? "" : resolved;
+            }
             if (block.service == 0 && (host.equals("last.fm") || host.equals("www.last.fm"))
                     && segments.size() == 2 && segments.get(0).equals("user")) return segments.get(1);
             if (block.service == 1 && host.equals("github.com") && segments.size() == 1) return segments.get(0);
@@ -79,6 +148,11 @@ public final class CustomProfileIntegrations {
     public static void clearCache() { cacheGeneration++; CACHE.clear(); }
     public static void load(int account, long profileOwner, CustomProfileExtraRows.Block block, Consumer<String> sink) {
         String name = account(block);
+        if (name.isEmpty() && block.service == 5 && isShortSoundcloud(block.url) && !SHORT.containsKey(block.url.trim())) {
+            // A share link: find the account it leads to first, then load as usual.
+            resolveShort(block.url, resolved -> load(account, profileOwner, block, sink));
+            return;
+        }
         if (name.isEmpty() && profileOwner == UserConfig.getInstance(account).getClientUserId()) {
             // Typically a look installed from the Workshop: the row is there, the account is not yet.
             sink.accept(LocaleController.getString(R.string.CustomProfileIntegrationNeedsBinding));
