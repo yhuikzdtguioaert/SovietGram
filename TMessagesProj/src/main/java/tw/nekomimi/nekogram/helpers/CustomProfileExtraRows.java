@@ -340,19 +340,23 @@ public final class CustomProfileExtraRows {
         b.viewX = clamp(o.optInt("view_x"), -4096, 4096);
         b.viewY = clamp(o.optInt("view_y"), -4096, 4096);
         b.viewSpan = clamp(o.optInt("view_span", 32), 8, 256);
-        if (type == TYPE_INTEGRATION && o.optInt("service") > 5) {
-            // A service the app no longer supports (VK): the row has nothing left to show.
+        final int storedService = o.optInt("service");
+        if (type == TYPE_INTEGRATION && storedService > 6) {
+            // Unknown providers must not be interpreted as a supported account.
             return null;
         }
-        b.service = clamp(o.optInt("service"), 0, 5);
+        final boolean publicSoundcloud = type == TYPE_INTEGRATION && storedService == 5;
+        b.service = publicSoundcloud ? 6 : clamp(storedService, 0, 6);
         b.intStyle = clamp(o.optInt("int_style"), 0, 1);
         b.intRefresh = clamp(o.optInt("int_refresh"), 0, 3600);
-        b.mode = clamp(o.optInt("mode"), 0, CustomProfileIntegrations.modeCount(b.service) - 1);
+        final int storedMode = publicSoundcloud ? soundcloudAccountMode(o.optInt("mode")) : o.optInt("mode");
+        b.mode = clamp(storedMode, 0, CustomProfileIntegrations.modeCount(b.service) - 1);
         JSONArray modes = o.optJSONArray("parts");
         if (modes != null) {
             java.util.Set<Integer> seen = new java.util.HashSet<>();
             for (int i = 0; i < modes.length() && b.parts.length() < 8; i++) {
                 int mode = modes.optInt(i, -1);
+                if (publicSoundcloud) mode = soundcloudAccountMode(mode);
                 if (mode >= 0 && mode < CustomProfileIntegrations.modeCount(b.service) && seen.add(mode)) b.parts.put(mode);
             }
         }
@@ -364,8 +368,23 @@ public final class CustomProfileExtraRows {
                 catch (org.json.JSONException ignore) { }
             }
         }
+        if (publicSoundcloud) {
+            // A public profile name is not an authenticated account. Reuse only a previous sign-in;
+            // otherwise the block stays in place and asks its owner to connect SoundCloud.
+            b.url = b.accounts.optString(CustomProfileIntegrations.key(6));
+        }
         // Drafts and imported types need to survive editing even before they can be drawn.
         return b;
+    }
+
+    private static int soundcloudAccountMode(int mode) {
+        return switch (mode) {
+            case 0 -> 0; // Latest track becomes listening history.
+            case 1 -> 2; // Followers.
+            case 3 -> 3; // Likes.
+            case 4 -> 1; // Last like.
+            default -> -1; // Uploaded-track count has no signed-in equivalent.
+        };
     }
 
     private static String trim(String value, int max) {

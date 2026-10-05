@@ -47,6 +47,9 @@ public class CustomProfileBlocksActivity extends CustomProfileListActivity {
             CustomProfileExtraRows.ACTION_SHARE,
     };
 
+    // These are provider IDs, not positions in the menu: 5 was public SoundCloud, 6 signs in.
+    private static final int[] SERVICES = {0, 1, 2, 3, 4, 6};
+
     /** −1 for the list, otherwise the row being edited. */
     private final int index;
 
@@ -173,8 +176,16 @@ public class CustomProfileBlocksActivity extends CustomProfileListActivity {
         }
         if (block.type == CustomProfileExtraRows.TYPE_INTEGRATION) {
             setting(getString(R.string.CustomProfileIntegrationService), CustomProfileIntegrations.serviceName(block.service), () -> {
-                PopupHelper.show(new ArrayList<>(java.util.Arrays.asList("Last.fm", "GitHub", "Steam", "Yandex Music", "Spotify", "SoundCloud", getString(R.string.CustomProfileIntegrationSoundcloudAccount))), getString(R.string.CustomProfileIntegrationService),
-                        block.service, getParentActivity(), service -> {
+                final ArrayList<String> services = new ArrayList<>();
+                int selected = -1;
+                for (int i = 0; i < SERVICES.length; i++) {
+                    services.add(SERVICES[i] == 6 ? getString(R.string.CustomProfileIntegrationSoundcloudAccount)
+                            : CustomProfileIntegrations.serviceName(SERVICES[i]));
+                    if (SERVICES[i] == block.service) selected = i;
+                }
+                PopupHelper.show(services, getString(R.string.CustomProfileIntegrationService),
+                        selected, getParentActivity(), picked -> {
+                            final int service = SERVICES[picked];
                             boolean defaultTitle = block.title.equals(CustomProfileIntegrations.serviceName(block.service));
                             try { block.accounts.put(CustomProfileIntegrations.key(block.service), block.url); }
                             catch (org.json.JSONException ignore) { }
@@ -192,16 +203,6 @@ public class CustomProfileBlocksActivity extends CustomProfileListActivity {
                         () -> askText(getString(R.string.CustomProfileIntegrationAccount), block.url, 128, value -> {
                             block.url = value;
                             CustomProfileExtraRows.store(blocks);
-                            if (block.service == 5 && CustomProfileIntegrations.isShortSoundcloud(value)) {
-                                // A SoundCloud share link names no account: follow it once and keep the profile address.
-                                CustomProfileIntegrations.resolveShort(value, account -> {
-                                    if (!account.isEmpty() && value.equals(block.url)) {
-                                        block.url = "https://soundcloud.com/" + account;
-                                        CustomProfileExtraRows.store(blocks);
-                                        rebuild();
-                                    }
-                                });
-                            }
                         }));
             } else {
                 setting(getString(R.string.CustomProfileIntegrationConnect), preview(block.url), () -> connect(block));
