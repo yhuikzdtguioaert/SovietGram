@@ -38,8 +38,8 @@ public class PublicProfileSeam {
  }
  static final int TYPE_LINK=0,TYPE_INTEGRATION=12,MAX_TITLE=64,MAX_URL=512,MAX_TEXT=1024,ACTION_OPEN=1,ACTION_NONE=0,RADIUS_DEFAULT=12,MEDIA_HEIGHT_DEFAULT=160,MEDIA_HEIGHT_MIN=60,MEDIA_HEIGHT_MAX=400;
  static class CustomProfileIntegrations {
-  static String key(int i){return new String[]{"lastfm","github","steam","yamusic","spotify","soundcloud","soundcloud-me"}[i];}
-  static int modeCount(int i){return i==5?5:4;}
+  static String key(int i){return new String[]{"lastfm","github","steam","yamusic","spotify","soundcloud","soundcloud-me","soundcloud-live"}[i];}
+  static int modeCount(int i){return i==7?1:i==5?5:4;}
  }
  static String trim(String v,int max){return v==null?"":v.trim().substring(0,Math.min(max,v.trim().length()));}
  static int color(JSONObject o,String k){return o.optInt(k);}
@@ -54,7 +54,9 @@ public class PublicProfileSeam {
    throw new AssertionError("Public profile identity/modes must survive storage; never force login or substitute private account ID");
   input.put("service",6).put("url","existing-private-id").put("mode",1).put("parts",new JSONArray().put(1));
   b=read(input);if(b.service!=6 || !b.url.equals("existing-private-id"))throw new AssertionError("Existing signed-in block must remain intact");
-  input.put("service",7);if(read(input)!=null)throw new AssertionError("Unknown provider must still be rejected");
+  input.put("service",7).put("mode",0).put("parts",new JSONArray().put(0));
+  b=read(input);if(b==null||b.service!=7)throw new AssertionError("Known local live source must survive storage");
+  input.put("service",8);if(read(input)!=null)throw new AssertionError("Unknown provider must still be rejected");
  }
 }
 '''.replace('READ_METHOD',read).replace('OLD_MAPPING',old_mapping)
@@ -125,7 +127,7 @@ public class PublicSwitchSeam {
     def test_public_alternative_is_selectable_and_unconfigured_login_explains_limitation(self):
         source=UI.read_text()
         self.assertIn('CustomProfileIntegrations.publicSoundcloudAccount(value)', source)
-        self.assertIn('private static final int[] SERVICES = {0, 1, 2, 3, 4, 5, 6};',source)
+        self.assertIn('private static final int[] SERVICES = {0, 1, 2, 3, 4, 5, 6, 7};',source)
         connect=method(source,'private void connect(CustomProfileExtraRows.Block block)')
         self.assertLess(connect.index('if (service == 6)'),connect.index('SovietGramApiClient.isReady'))
         self.assertIn('CustomProfileIntegrationSoundcloudUnavailable',connect)

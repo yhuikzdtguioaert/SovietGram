@@ -16,8 +16,8 @@ import java.util.function.Consumer;
 
 /** Integration metadata travels with the profile; credentials never belong in a block. */
 public final class CustomProfileIntegrations {
-    private static final String[] KEYS = {"lastfm", "github", "steam", "yamusic", "spotify", "soundcloud", "soundcloud-me"};
-    private static final String[] NAMES = {"Last.fm", "GitHub", "Steam", "Yandex Music", "Spotify", "SoundCloud", "SoundCloud"};
+    private static final String[] KEYS = {"lastfm", "github", "steam", "yamusic", "spotify", "soundcloud", "soundcloud-me", "soundcloud-live"};
+    private static final String[] NAMES = {"Last.fm", "GitHub", "Steam", "Yandex Music", "Spotify", "SoundCloud", "SoundCloud", "SoundCloud live (this device)"};
     private static final int[][] MODES = {
         {R.string.CustomProfileIntegrationNow, R.string.CustomProfileIntegrationScrobbles, R.string.CustomProfileIntegrationArtist, R.string.CustomProfileIntegrationAlbum},
         {R.string.CustomProfileIntegrationRepos, R.string.CustomProfileIntegrationStars, R.string.CustomProfileIntegrationFollowers, R.string.CustomProfileIntegrationFollowing, R.string.CustomProfileIntegrationSince, R.string.CustomProfileIntegrationContributions},
@@ -26,7 +26,8 @@ public final class CustomProfileIntegrations {
         {R.string.CustomProfileIntegrationNow, R.string.CustomProfileIntegrationLastTrack, R.string.CustomProfileIntegrationArtist, R.string.CustomProfileIntegrationFollowers},
         {R.string.CustomProfileIntegrationLatestTrack, R.string.CustomProfileIntegrationFollowers, R.string.CustomProfileIntegrationTracks, R.string.CustomProfileIntegrationLikes, R.string.CustomProfileIntegrationLastLike},
         // SoundCloud with the user's own session: what was played last and liked last come from their account.
-        {R.string.CustomProfileIntegrationNow, R.string.CustomProfileIntegrationLastLike, R.string.CustomProfileIntegrationFollowers, R.string.CustomProfileIntegrationLikes}
+        {R.string.CustomProfileIntegrationNow, R.string.CustomProfileIntegrationLastLike, R.string.CustomProfileIntegrationFollowers, R.string.CustomProfileIntegrationLikes},
+        {R.string.CustomProfileIntegrationNow}
     };
     /** A track, a game or anything else that is "on right now", with what a card needs to draw it. */
     public static final class Track {
@@ -103,9 +104,21 @@ public final class CustomProfileIntegrations {
 
     /** The address a card's tap opens: the track itself when there is one, the profile otherwise. */
     public static String openUrl(CustomProfileExtraRows.Block block) {
-        Rich rich = LATEST.get(block.id);
+        int viewer = UserConfig.selectedAccount;
+        return openUrl(viewer, UserConfig.getInstance(viewer).getClientUserId(), block);
+    }
+    public static String openUrl(int account, long profileOwner, CustomProfileExtraRows.Block block) {
+        Rich rich = LATEST.get(latestKey(account, profileOwner, block));
         if (rich != null && rich.track != null && rich.track.url.startsWith("https://")) return rich.track.url;
         return profileUrl(block);
+    }
+
+    private static String latestKey(int account, long profileOwner, CustomProfileExtraRows.Block block) {
+        return UserConfig.getInstance(account).getClientUserId() + ":" + profileOwner + ":" + block.id + ":" + block.service + ":" + account(block);
+    }
+    private static void rememberLatest(int account, long profileOwner, CustomProfileExtraRows.Block block, Rich rich) {
+        if (LATEST.size() >= 128) LATEST.remove(LATEST.keySet().iterator().next());
+        LATEST.put(latestKey(account, profileOwner, block), rich);
     }
 
     /**
@@ -113,6 +126,7 @@ public final class CustomProfileIntegrations {
      * suits the service — what is playing changes within seconds, a profile's statistics within hours.
      */
     public static long refreshMs(CustomProfileExtraRows.Block block) {
+        if (block.service == 7) return block.intRefresh > 0 ? Math.min(30, Math.max(5, block.intRefresh)) * 1000L : 10_000L;
         if (block.intRefresh > 0) return Math.max(5, block.intRefresh) * 1000L;
         return switch (block.service) {
             case 3, 4, 6 -> 10_000L;
@@ -191,11 +205,11 @@ public final class CustomProfileIntegrations {
     }
     /** Services whose statistics come from the user's own signed-in account rather than a public name. */
     public static boolean isConnected(int service) { return service == 3 || service == 4 || service == 6; }
-    public static String key(int service) { return KEYS[Math.max(0, Math.min(6, service))]; }
-    public static String serviceName(int service) { return NAMES[Math.max(0, Math.min(6, service))]; }
-    public static int modeCount(int service) { return MODES[Math.max(0, Math.min(6, service))].length; }
+    public static String key(int service) { return KEYS[Math.max(0, Math.min(7, service))]; }
+    public static String serviceName(int service) { return service == 7 ? LocaleController.getString(R.string.CustomProfileSoundcloudLive) : NAMES[Math.max(0, Math.min(7, service))]; }
+    public static int modeCount(int service) { return MODES[Math.max(0, Math.min(7, service))].length; }
     public static String modeName(int service, int mode) {
-        int[] modes = MODES[Math.max(0, Math.min(6, service))];
+        int[] modes = MODES[Math.max(0, Math.min(7, service))];
         return LocaleController.getString(modes[Math.max(0, Math.min(modes.length - 1, mode))]);
     }
     /** Public profile identity only: never accept provider sign-in/callback URLs. */
@@ -229,6 +243,7 @@ public final class CustomProfileIntegrations {
     }
 
     public static String account(CustomProfileExtraRows.Block block) {
+        if (block.service == 7) return ""; // Device telemetry has no provider account binding.
         String name = block.url.trim();
         if (name.isEmpty()) name = block.accounts.optString(key(block.service));
         if (block.service == 5 && !isShortSoundcloud(name)) return publicSoundcloudAccount(name);
@@ -284,12 +299,12 @@ public final class CustomProfileIntegrations {
             resolveShort(block.url, resolved -> loadRich(account, profileOwner, block, sink));
             return;
         }
-        if (name.isEmpty() && profileOwner == UserConfig.getInstance(account).getClientUserId()) {
+        if (service != 7 && name.isEmpty() && profileOwner == UserConfig.getInstance(account).getClientUserId()) {
             // Typically a look installed from the Workshop: the row is there, the account is not yet.
             sink.accept(Rich.plain(LocaleController.getString(R.string.CustomProfileIntegrationNeedsBinding), service));
             return;
         }
-        if (!name.matches("[a-zA-Z0-9._-]{1,64}") || !SovietGramApiClient.isReady(account)) {
+        if ((service != 7 && !name.matches("[a-zA-Z0-9._-]{1,64}")) || !SovietGramApiClient.isReady(account)) {
             sink.accept(Rich.plain(LocaleController.getString(R.string.CustomProfileIntegrationUnavailable), service));
             return;
         }
@@ -301,18 +316,13 @@ public final class CustomProfileIntegrations {
             modes.append(mode);
         }
         if (modes.length() == 0) modes.append(block.mode);
-        String path = "/v1/integrations?service=" + key(block.service) + "&account=" + Uri.encode(name) + "&modes=" + modes;
-        if (isConnected(block.service)) {
-            path = profileOwner == UserConfig.getInstance(account).getClientUserId()
-                    ? "/v1/integrations/self?service=" + key(block.service) + "&modes=" + modes
-                    : "/v1/profile-integrations/" + profileOwner + "/" + Uri.encode(block.id);
-        }
+        String path = requestPath(account, profileOwner, block, name, modes.toString());
         String cacheKey = cacheGeneration + ":" + UserConfig.getInstance(account).getClientUserId() + ":" + path
                 + ":" + block.service + ":" + name + ":" + modes + ":" + LocaleController.getInstance().getCurrentLocaleInfo().shortName;
         final long keep = Math.max(3000L, refreshMs(block) - 1500L);
         Held held = CACHE.get(cacheKey);
-        if (held != null && held.until > android.os.SystemClock.elapsedRealtime()) { sink.accept(held.rich); return; }
-        if (held != null) sink.accept(held.rich);
+        if (held != null && held.until > android.os.SystemClock.elapsedRealtime()) { rememberLatest(account, profileOwner, block, held.rich); sink.accept(held.rich); return; }
+        if (held != null) { rememberLatest(account, profileOwner, block, held.rich); sink.accept(held.rich); }
         List<Consumer<Rich>> waiters = PENDING.get(cacheKey);
         final long asked = android.os.SystemClock.elapsedRealtime();
         final Long since = PENDING_SINCE.get(cacheKey);
@@ -324,21 +334,29 @@ public final class CustomProfileIntegrations {
         PENDING.put(cacheKey, mine);
         PENDING_SINCE.put(cacheKey, asked);
         int requestedGeneration = cacheGeneration;
-        final String blockId = block.id;
+        final long viewerOwner = UserConfig.getInstance(account).getClientUserId();
         final long trust = refreshMs(block) + 8000L;
         SovietGramApiClient.get(account, path, (body, error) -> AndroidUtilities.runOnUIThread(() -> {
             // A reconnect/disconnect, or a retry after PENDING_LIMIT_MS, superseded this request.
             // It must not repaint cards, change their tap target, or consume the new waiters.
             if (requestedGeneration != cacheGeneration || PENDING.get(cacheKey) != mine) return;
+            if (UserConfig.getInstance(account).getClientUserId() != viewerOwner) return;
             Rich value = describe(service, body, trust);
             if (CACHE.size() >= 256) CACHE.remove(CACHE.keySet().iterator().next());
             if (requestedGeneration == cacheGeneration) CACHE.put(cacheKey, new Held(value,
                     android.os.SystemClock.elapsedRealtime() + (error == null ? keep : 15000)));
-            if (LATEST.size() >= 128) LATEST.remove(LATEST.keySet().iterator().next());
-            LATEST.put(blockId, value);
+            rememberLatest(account, profileOwner, block, value);
             if (PENDING.get(cacheKey) == mine) { PENDING.remove(cacheKey); PENDING_SINCE.remove(cacheKey); }
             for (Consumer<Rich> listener : mine) listener.accept(value);
         }));
+    }
+    private static String requestPath(int account, long profileOwner, CustomProfileExtraRows.Block block, String name, String modes) {
+        if (isConnected(block.service) || block.service == 7) {
+            return profileOwner == UserConfig.getInstance(account).getClientUserId()
+                    ? "/v1/integrations/self?service=" + key(block.service) + "&modes=" + modes
+                    : "/v1/profile-integrations/" + profileOwner + "/" + Uri.encode(block.id);
+        }
+        return "/v1/integrations?service=" + key(block.service) + "&account=" + Uri.encode(name) + "&modes=" + modes;
     }
     private static Rich describe(int service, JSONObject body, long trust) {
         JSONArray parts = body == null ? null : body.optJSONArray("parts");
@@ -368,7 +386,7 @@ public final class CustomProfileIntegrations {
                 track.stale = t.optBoolean("stale");
                 track.liked = t.optBoolean("liked");
                 track.receivedAt = android.os.SystemClock.elapsedRealtime();
-                track.trustMs = trust;
+                track.trustMs = service == 7 ? Math.min(30_000L, trust) : trust;
             }
             JSONObject g = part.optJSONObject("graph");
             if (graph == null && g != null && g.optString("levels").length() >= 28) {

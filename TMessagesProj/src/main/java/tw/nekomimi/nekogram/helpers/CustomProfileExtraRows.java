@@ -341,12 +341,12 @@ public final class CustomProfileExtraRows {
         b.viewY = clamp(o.optInt("view_y"), -4096, 4096);
         b.viewSpan = clamp(o.optInt("view_span", 32), 8, 256);
         final int storedService = o.optInt("service");
-        if (type == TYPE_INTEGRATION && storedService > 6) {
+        if (type == TYPE_INTEGRATION && storedService > 7) {
             // Unknown providers must not be interpreted as a supported account.
             return null;
         }
         // Public profiles (5) and saved authenticated connections (6) are distinct.
-        b.service = clamp(storedService, 0, 6);
+        b.service = clamp(storedService, 0, 7);
         b.intStyle = clamp(o.optInt("int_style"), 0, 1);
         b.intRefresh = clamp(o.optInt("int_refresh"), 0, 3600);
         final int storedMode = o.optInt("mode");

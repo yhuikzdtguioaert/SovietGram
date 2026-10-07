@@ -109,6 +109,7 @@ public final class SovietGramAccountScope {
      * right values.
      */
     public static synchronized void syncTo(int account) {
+        SoundCloudDeviceRpc.onAccountChanging(account);
         final long incoming = SovietGramTokenStore.ownId(account);
         if (incoming <= 0) {
             return;

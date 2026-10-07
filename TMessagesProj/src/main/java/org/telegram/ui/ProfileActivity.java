@@ -12026,7 +12026,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
 
     private void onCustomBlockClick(@Nullable CustomProfileExtraRows.Block block) {
         if (block != null && block.type == CustomProfileExtraRows.TYPE_INTEGRATION) {
-            String url = tw.nekomimi.nekogram.helpers.CustomProfileIntegrations.openUrl(block);
+            String url = tw.nekomimi.nekogram.helpers.CustomProfileIntegrations.openUrl(currentAccount, userId, block);
             if (!url.isEmpty()) Browser.openUrl(getParentActivity(), url);
             return;
         }

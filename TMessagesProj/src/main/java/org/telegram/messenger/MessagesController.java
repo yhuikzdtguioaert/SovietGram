@@ -16372,6 +16372,7 @@ public class MessagesController extends BaseController implements NotificationCe
     }
 
     public void performLogout(int type) {
+        tw.nekomimi.nekogram.helpers.SoundCloudDeviceRpc.onLogout(currentAccount);
         if (type == 1) {
             unregistedPush();
             TLRPC.TL_auth_logOut req = new TLRPC.TL_auth_logOut();

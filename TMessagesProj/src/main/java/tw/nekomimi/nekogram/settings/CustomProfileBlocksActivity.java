@@ -16,6 +16,7 @@ import tw.nekomimi.nekogram.helpers.CustomProfileHelper;
 import tw.nekomimi.nekogram.helpers.CustomProfileMedia;
 import tw.nekomimi.nekogram.helpers.CustomProfileIntegrations;
 import tw.nekomimi.nekogram.helpers.PopupHelper;
+import tw.nekomimi.nekogram.helpers.SoundCloudDeviceRpc;
 
 /**
  * The rows a look invents for itself — a link, a button, a heading, a line of text, a picture.
@@ -48,7 +49,7 @@ public class CustomProfileBlocksActivity extends CustomProfileListActivity {
     };
 
     // Provider IDs, not menu positions: public SoundCloud (5) never needs user login.
-    private static final int[] SERVICES = {0, 1, 2, 3, 4, 5, 6};
+    private static final int[] SERVICES = {0, 1, 2, 3, 4, 5, 6, 7};
 
     /** −1 for the list, otherwise the row being edited. */
     private final int index;
@@ -110,6 +111,66 @@ public class CustomProfileBlocksActivity extends CustomProfileListActivity {
                     CustomProfileExtraRows.store(blocks);
                     presentFragment(new CustomProfileBlocksActivity(blocks.size() - 1));
                 });
+    }
+
+    private void buildSoundcloudLiveSettings(CustomProfileExtraRows.Block block) {
+        info(getString(R.string.CustomProfileSoundcloudLiveDisclosure));
+        setting(getString(R.string.CustomProfileSoundcloudLivePermission),
+                getString(SoundCloudDeviceRpc.permissionGranted() ? R.string.CustomProfileSoundcloudLiveGranted : R.string.CustomProfileSoundcloudLiveNotGranted),
+                () -> {
+                    if (getParentActivity() == null) return;
+                    new AlertDialog.Builder(getParentActivity())
+                            .setTitle(getString(R.string.CustomProfileSoundcloudLivePermission))
+                            .setMessage(getString(R.string.CustomProfileSoundcloudLiveDisclosure))
+                            .setNegativeButton(getString(R.string.Cancel), null)
+                            .setPositiveButton(getString(R.string.CustomProfileSoundcloudLiveOpenSettings), (dialog, which) -> {
+                                try {
+                                    getParentActivity().startActivity(new android.content.Intent(android.provider.Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS));
+                                } catch (Exception unavailable) {
+                                    new AlertDialog.Builder(getParentActivity())
+                                            .setMessage(getString(R.string.CustomProfileSoundcloudLiveUnavailable))
+                                            .setPositiveButton(getString(R.string.OK), null).show();
+                                }
+                            }).show();
+                });
+        long owner = org.telegram.messenger.UserConfig.getInstance(currentAccount).getClientUserId();
+        check(org.telegram.messenger.LocaleController.formatString(R.string.CustomProfileSoundcloudLivePublishOwner, Long.toString(owner)),
+                SoundCloudDeviceRpc.isEnabled(currentAccount), () -> {
+                    if (!sameOwner(owner)) return;
+                    if (SoundCloudDeviceRpc.isEnabled(currentAccount)) {
+                        SoundCloudDeviceRpc.setEnabled(currentAccount, false);
+                        rebuild();
+                    } else confirmSoundcloudLive(block.id, owner);
+                });
+        info(getString(R.string.CustomProfileSoundcloudLiveLimits));
+    }
+
+    private void confirmSoundcloudLive(String blockId, long owner) {
+        if (!sameOwner(owner) || getParentActivity() == null) return;
+        new AlertDialog.Builder(getParentActivity())
+                .setTitle(getString(R.string.CustomProfileSoundcloudLive))
+                .setMessage(org.telegram.messenger.LocaleController.formatString(R.string.CustomProfileSoundcloudLiveConfirm, Long.toString(owner)))
+                .setNegativeButton(getString(R.string.Cancel), null)
+                .setPositiveButton(getString(R.string.CustomProfileSoundcloudLiveEnable), (dialog, which) -> enableSoundcloudLive(blockId, owner))
+                .show();
+    }
+
+    private void enableSoundcloudLive(String blockId, long owner) {
+        if (!sameOwner(owner)) return;
+        boolean exists = false;
+        for (CustomProfileExtraRows.Block candidate : CustomProfileExtraRows.stored()) {
+            if (candidate.id.equals(blockId) && candidate.type == CustomProfileExtraRows.TYPE_INTEGRATION && candidate.service == 7) {
+                exists = true; break;
+            }
+        }
+        if (!exists) return;
+        if (!SoundCloudDeviceRpc.setEnabled(currentAccount, true) && getParentActivity() != null) {
+            new AlertDialog.Builder(getParentActivity())
+                    .setTitle(getString(R.string.CustomProfileSoundcloudLive))
+                    .setMessage(getString(R.string.CustomProfileSoundcloudLiveUnavailable))
+                    .setPositiveButton(getString(R.string.OK), null).show();
+        }
+        rebuild();
     }
 
     private void order(List<CustomProfileExtraRows.Block> blocks, int at) {
@@ -194,14 +255,17 @@ public class CustomProfileBlocksActivity extends CustomProfileListActivity {
                             if (defaultTitle) block.title = CustomProfileIntegrations.serviceName(service);
                             block.url = block.accounts.optString(CustomProfileIntegrations.key(service));
                             block.parts = new org.json.JSONArray(); block.parts.put(0); block.mode = 0;
+                            if (service == 7) block.intStyle = 1; // Independent real-source card, no second integration required.
                             CustomProfileExtraRows.store(blocks);
                             rebuild();
                         });
             });
             if (block.service == 5) info(getString(R.string.CustomProfileIntegrationSoundcloudPublicInfo));
             if (block.service == 6) info(getString(R.string.CustomProfileIntegrationSoundcloudUnavailable));
-            if (block.url.isEmpty()) info(getString(R.string.CustomProfileIntegrationNeedsBinding));
-            if (!CustomProfileIntegrations.isConnected(block.service)) {
+            if (block.service != 7 && block.url.isEmpty()) info(getString(R.string.CustomProfileIntegrationNeedsBinding));
+            if (block.service == 7) {
+                buildSoundcloudLiveSettings(block);
+            } else if (!CustomProfileIntegrations.isConnected(block.service)) {
                 setting(getString(R.string.CustomProfileIntegrationAccount), preview(block.url),
                         () -> askText(getString(R.string.CustomProfileIntegrationAccount), block.url, 128, value -> {
                             if (block.service == 5) {
