@@ -47,8 +47,8 @@ public class CustomProfileBlocksActivity extends CustomProfileListActivity {
             CustomProfileExtraRows.ACTION_SHARE,
     };
 
-    // These are provider IDs, not positions in the menu: 5 was public SoundCloud, 6 signs in.
-    private static final int[] SERVICES = {0, 1, 2, 3, 4, 6};
+    // Provider IDs, not menu positions: public SoundCloud (5) never needs user login.
+    private static final int[] SERVICES = {0, 1, 2, 3, 4, 5, 6};
 
     /** −1 for the list, otherwise the row being edited. */
     private final int index;
@@ -179,7 +179,8 @@ public class CustomProfileBlocksActivity extends CustomProfileListActivity {
                 final ArrayList<String> services = new ArrayList<>();
                 int selected = -1;
                 for (int i = 0; i < SERVICES.length; i++) {
-                    services.add(SERVICES[i] == 6 ? getString(R.string.CustomProfileIntegrationSoundcloudAccount)
+                    services.add(SERVICES[i] == 5 ? getString(R.string.CustomProfileIntegrationSoundcloudPublic)
+                            : SERVICES[i] == 6 ? getString(R.string.CustomProfileIntegrationSoundcloudPrivate)
                             : CustomProfileIntegrations.serviceName(SERVICES[i]));
                     if (SERVICES[i] == block.service) selected = i;
                 }
@@ -197,11 +198,25 @@ public class CustomProfileBlocksActivity extends CustomProfileListActivity {
                             rebuild();
                         });
             });
+            if (block.service == 5) info(getString(R.string.CustomProfileIntegrationSoundcloudPublicInfo));
+            if (block.service == 6) info(getString(R.string.CustomProfileIntegrationSoundcloudUnavailable));
             if (block.url.isEmpty()) info(getString(R.string.CustomProfileIntegrationNeedsBinding));
             if (!CustomProfileIntegrations.isConnected(block.service)) {
                 setting(getString(R.string.CustomProfileIntegrationAccount), preview(block.url),
                         () -> askText(getString(R.string.CustomProfileIntegrationAccount), block.url, 128, value -> {
-                            block.url = value;
+                            if (block.service == 5) {
+                                final String name = CustomProfileIntegrations.publicSoundcloudAccount(value);
+                                if (!value.trim().isEmpty() && name.isEmpty()) {
+                                    new AlertDialog.Builder(getParentActivity())
+                                            .setTitle(getString(R.string.CustomProfileIntegrationSoundcloudPublic))
+                                            .setMessage(getString(R.string.CustomProfileIntegrationSoundcloudPublicInfo))
+                                            .setPositiveButton(getString(R.string.OK), null).show();
+                                    return;
+                                }
+                                block.url = name; // Store only public identity, never query/fragment credentials.
+                            } else {
+                                block.url = value;
+                            }
                             CustomProfileExtraRows.store(blocks);
                         }));
             } else {
@@ -360,17 +375,28 @@ public class CustomProfileBlocksActivity extends CustomProfileListActivity {
     }
 
     private void linkedBlock(String id, int service, long owner, String providerId) {
-        if (!sameOwner(owner)) return;
+        if (!sameOwner(owner) || providerId == null || providerId.isEmpty()) return;
         List<CustomProfileExtraRows.Block> fresh = CustomProfileExtraRows.stored();
+        boolean targetExists = false;
         for (CustomProfileExtraRows.Block block : fresh) {
-            if (!block.id.equals(id) || block.service != service || block.type != CustomProfileExtraRows.TYPE_INTEGRATION) continue;
-            block.url = providerId;
-            try { block.accounts.put(CustomProfileIntegrations.key(service), providerId); }
-            catch (org.json.JSONException ignored) { }
-            CustomProfileExtraRows.store(fresh);
-            rebuild();
-            break;
+            if (block.id.equals(id) && block.service == service && block.type == CustomProfileExtraRows.TYPE_INTEGRATION) {
+                targetExists = true;
+                break;
+            }
         }
+        if (!targetExists) return;
+        // The backend holds one connection per owner/provider, not per block. Relinking
+        // one Spotify/Yandex/SoundCloud block must not leave the others bound to its old id.
+        for (CustomProfileExtraRows.Block block : fresh) {
+            if (block.type != CustomProfileExtraRows.TYPE_INTEGRATION) continue;
+            if (block.service == service) block.url = providerId;
+            if (block.service == service || block.accounts.has(CustomProfileIntegrations.key(service))) {
+                try { block.accounts.put(CustomProfileIntegrations.key(service), providerId); }
+                catch (org.json.JSONException ignored) { }
+            }
+        }
+        CustomProfileExtraRows.store(fresh);
+        rebuild();
     }
 
     private void connect(CustomProfileExtraRows.Block block) {
@@ -378,6 +404,14 @@ public class CustomProfileBlocksActivity extends CustomProfileListActivity {
         final long owner = org.telegram.messenger.UserConfig.getInstance(currentAccount).getClientUserId();
         final String id = block.id;
         final int service = block.service;
+        if (service == 6) {
+            new AlertDialog.Builder(getParentActivity()).setTitle(CustomProfileIntegrations.serviceName(service))
+                    .setMessage(getString(R.string.CustomProfileIntegrationSoundcloudUnavailable))
+                    .setPositiveButton(getString(R.string.CustomProfileIntegrationSoundcloudPublic),
+                            (dialog, which) -> usePublicSoundcloud(id, owner))
+                    .setNegativeButton(getString(R.string.Cancel), null).show();
+            return;
+        }
         if (!tw.nekomimi.nekogram.helpers.SovietGramApiClient.isReady(currentAccount)) {
             new AlertDialog.Builder(getParentActivity()).setTitle(CustomProfileIntegrations.serviceName(service))
                     .setMessage(getString(R.string.CustomProfileIntegrationUnavailable))
@@ -393,6 +427,26 @@ public class CustomProfileBlocksActivity extends CustomProfileListActivity {
                 .setNegativeButton(getString(R.string.Cancel), null).show();
     }
 
+    private void usePublicSoundcloud(String id, long owner) {
+        if (!sameOwner(owner)) return;
+        final List<CustomProfileExtraRows.Block> fresh = CustomProfileExtraRows.stored();
+        for (CustomProfileExtraRows.Block block : fresh) {
+            if (!block.id.equals(id) || block.type != CustomProfileExtraRows.TYPE_INTEGRATION || block.service != 6) continue;
+            // This changes only the selected block, never deletes a saved server connection.
+            try { block.accounts.put(CustomProfileIntegrations.key(6), block.url); }
+            catch (org.json.JSONException ignored) { }
+            block.service = 5;
+            block.url = block.accounts.optString(CustomProfileIntegrations.key(5));
+            block.mode = 0;
+            block.parts = new org.json.JSONArray();
+            block.parts.put(0);
+            CustomProfileIntegrations.clearCache();
+            CustomProfileExtraRows.store(fresh);
+            rebuild();
+            return;
+        }
+    }
+
     private void disconnect(CustomProfileExtraRows.Block block) {
         if (getParentActivity() == null) return;
         final long owner = org.telegram.messenger.UserConfig.getInstance(currentAccount).getClientUserId();
@@ -401,6 +455,7 @@ public class CustomProfileBlocksActivity extends CustomProfileListActivity {
                 .setMessage(getString(R.string.CustomProfileIntegrationDisconnectInfo))
                 .setPositiveButton(getString(R.string.CustomProfileIntegrationDisconnect), (dialog, which) -> {
                     if (!sameOwner(owner)) return;
+                    tw.nekomimi.nekogram.helpers.CustomProfileIntegrationOAuth.cancelPending(currentAccount);
                     tw.nekomimi.nekogram.helpers.SovietGramApiClient.deleteSigned(currentAccount,
                             "/v1/integration-accounts/" + CustomProfileIntegrations.key(service), (body, error) ->
                             org.telegram.messenger.AndroidUtilities.runOnUIThread(() -> {

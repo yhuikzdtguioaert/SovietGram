@@ -198,9 +198,40 @@ public final class CustomProfileIntegrations {
         int[] modes = MODES[Math.max(0, Math.min(6, service))];
         return LocaleController.getString(modes[Math.max(0, Math.min(modes.length - 1, mode))]);
     }
+    /** Public profile identity only: never accept provider sign-in/callback URLs. */
+    public static String publicSoundcloudAccount(String value) {
+        String name = value == null ? "" : value.trim();
+        if (name.contains("://")) {
+            try {
+                final java.net.URI uri = new java.net.URI(name);
+                final String host = uri.getHost();
+                if (!"https".equalsIgnoreCase(uri.getScheme()) || host == null
+                        || !(host.equalsIgnoreCase("soundcloud.com") || host.equalsIgnoreCase("www.soundcloud.com")
+                        || host.equalsIgnoreCase("m.soundcloud.com"))
+                        || uri.getUserInfo() != null || uri.getPort() != -1 || uri.getFragment() != null) return "";
+                final String query = uri.getRawQuery();
+                if (query != null) {
+                    for (String field : query.split("&")) {
+                        final String key = field.split("=", 2)[0];
+                        if (!(key.equals("si") || key.equals("utm_source") || key.equals("utm_medium") || key.equals("utm_campaign"))) return "";
+                    }
+                }
+                final String path = uri.getPath();
+                if (path == null || !path.matches("/[A-Za-z0-9._-]{1,64}/?")) return "";
+                name = path.substring(1).replaceAll("/$", "");
+            } catch (java.net.URISyntaxException ignored) { return ""; }
+        }
+        if (!name.matches("[A-Za-z0-9._-]{1,64}")) return "";
+        return switch (name.toLowerCase(java.util.Locale.ROOT)) {
+            case "signin", "sign-in", "login", "logout", "discover", "you", "search", "stream", "upload", "settings", "oauth", "authorize", "connect" -> "";
+            default -> name;
+        };
+    }
+
     public static String account(CustomProfileExtraRows.Block block) {
         String name = block.url.trim();
         if (name.isEmpty()) name = block.accounts.optString(key(block.service));
+        if (block.service == 5 && !isShortSoundcloud(name)) return publicSoundcloudAccount(name);
         if (name.startsWith("https://") || name.startsWith("http://")) {
             Uri uri = Uri.parse(name);
             String host = uri.getHost();
@@ -237,7 +268,11 @@ public final class CustomProfileIntegrations {
     public static void load(int account, CustomProfileExtraRows.Block block, Consumer<String> sink) {
         loadRich(account, UserConfig.getInstance(account).getClientUserId(), block, rich -> sink.accept(rich.text));
     }
-    public static void clearCache() { cacheGeneration++; CACHE.clear(); }
+    public static void clearCache() {
+        cacheGeneration++;
+        CACHE.clear();
+        PENDING.clear(); PENDING_SINCE.clear(); LATEST.clear();
+    }
     public static void load(int account, long profileOwner, CustomProfileExtraRows.Block block, Consumer<String> sink) {
         loadRich(account, profileOwner, block, rich -> sink.accept(rich.text));
     }
@@ -292,6 +327,9 @@ public final class CustomProfileIntegrations {
         final String blockId = block.id;
         final long trust = refreshMs(block) + 8000L;
         SovietGramApiClient.get(account, path, (body, error) -> AndroidUtilities.runOnUIThread(() -> {
+            // A reconnect/disconnect, or a retry after PENDING_LIMIT_MS, superseded this request.
+            // It must not repaint cards, change their tap target, or consume the new waiters.
+            if (requestedGeneration != cacheGeneration || PENDING.get(cacheKey) != mine) return;
             Rich value = describe(service, body, trust);
             if (CACHE.size() >= 256) CACHE.remove(CACHE.keySet().iterator().next());
             if (requestedGeneration == cacheGeneration) CACHE.put(cacheKey, new Held(value,

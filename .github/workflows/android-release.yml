@@ -31,6 +31,21 @@ jobs:
           java-version: "21"
           cache: gradle
 
+      - name: Use the runner-provisioned Java 21 for Gradle
+        shell: bash
+        run: |
+          # Repository daemon criteria pin JetBrains downloads through Foojay.
+          # CI already provisions Java 21; avoid a second, unreliable JDK download.
+          rm -f gradle/gradle-daemon-jvm.properties
+          test -x "$JAVA_HOME/bin/java"
+          "$JAVA_HOME/bin/java" -version
+
+      - name: Run lightweight updater regressions
+        shell: bash
+        run: |
+          bash scripts/test-updater.sh
+          python3 tests/updater/test_release_verification.py
+
       - name: Set up Go 1.26
         uses: actions/setup-go@v6
         with:
@@ -107,16 +122,18 @@ jobs:
           ./gradlew :TMessagesProj:assembleRelease --no-daemon --stacktrace
 
       - name: Verify APK output
+        id: verified
         shell: bash
         run: |
-          find TMessagesProj/build/outputs/apk/release -type f -name '*.apk' -print -quit \
-            | grep -q .
+          python3 scripts/verify-release-apks.py
 
       - name: Upload signed APKs
         uses: actions/upload-artifact@v7
         with:
-          name: SovietGram-signed-${{ github.sha }}
-          path: TMessagesProj/build/outputs/apk/release/*.apk
+          name: SovietGram-v${{ steps.verified.outputs.version_name }}-${{ steps.verified.outputs.version_code }}-${{ github.sha }}
+          path: |
+            TMessagesProj/build/outputs/apk/release/*.apk
+            TMessagesProj/build/outputs/apk/release/verified-release.json
           if-no-files-found: error
           retention-days: 14
 

@@ -1,0 +1,22 @@
+name: Profile music and integration contracts
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  lightweight-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Source regression contracts
+        run: python3 -m unittest discover -s tests -p 'test_profile_music_integration_contracts.py' -v
+      - name: Install Java syntax parser (not Android toolchain)
+        run: python3 -m pip install tree-sitter==0.26.0 tree-sitter-java==0.23.5
+      - name: Java syntax check
+        run: python3 scripts/check_profile_integration_java.py

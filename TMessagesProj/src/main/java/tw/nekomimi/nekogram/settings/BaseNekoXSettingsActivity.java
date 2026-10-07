@@ -109,6 +109,8 @@ public class BaseNekoXSettingsActivity extends BaseFragment {
         fragmentView.setBackgroundColor(getThemedColor(Theme.key_windowBackgroundGray));
         FrameLayout frameLayout = (FrameLayout) fragmentView;
 
+        // A detached old view may never execute its posted refresh.
+        rowsRefreshPosted = false;
         listView = createListView(context);
         listView.setVerticalScrollBarEnabled(false);
         listView.setLayoutManager(layoutManager = new LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false));
@@ -137,6 +139,8 @@ public class BaseNekoXSettingsActivity extends BaseFragment {
      * notifyDataSetChanged, but never while the list is computing a layout or scrolling: RecyclerView
      * throws IllegalStateException then, and a toggle tapped during a fling used to crash the screen.
      */
+    private boolean rowsRefreshPosted;
+
     @SuppressLint("NotifyDataSetChanged")
     protected void notifyAllRowsChanged() {
         final RecyclerListView.SelectionAdapter adapter = getListAdapter();
@@ -144,15 +148,81 @@ public class BaseNekoXSettingsActivity extends BaseFragment {
             return;
         }
         if (listView != null && listView.isComputingLayout()) {
-            listView.post(this::notifyAllRowsChanged);
+            if (!rowsRefreshPosted) {
+                rowsRefreshPosted = true;
+                final BlurredRecyclerView target = listView;
+                target.post(() -> {
+                    if (listView != target) {
+                        return;
+                    }
+                    rowsRefreshPosted = false;
+                    if (target.getAdapter() == adapter && !isFinished) {
+                        notifyAllRowsChanged();
+                    }
+                });
+            }
             return;
         }
-        try {
-            adapter.notifyDataSetChanged();
-        } catch (IllegalStateException e) {
-            if (listView != null) {
-                listView.post(this::notifyAllRowsChanged);
-            }
+        adapter.notifyDataSetChanged();
+    }
+
+    /**
+     * Keep a structural mutation and its adapter notification in the same UI turn.
+     * Deferred work must read current configuration, not an opening-time value.
+     * Work posted to a replaced view is discarded; subclasses must reconcile their
+     * model from configuration before attaching the replacement adapter.
+     * The notifyRowInserted/Removed helpers alone only guard notifications, not
+     * preceding mutations of the adapter's backing rows.
+     */
+    protected void runWhenListIdle(Runnable update) {
+        if (isFinished) {
+            return;
+        }
+        if (listView != null && listView.isComputingLayout()) {
+            final BlurredRecyclerView target = listView;
+            target.post(() -> {
+                if (listView == target) {
+                    runWhenListIdle(update);
+                }
+            });
+            return;
+        }
+        update.run();
+    }
+
+    protected void notifyRowChanged(int position) {
+        if (position < 0) {
+            return;
+        }
+        if (listView != null && listView.isComputingLayout()) {
+            // Positions can change before the posted update; refresh from the current model instead.
+            notifyAllRowsChanged();
+        } else if (getListAdapter() != null) {
+            getListAdapter().notifyItemChanged(position);
+        }
+    }
+
+    protected void notifyRowInserted(int position) {
+        if (listView != null && listView.isComputingLayout()) {
+            notifyAllRowsChanged();
+        } else if (getListAdapter() != null && position >= 0) {
+            getListAdapter().notifyItemInserted(position);
+        }
+    }
+
+    protected void notifyRowRemoved(int position) {
+        if (listView != null && listView.isComputingLayout()) {
+            notifyAllRowsChanged();
+        } else if (getListAdapter() != null && position >= 0) {
+            getListAdapter().notifyItemRemoved(position);
+        }
+    }
+
+    protected void notifyRowRangeChanged(int position, int count) {
+        if (listView != null && listView.isComputingLayout()) {
+            notifyAllRowsChanged();
+        } else if (getListAdapter() != null && position >= 0) {
+            getListAdapter().notifyItemRangeChanged(position, count);
         }
     }
 

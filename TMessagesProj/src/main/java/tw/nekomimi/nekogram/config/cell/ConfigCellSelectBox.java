@@ -33,6 +33,7 @@ public class ConfigCellSelectBox extends AbstractConfigCell implements WithBindC
     private final int[] itemIconRawRes;
     private RLottieDrawable valueIconDrawable;
     private int lastValueIconRawRes;
+    private final ConfigCellListUpdate listUpdate = new ConfigCellListUpdate();
 
     // default: customTitle=null customOnClick=null
     public ConfigCellSelectBox(String key, ConfigItem bind, Object selectList_s, Runnable customOnClick) {
@@ -139,15 +140,21 @@ public class ConfigCellSelectBox extends AbstractConfigCell implements WithBindC
     }
 
     private void handleItemSelected(int index) {
-        int selectedValue = getSelectedValue(index);
-        bindConfig.setConfigInt(selectedValue);
+        listUpdate.run(cellGroup, () -> {
+            int position = cellGroup.rows.indexOf(this);
+            if (position < 0) return;
+            int selectedValue = getSelectedValue(index);
+            bindConfig.setConfigInt(selectedValue);
 
-        if (cellGroup.listAdapter != null)
-            cellGroup.listAdapter.notifyItemChanged(cellGroup.rows.indexOf(this));
-        if (cellGroup.thisFragment != null)
-            cellGroup.thisFragment.getParentLayout().rebuildFragments(0);
+            if (cellGroup.listAdapter != null) {
+                cellGroup.listAdapter.notifyItemChanged(position);
+            }
+            if (cellGroup.thisFragment != null && cellGroup.thisFragment.getParentLayout() != null) {
+                cellGroup.thisFragment.getParentLayout().rebuildFragments(0);
+            }
 
-        cellGroup.runCallback(bindConfig.getKey(), selectedValue);
+            cellGroup.runCallback(bindConfig.getKey(), selectedValue);
+        });
     }
 
     private int getSelectedIndex(int value) {

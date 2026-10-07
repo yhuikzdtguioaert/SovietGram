@@ -1,0 +1,89 @@
+// Small dependency seam; the two production methods are inserted verbatim by the Python runner.
+// No Android classes/Gradle: validate transaction ordering, queuing and lifecycle rejection on JVM.
+import java.util.ArrayDeque;
+
+public class ProfileCommentsHarness {
+    @interface Nullable {}
+    static class CustomProfileExtraRows {
+        static final int TYPE_LINK = 1, ACTION_OPEN = 1;
+        static class Block { String title, text, url; int action; }
+        static Block create(int type) { return new Block(); }
+    }
+    static class R { static class string { static final int CustomProfileComments = 1; } }
+    static class LocaleController { static String getString(int id) { return "Comments"; } }
+    static class Body {
+        boolean preview = true;
+        boolean optBoolean(String key, boolean fallback) { return preview; }
+        int optInt(String key) { return 2; }
+    }
+    interface Callback { void accept(Body body, String error); }
+    static class Api {
+        static Body response = new Body();
+        static boolean isReady(int account) { return true; }
+        static void get(int account, String path, Callback cb) { cb.accept(response, null); }
+    }
+    static class ListView {
+        boolean computing;
+        ArrayDeque<Runnable> queue = new ArrayDeque<>();
+        void post(Runnable action) { queue.add(action); }
+        boolean isComputingLayout() { return computing; }
+        void tick() { queue.remove().run(); }
+    }
+    class Adapter {
+        int notifications;
+        void notifyDataSetChanged() {
+            if (listView.computing) throw new IllegalStateException("Cannot notify during layout");
+            if (rowSource != profileCommentsBlock) throw new AssertionError("Row ids are stale");
+            notifications++;
+        }
+    }
+    long userId = 42;
+    int currentAccount, profileCommentsRequest, rowUpdates;
+    boolean isFinished;
+    ListView listView = new ListView();
+    Adapter listAdapter = new Adapter();
+    CustomProfileExtraRows.Block profileCommentsBlock, rowSource;
+    void updateRowsIds() {
+        if (listView.computing) throw new AssertionError("Changed row ids during layout");
+        rowSource = profileCommentsBlock;
+        rowUpdates++;
+    }
+
+    // PRODUCTION_METHODS
+
+    static void check(boolean value, String message) { if (!value) throw new AssertionError(message); }
+    public static void main(String[] args) {
+        ProfileCommentsHarness h = new ProfileCommentsHarness();
+        h.listView.computing = true;
+        h.refreshProfileComments();
+        check(h.profileCommentsBlock == null && h.rowUpdates == 0 && h.listAdapter.notifications == 0,
+              "Callback must defer all mutations");
+        h.listView.tick(); // still computing: requeue rather than mutate or throw
+        check(h.rowUpdates == 0 && h.listView.queue.size() == 1, "Busy layout must retry");
+        h.listView.computing = false;
+        h.listView.tick();
+        check(h.profileCommentsBlock != null && h.rowUpdates == 1 && h.listAdapter.notifications == 1,
+              "One atomic update after layout");
+        CustomProfileExtraRows.Block old = h.profileCommentsBlock;
+        h.refreshProfileComments();
+        h.refreshProfileComments();
+        h.listView.tick();
+        check(h.profileCommentsBlock == old && h.rowUpdates == 1, "Stale queued response rejected");
+        h.listView.tick();
+        check(h.rowUpdates == 2 && h.listAdapter.notifications == 2, "Newest response applied once");
+        h.refreshProfileComments();
+        h.isFinished = true;
+        h.listView.tick();
+        check(h.rowUpdates == 2, "Destroyed profile must not update");
+        h.isFinished = false;
+        Api.response.preview = false;
+        h.refreshProfileComments();
+        check(h.profileCommentsBlock != null, "Removal also waits for posted transaction");
+        h.listView.tick();
+        check(h.profileCommentsBlock == null && h.rowUpdates == 3, "Hidden preview removed safely");
+        Api.response = null;
+        h.refreshProfileComments();
+        check(h.listView.queue.isEmpty() && h.rowUpdates == 3, "Null response must leave state untouched");
+        System.out.println("PASS: profile comments layout/cache/lifecycle replay");
+    }
+}

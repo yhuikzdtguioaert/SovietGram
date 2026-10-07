@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/** Compares SovietGram build numbers and Telegram release names as independent update tracks. */
+/** Android's monotonically increasing app build is the only install/update ordering key. */
 public final class IndependentVersionComparator {
     private static final Pattern NUMBER = Pattern.compile("\\d+");
 
@@ -12,7 +12,10 @@ public final class IndependentVersionComparator {
     }
 
     public static boolean isUpdate(int remoteCode, String remoteName, int localCode, String localName) {
-        return remoteCode > localCode || compareReleaseNames(remoteName, localName) > 0;
+        // versionName describes Telegram sources, not Android installability. Equal/older
+        // builds must never reappear just because that label (or a commit suffix) differs.
+        // Missing build metadata is not sufficient evidence of an installable update.
+        return remoteCode > 0 && remoteCode > localCode;
     }
 
     public static int compareReleaseNames(String left, String right) {

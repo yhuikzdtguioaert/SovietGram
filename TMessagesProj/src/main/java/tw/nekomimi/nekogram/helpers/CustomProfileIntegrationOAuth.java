@@ -21,24 +21,29 @@ import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BaseFragment;
 
 import java.util.function.Consumer;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
  * Connects a provider account through the system browser.
  *
- * <p>The provider's own sign-in page is opened in the user's browser — never in a view inside the
- * app. The provider sends the browser back to the SovietGram server, which exchanges the one-time
- * code and keeps the tokens; this class only starts that, then asks the server how it went. Nothing
- * the user types on the provider's page, and no token, ever passes through the app.
+ * <p>Spotify opens the provider in the system browser, then polls a server OAuth state. The
+ * server exchanges the authorization code and stores the provider token bundle.
  *
- * <p>Yandex Music is the one exception in shape, not in spirit: its token is only shown on a page,
- * so after the browser step the user pastes it (or the address of that page) back here.
+ * <p>Yandex Music uses a manual token, previewed and saved only after confirmation.
+ * New SoundCloud sign-in is unavailable: this server has no registered SoundCloud
+ * OAuth credentials, code exchange or refresh implementation. Public profile blocks
+ * remain available without user authorization; existing connections are preserved.
  */
 public final class CustomProfileIntegrationOAuth {
+    // UI-thread only: providers may coexist as saved integrations, but only one
+    // sign-in dialog/browser attempt per Telegram account owns callbacks at a time.
+    private static final Map<Integer, CustomProfileIntegrationOAuth> ACTIVE = new HashMap<>();
     private static final long POLL_MS = 2000;
     private static final long GIVE_UP_MS = 10 * 60 * 1000;
-    private static final Pattern PASTED_TOKEN = Pattern.compile("access_token=([A-Za-z0-9._~+/-]{16,8192})");
+    private static final Pattern PASTED_TOKEN = Pattern.compile("access_token=([A-Za-z0-9._~+/-]{16,8192}={0,2})");
 
     private final BaseFragment fragment;
     private final int account;
@@ -61,40 +66,36 @@ public final class CustomProfileIntegrationOAuth {
 
     /** Starts the sign-in for {@code service} (3 Yandex Music, 4 Spotify, 6 SoundCloud). */
     public static void begin(BaseFragment fragment, int account, int service, Consumer<JSONObject> connected) {
-        new CustomProfileIntegrationOAuth(fragment, account, service, connected).start();
+        if (fragment == null || fragment.isFinished || fragment.getParentActivity() == null) return;
+        final CustomProfileIntegrationOAuth previous = ACTIVE.get(account);
+        if (previous != null) previous.cancel();
+        final CustomProfileIntegrationOAuth next = new CustomProfileIntegrationOAuth(fragment, account, service, connected);
+        ACTIVE.put(account, next);
+        next.start();
     }
 
     private boolean alive() {
         return !finished && !fragment.isFinished && fragment.getParentActivity() != null
+                && ACTIVE.get(account) == this && UserConfig.selectedAccount == account
                 && owner > 0 && UserConfig.getInstance(account).getClientUserId() == owner;
+    }
+
+    /** Invalidates client callbacks; cancelling an already-open provider callback needs server support. */
+    public static void cancelPending(int account) {
+        final CustomProfileIntegrationOAuth pending = ACTIVE.get(account);
+        if (pending != null) pending.cancel();
     }
 
     private String path() {
         return "/v1/integration-accounts/" + CustomProfileIntegrations.key(service);
     }
 
-    /** SoundCloud: its own sign-in page opens inside the app and the token is taken from it, nothing to copy. */
-    private void startSoundcloud() {
-        fragment.presentFragment(new tw.nekomimi.nekogram.settings.CustomProfileSoundcloudSignIn(path() + "/preview",
-                new tw.nekomimi.nekogram.settings.CustomProfileSoundcloudSignIn.Listener() {
-                    @Override public void onSignedIn(String token, JSONObject who) {
-                        if (!alive()) return;
-                        final JSONObject payload = new JSONObject();
-                        try { payload.put("token", token); } catch (Exception ignored) { return; }
-                        confirm(payload, who);
-                    }
-
-                    @Override public void onManual() {
-                        if (!alive()) return;
-                        openBrowser("https://soundcloud.com/signin");
-                        askToken(null);
-                    }
-                }));
-    }
-
     private void start() {
+        // Website sign-in is not our OAuth grant. This server has no registered
+        // SoundCloud app credentials, callback exchange or refresh implementation.
+        // Never open a dead-end website login or ask users to extract a session cookie.
         if (service == 6) {
-            startSoundcloud();
+            fail(getString(R.string.CustomProfileIntegrationSoundcloudUnavailable));
             return;
         }
         final JSONObject body = new JSONObject();
@@ -102,19 +103,33 @@ public final class CustomProfileIntegrationOAuth {
         catch (Exception ignored) { }
         final int request = ++generation;
         SovietGramApiClient.postSigned(account, path() + "/oauth/start", body, (response, error) -> {
-            if (!alive() || request != generation) return;
+            if (!alive() || request != generation) {
+                final String abandonedState = response == null ? "" : response.optString("state");
+                if (abandonedState.matches("[A-Za-z0-9_-]{32,64}")) {
+                    SovietGramApiClient.deleteSigned(account, "/v1/integration-accounts/oauth/" + abandonedState,
+                            (ignoredBody, ignoredError) -> { /* A late start response still owns a server state. */ });
+                }
+                return;
+            }
             final String url = response == null ? null : response.optString("url", null);
             if (error != null || url == null || !url.startsWith("https://")) {
-                fail(error != null && error.contains("oauth_not_configured")
+                fail(error != null && (error.contains("oauth_not_configured")
+                        || (service == 6 && error.contains("bad_request")))
                         ? getString(R.string.CustomProfileIntegrationNotConfigured)
                         : getString(R.string.CustomProfileIntegrationUnavailable));
+                return;
+            }
+            final boolean manual = service == 3 && response.optBoolean("manual");
+            state = response.optString("state");
+            if (!manual && !state.matches("[A-Za-z0-9_-]{32,64}")) {
+                fail(getString(R.string.CustomProfileIntegrationUnavailable));
                 return;
             }
             if (!openBrowser(url)) {
                 fail(getString(R.string.CustomProfileIntegrationNoBrowser));
                 return;
             }
-            if (response.optBoolean("manual")) {
+            if (manual) {
                 askToken(null);
             } else {
                 state = response.optString("state");
@@ -157,7 +172,7 @@ public final class CustomProfileIntegrationOAuth {
         @Override public void run() {
             if (!alive()) {
                 // The screen went away while the browser had the foreground: nothing left to wait for.
-                dismiss();
+                cancel();
                 return;
             }
             if (state == null) return;
@@ -195,15 +210,13 @@ public final class CustomProfileIntegrationOAuth {
         input.setSingleLine(true);
         input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
         input.setHint(getString(R.string.CustomProfileIntegrationPasteHint));
-        final boolean soundcloud = service == 6;
         // Whatever is on the clipboard when the dialog opens was there before the sign-in, so it is
         // only remembered, not used: a token copied on the provider's page afterwards is picked up
         // by the watch below the moment the user comes back, without anything to paste or press.
         staleClip = clipboardText(activity);
         final AlertDialog.Builder builder = new AlertDialog.Builder(activity)
                 .setTitle(CustomProfileIntegrations.serviceName(service))
-                .setMessage((problem == null ? "" : problem + "\n\n") + getString(soundcloud
-                        ? R.string.CustomProfileIntegrationPasteTokenSoundcloud : R.string.CustomProfileIntegrationPasteToken))
+                .setMessage((problem == null ? "" : problem + "\n\n") + getString(R.string.CustomProfileIntegrationPasteToken))
                 .setView(input)
                 .setPositiveButton(getString(R.string.Done), (d, which) -> {
                     final String token = extractToken(input.getText().toString());
@@ -211,17 +224,6 @@ public final class CustomProfileIntegrationOAuth {
                     else preview(token);
                 })
                 .setNegativeButton(getString(R.string.Cancel), (d, which) -> cancel());
-        if (soundcloud) {
-            // SoundCloud shows its token nowhere: a line typed into the address bar of a browser signed in to it reads
-            // the token out of the page and offers it in a box to copy. The line is put on the clipboard for that.
-            builder.setNeutralButton(getString(R.string.CustomProfileIntegrationCopyScript), (d, which) -> {
-                try {
-                    final ClipboardManager clipboard = (ClipboardManager) activity.getSystemService(Context.CLIPBOARD_SERVICE);
-                    clipboard.setPrimaryClip(ClipData.newPlainText("script", SOUNDCLOUD_SCRIPT));
-                } catch (RuntimeException ignored) { }
-                askToken(null);
-            });
-        }
         dialog = builder.create();
         dialog.setOnCancelListener(d -> cancel());
         dialog.show();
@@ -230,9 +232,6 @@ public final class CustomProfileIntegrationOAuth {
     }
 
     private String staleClip = "";
-
-    /** Typed after "javascript:" in the address bar of a browser signed in to soundcloud.com (the prefix is typed by hand: a browser drops it from pasted text). */
-    private static final String SOUNDCLOUD_SCRIPT = "prompt('SoundCloud token',document.cookie.match(/oauth_token=([^;]+)/)[1])";
 
     private static String clipboardText(Context context) {
         try {
@@ -265,7 +264,6 @@ public final class CustomProfileIntegrationOAuth {
 
     private boolean looksLikeToken(String text) {
         final String t = text == null ? "" : text.trim();
-        if (service == 6) return t.matches("[0-9]-[0-9]+-[0-9]+-[A-Za-z0-9]{6,64}");
         return t.contains("access_token=") || t.startsWith("y0_") || t.startsWith("AQAAAA");
     }
 
@@ -274,7 +272,7 @@ public final class CustomProfileIntegrationOAuth {
         final String text = pasted.trim();
         final Matcher matcher = PASTED_TOKEN.matcher(text);
         if (matcher.find()) return matcher.group(1);
-        return text.matches("[A-Za-z0-9._~+/-]{16,8192}") ? text : null;
+        return text.matches("[A-Za-z0-9._~+/-]{16,8192}={0,2}") && text.length() <= 8192 ? text : null;
     }
 
     private void preview(String token) {
@@ -319,15 +317,30 @@ public final class CustomProfileIntegrationOAuth {
     // ------------------------------------------------------------ outcomes
 
     private void finish(JSONObject saved) {
+        if (saved == null || saved.optString("id").isEmpty()) {
+            fail(getString(R.string.CustomProfileIntegrationUnavailable));
+            return;
+        }
         finished = true;
         generation++;
+        ACTIVE.remove(account, this);
+        AndroidUtilities.cancelRunOnUIThread(poll);
+        AndroidUtilities.cancelRunOnUIThread(watchClipboard);
+        dismiss();
         CustomProfileIntegrations.clearCache();
         connected.accept(saved);
     }
 
     private void cancel() {
+        final String abandonedState = state;
+        state = null;
+        if (abandonedState != null && abandonedState.matches("[A-Za-z0-9_-]{32,64}")) {
+            SovietGramApiClient.deleteSigned(account, "/v1/integration-accounts/oauth/" + abandonedState,
+                    (body, error) -> { /* Best effort: disconnect/replacement also invalidates this state. */ });
+        }
         finished = true;
         generation++;
+        ACTIVE.remove(account, this);
         AndroidUtilities.cancelRunOnUIThread(poll);
         AndroidUtilities.cancelRunOnUIThread(watchClipboard);
         dismiss();
@@ -341,11 +354,7 @@ public final class CustomProfileIntegrationOAuth {
     }
 
     private void fail(String message) {
-        finished = true;
-        generation++;
-        AndroidUtilities.cancelRunOnUIThread(poll);
-        AndroidUtilities.cancelRunOnUIThread(watchClipboard);
-        dismiss();
+        cancel();
         final Activity activity = fragment.getParentActivity();
         if (fragment.isFinished || activity == null) return;
         new AlertDialog.Builder(activity)

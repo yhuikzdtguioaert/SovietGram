@@ -12,6 +12,7 @@ import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.FileLog;
 import org.telegram.messenger.MessagesController;
+import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
 import org.telegram.messenger.SendMessagesHelper;
@@ -71,10 +72,16 @@ public final class ProfileMusicHelper {
             return;
         }
         final int account = fragment.getCurrentAccount();
+        final long owner = UserConfig.getInstance(account).getClientUserId();
+        if (owner <= 0) return;
         BulletinFactory.of(fragment).createSimpleBulletin(R.raw.timer_3, getString(R.string.CustomProfileMusicUploading)).show();
         Utilities.globalQueue.postRunnable(() -> {
             final File copy = copyToCache(uri);
             AndroidUtilities.runOnUIThread(() -> {
+                if (fragment.isFinished || UserConfig.getInstance(account).getClientUserId() != owner) {
+                    if (copy != null) copy.delete();
+                    return;
+                }
                 if (copy == null) {
                     BulletinFactory.of(fragment).createErrorBulletin(getString(R.string.CustomProfileMusicFailed)).show();
                     return;
@@ -86,12 +93,12 @@ public final class ProfileMusicHelper {
 
     private static void send(int account, BaseFragment fragment, File file) {
         final long self = UserConfig.getInstance(account).getClientUserId();
-        final Waiter waiter = new Waiter(account, self, fragment);
+        final Waiter waiter = new Waiter(account, self, fragment, file.getAbsolutePath());
         waiter.start();
         final ArrayList<String> paths = new ArrayList<>();
         paths.add(file.getAbsolutePath());
         final ArrayList<String> originals = new ArrayList<>();
-        originals.add(file.getName());
+        originals.add(file.getAbsolutePath());
         try {
             SendMessagesHelper.prepareSendingDocuments(AccountInstance.getInstance(account), paths, originals, null,
                     "", "audio/mpeg", self, null, null, null, null, null, true, 0, null, null, 0, false, 0);
@@ -107,19 +114,22 @@ public final class ProfileMusicHelper {
         private final int account;
         private final long self;
         private final BaseFragment fragment;
-        private final int startedAt;
+        private final String path;
+        private Integer localMessageId;
         private boolean done;
-        private final Runnable timeout = this::stop;
+        private final Runnable timeout = this::fail;
 
-        Waiter(int account, long self, BaseFragment fragment) {
+        Waiter(int account, long self, BaseFragment fragment, String path) {
             this.account = account;
             this.self = self;
             this.fragment = fragment;
-            this.startedAt = ConnectionsManager.getInstance(account).getCurrentTime() - 5;
+            this.path = path;
         }
 
         void start() {
             NotificationCenter.getInstance(account).addObserver(this, NotificationCenter.messageReceivedByServer);
+            NotificationCenter.getInstance(account).addObserver(this, NotificationCenter.didReceiveNewMessages);
+            NotificationCenter.getInstance(account).addObserver(this, NotificationCenter.messageSendError);
             AndroidUtilities.runOnUIThread(timeout, WAIT_MS);
         }
 
@@ -130,29 +140,62 @@ public final class ProfileMusicHelper {
             done = true;
             AndroidUtilities.cancelRunOnUIThread(timeout);
             NotificationCenter.getInstance(account).removeObserver(this, NotificationCenter.messageReceivedByServer);
+            NotificationCenter.getInstance(account).removeObserver(this, NotificationCenter.didReceiveNewMessages);
+            NotificationCenter.getInstance(account).removeObserver(this, NotificationCenter.messageSendError);
+        }
+
+        void fail() {
+            if (done) return;
+            stop();
+            if (!fragment.isFinished) {
+                BulletinFactory.of(fragment).createErrorBulletin(getString(R.string.CustomProfileMusicFailed)).show();
+            }
         }
 
         @Override
         public void didReceivedNotification(int id, int acc, Object... args) {
-            if (done || id != NotificationCenter.messageReceivedByServer || acc != account || args.length < 4) {
+            if (done || acc != account) return;
+            if (id == NotificationCenter.didReceiveNewMessages) {
+                if (args.length < 2 || !(args[0] instanceof Long) || (Long) args[0] != self
+                        || !(args[1] instanceof ArrayList)) return;
+                for (Object item : (ArrayList<?>) args[1]) {
+                    if (!(item instanceof MessageObject)) continue;
+                    final TLRPC.Message message = ((MessageObject) item).messageOwner;
+                    if (path.equals(message.attachPath)) localMessageId = message.id;
+                }
+                return;
+            }
+            if (id == NotificationCenter.messageSendError) {
+                if (args.length > 0 && localMessageId != null && localMessageId.equals(args[0])) fail();
+                return;
+            }
+            // The sender can move attachPath when updating server media. Bind to the local
+            // message before that, then correlate the server acknowledgement by its old id.
+            if (id != NotificationCenter.messageReceivedByServer || args.length < 4
+                    || localMessageId == null || !localMessageId.equals(args[0])) {
                 return;
             }
             if (!(args[2] instanceof TLRPC.Message) || !(args[3] instanceof Long) || (Long) args[3] != self) {
                 return;
             }
             final TLRPC.Message message = (TLRPC.Message) args[2];
-            if (message.date < startedAt || message.media == null || message.media.document == null) {
+            if (UserConfig.getInstance(account).getClientUserId() != self
+                    || message.media == null || message.media.document == null) {
+                fail();
                 return;
             }
             final TLRPC.Document document = message.media.document;
             boolean audio = false;
             for (int i = 0; i < document.attributes.size(); i++) {
                 if (document.attributes.get(i) instanceof TLRPC.TL_documentAttributeAudio) {
+                    final TLRPC.TL_documentAttributeAudio attribute = (TLRPC.TL_documentAttributeAudio) document.attributes.get(i);
+                    if (attribute.voice) break;
                     audio = true;
                     break;
                 }
             }
             if (!audio) {
+                fail();
                 return;
             }
             stop();
@@ -161,10 +204,12 @@ public final class ProfileMusicHelper {
     }
 
     private static void save(int account, TLRPC.Document document, BaseFragment fragment) {
+        final long owner = UserConfig.getInstance(account).getClientUserId();
         final TLRPC.TL_account_saveMusic req = new TLRPC.TL_account_saveMusic();
         req.unsave = false;
         req.id = inputOf(document);
         ConnectionsManager.getInstance(account).sendRequest(req, (response, error) -> AndroidUtilities.runOnUIThread(() -> {
+            if (UserConfig.getInstance(account).getClientUserId() != owner) return;
             if (error != null) {
                 BulletinFactory.of(fragment).createErrorBulletin(getString(R.string.CustomProfileMusicFailed)).show();
                 return;
@@ -223,10 +268,20 @@ public final class ProfileMusicHelper {
             name = "music_" + System.currentTimeMillis() + ".mp3";
         }
         name = name.replaceAll("[\\\\/:*?\"<>|]", "_");
-        final File dir = new File(ApplicationLoader.getFilesDirFixed(), "cache");
+        // Match Telegram's own picked-document copy path. Private files/cache is rejected
+        // by prepareSendingDocumentInternal's isInternalUri guard on affected devices.
+        final File dir = AndroidUtilities.getSharingDirectory();
         //noinspection ResultOfMethodCallIgnored
         dir.mkdirs();
-        final File out = new File(dir, name);
+        if (AndroidUtilities.isInternalUri(Uri.fromFile(dir))) return null;
+        final File out;
+        try {
+            // Two picks with the same display name must not overwrite an in-flight upload.
+            out = File.createTempFile("profile_music_", "_" + name, dir);
+        } catch (Exception e) {
+            FileLog.e(e);
+            return null;
+        }
         try (InputStream in = resolver.openInputStream(uri);
              OutputStream os = new FileOutputStream(out)) {
             if (in == null) {

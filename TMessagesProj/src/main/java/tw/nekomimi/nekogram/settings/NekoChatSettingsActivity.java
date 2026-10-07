@@ -554,21 +554,27 @@ public class NekoChatSettingsActivity extends BaseNekoXSettingsActivity implemen
     private InputBarPreviewCell inputBarPreviewCell;
 
     public NekoChatSettingsActivity() {
-        if (NaConfig.INSTANCE.getUseEditedIcon().Bool()) {
-            cellGroup.rows.remove(customEditedMessageRow);
-        }
-        if (NaConfig.INSTANCE.getTranscribeProvider().Int() != TranscribeHelper.TRANSCRIBE_OPENAI) {
-            cellGroup.rows.remove(transcribeProviderOpenAiRow);
-        }
-        if (!BuildVars.LOGS_ENABLED) {
-            cellGroup.rows.remove(markdownParserRow);
-        }
-        checkSkipOpenLinkConfirmRows();
-        checkConfirmAVRows();
-        if (!NaConfig.INSTANCE.getIosInputAppearance().Bool()) {
-            cellGroup.rows.remove(compactInputSizeRow);
-        }
+        reconcileConditionalRows();
         addRowsToMap(cellGroup);
+    }
+
+    /** Model-only: also runs before attaching a replacement view's adapter. */
+    private void reconcileConditionalRows() {
+        setConditionalRow(customEditedMessageRow, useEditedIconRow, !NaConfig.INSTANCE.getUseEditedIcon().Bool());
+        setConditionalRow(transcribeProviderOpenAiRow, transcribeProviderGeminiApiKeyRow,
+                NaConfig.INSTANCE.getTranscribeProvider().Int() == TranscribeHelper.TRANSCRIBE_OPENAI);
+        setConditionalRow(compactInputSizeRow, iosInputAppearanceRow, NaConfig.INSTANCE.getIosInputAppearance().Bool());
+        setConditionalRow(skipOpenLinkConfirmRow, headerConfirmation, !NaConfig.INSTANCE.getConfirmAllLinks().Bool());
+        setConditionalRow(confirmAVRow, disableClickCommandToSendRow, !NekoConfig.useChatAttachMediaMenu.Bool());
+        setConditionalRow(markdownParserRow, leftButtonActionRow, BuildVars.LOGS_ENABLED);
+    }
+
+    private void setConditionalRow(AbstractConfigCell row, AbstractConfigCell precedingRow, boolean visible) {
+        if (!visible) {
+            cellGroup.rows.remove(row);
+        } else if (!cellGroup.rows.contains(row)) {
+            cellGroup.rows.add(cellGroup.rows.indexOf(precedingRow) + 1, row);
+        }
     }
 
     @Override
@@ -582,6 +588,14 @@ public class NekoChatSettingsActivity extends BaseNekoXSettingsActivity implemen
     @Override
     public View createView(Context context) {
         View superView = super.createView(context);
+
+        // Posted work belongs to the old list and may never run. Recover its model
+        // effects from current config, without notifying the old adapter.
+        listAdapter = null;
+        stickerSizeCell = null;
+        inputBarPreviewCell = null;
+        reconcileConditionalRows();
+        addRowsToMap(cellGroup);
 
         ActionBarMenu menu = actionBar.createMenu();
         menuItem = menu.addItem(0, R.drawable.ic_ab_other);
@@ -597,73 +611,89 @@ public class NekoChatSettingsActivity extends BaseNekoXSettingsActivity implemen
 
         // Cells: Set OnSettingChanged Callbacks
         cellGroup.callBackSettingsChanged = (key, newValue) -> {
-            if (key.equals(NaConfig.INSTANCE.getIosButtonPlacement().getKey())
-                    || key.equals(NaConfig.INSTANCE.getIosInputAppearance().getKey())
-                    || key.equals(NaConfig.INSTANCE.getCompactInputSize().getKey())
-                    || key.equals(NaConfig.INSTANCE.getActionButtonStyle().getKey())) {
-                if (inputBarPreviewCell != null) {
-                    inputBarPreviewCell.updateInputBarState();
-                }
-            }
+            // This controller side effect is not view work: apply it even during layout
+            // and do not let replacement of the list discard a proximity change.
             if (key.equals(NekoConfig.disableProximityEvents.getKey())) {
                 MediaController.getInstance().recreateProximityWakeLock();
-            } else if (key.equals(NekoConfig.showSeconds.getKey())) {
-                tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
-            } else if (key.equals(NaConfig.INSTANCE.getConfirmAllLinks().getKey())) {
-                checkSkipOpenLinkConfirmRows();
-            } else if (key.equals(NekoConfig.useChatAttachMediaMenu.getKey())) {
-                checkConfirmAVRows();
-            } else if (key.equals(NaConfig.INSTANCE.getUseEditedIcon().getKey())) {
-                if ((boolean) newValue) {
-                    if (cellGroup.rows.contains(customEditedMessageRow)) {
-                        final int index = cellGroup.rows.indexOf(customEditedMessageRow);
-                        cellGroup.rows.remove(customEditedMessageRow);
-                        listAdapter.notifyItemRemoved(index);
-                    }
-                } else {
-                    if (!cellGroup.rows.contains(customEditedMessageRow)) {
-                        final int index = cellGroup.rows.indexOf(useEditedIconRow) + 1;
-                        cellGroup.rows.add(index, customEditedMessageRow);
-                        listAdapter.notifyItemInserted(index);
-                    }
-                }
-            } else if (key.equals(NaConfig.INSTANCE.getMessageColoredBackground().getKey())) {
-                stickerSizeCell.invalidate();
-            } else if (key.equals(NekoConfig.hideTimeForSticker.getKey())) {
-                stickerSizeCell.invalidate();
-            } else if (key.equals("PremiumElements" + "_check")) {
-                stickerSizeCell.invalidate();
-            } else if (key.equals(NaConfig.INSTANCE.getPremiumItemEmojiInReplies().getKey())) {
-                stickerSizeCell.invalidate();
-            } else if (key.equals(NaConfig.INSTANCE.getPremiumItemCustomColorInReplies().getKey())) {
-                stickerSizeCell.invalidate();
-            } else if (key.equals(NaConfig.INSTANCE.getTranscribeProvider().getKey())) {
-                if ((int) newValue == TranscribeHelper.TRANSCRIBE_OPENAI) {
-                    if (!cellGroup.rows.contains(transcribeProviderOpenAiRow)) {
-                        final int index = cellGroup.rows.indexOf(transcribeProviderGeminiApiKeyRow) + 1;
-                        cellGroup.rows.add(index, transcribeProviderOpenAiRow);
-                        listAdapter.notifyItemInserted(index);
-                    }
-                } else {
-                    if (cellGroup.rows.contains(transcribeProviderOpenAiRow)) {
-                        final int index = cellGroup.rows.indexOf(transcribeProviderOpenAiRow);
-                        cellGroup.rows.remove(transcribeProviderOpenAiRow);
-                        listAdapter.notifyItemRemoved(index);
-                    }
-                }
-            } else if (key.equals("PremiumElements") || key.equals("DisableSwipeToNext")) {
-                addRowsToMap(cellGroup);
-            } else if (key.equals(NaConfig.INSTANCE.getIosInputAppearance().getKey())) {
-                boolean iosOn = NaConfig.INSTANCE.getIosInputAppearance().Bool();
-                if (iosOn) {
-                    if (!cellGroup.rows.contains(compactInputSizeRow)) {
-                        cellGroup.rows.add(cellGroup.rows.indexOf(dividerInputBar), compactInputSizeRow);
-                    }
-                } else {
-                    cellGroup.rows.remove(compactInputSizeRow);
-                }
-                notifyAllRowsChanged();
+                return;
             }
+            runWhenListIdle(() -> {
+                if (key.equals(NaConfig.INSTANCE.getIosButtonPlacement().getKey())
+                        || key.equals(NaConfig.INSTANCE.getIosInputAppearance().getKey())
+                        || key.equals(NaConfig.INSTANCE.getCompactInputSize().getKey())
+                        || key.equals(NaConfig.INSTANCE.getActionButtonStyle().getKey())) {
+                    if (inputBarPreviewCell != null) {
+                        inputBarPreviewCell.updateInputBarState();
+                    }
+                }
+                if (key.equals(NekoConfig.showSeconds.getKey())) {
+                    tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
+                } else if (key.equals(NaConfig.INSTANCE.getConfirmAllLinks().getKey())) {
+                    checkSkipOpenLinkConfirmRows();
+                } else if (key.equals(NekoConfig.useChatAttachMediaMenu.getKey())) {
+                    checkConfirmAVRows();
+                } else if (key.equals(NaConfig.INSTANCE.getUseEditedIcon().getKey())) {
+                    if (NaConfig.INSTANCE.getUseEditedIcon().Bool()) {
+                        if (cellGroup.rows.contains(customEditedMessageRow)) {
+                            final int index = cellGroup.rows.indexOf(customEditedMessageRow);
+                            cellGroup.rows.remove(customEditedMessageRow);
+                            notifyRowRemoved(index);
+                        }
+                    } else {
+                        if (!cellGroup.rows.contains(customEditedMessageRow)) {
+                            final int index = cellGroup.rows.indexOf(useEditedIconRow) + 1;
+                            cellGroup.rows.add(index, customEditedMessageRow);
+                            notifyRowInserted(index);
+                        }
+                    }
+                } else if (key.equals(NaConfig.INSTANCE.getMessageColoredBackground().getKey())) {
+                    if (stickerSizeCell != null) {
+                        stickerSizeCell.invalidate();
+                    }
+                } else if (key.equals(NekoConfig.hideTimeForSticker.getKey())) {
+                    if (stickerSizeCell != null) {
+                        stickerSizeCell.invalidate();
+                    }
+                } else if (key.equals("PremiumElements" + "_check")) {
+                    if (stickerSizeCell != null) {
+                        stickerSizeCell.invalidate();
+                    }
+                } else if (key.equals(NaConfig.INSTANCE.getPremiumItemEmojiInReplies().getKey())) {
+                    if (stickerSizeCell != null) {
+                        stickerSizeCell.invalidate();
+                    }
+                } else if (key.equals(NaConfig.INSTANCE.getPremiumItemCustomColorInReplies().getKey())) {
+                    if (stickerSizeCell != null) {
+                        stickerSizeCell.invalidate();
+                    }
+                } else if (key.equals(NaConfig.INSTANCE.getTranscribeProvider().getKey())) {
+                    if (NaConfig.INSTANCE.getTranscribeProvider().Int() == TranscribeHelper.TRANSCRIBE_OPENAI) {
+                        if (!cellGroup.rows.contains(transcribeProviderOpenAiRow)) {
+                            final int index = cellGroup.rows.indexOf(transcribeProviderGeminiApiKeyRow) + 1;
+                            cellGroup.rows.add(index, transcribeProviderOpenAiRow);
+                            notifyRowInserted(index);
+                        }
+                    } else {
+                        if (cellGroup.rows.contains(transcribeProviderOpenAiRow)) {
+                            final int index = cellGroup.rows.indexOf(transcribeProviderOpenAiRow);
+                            cellGroup.rows.remove(transcribeProviderOpenAiRow);
+                            notifyRowRemoved(index);
+                        }
+                    }
+                } else if (key.equals("PremiumElements") || key.equals("DisableSwipeToNext")) {
+                    addRowsToMap(cellGroup);
+                } else if (key.equals(NaConfig.INSTANCE.getIosInputAppearance().getKey())) {
+                    boolean iosOn = NaConfig.INSTANCE.getIosInputAppearance().Bool();
+                    if (iosOn) {
+                        if (!cellGroup.rows.contains(compactInputSizeRow)) {
+                            cellGroup.rows.add(cellGroup.rows.indexOf(dividerInputBar), compactInputSizeRow);
+                        }
+                    } else {
+                        cellGroup.rows.remove(compactInputSizeRow);
+                    }
+                    notifyAllRowsChanged();
+                }
+            });
         };
 
         return superView;
@@ -699,7 +729,7 @@ public class NekoChatSettingsActivity extends BaseNekoXSettingsActivity implemen
             PopupBuilder builder = new PopupBuilder(view);
             builder.setItems(types, (i, str) -> {
                 NekoConfig.maxRecentStickerCount.setConfigInt(Integer.parseInt(str.toString()));
-                listAdapter.notifyItemChanged(position);
+                notifyRowChanged(position);
                 return Unit.INSTANCE;
             });
             builder.show();
@@ -737,7 +767,7 @@ public class NekoChatSettingsActivity extends BaseNekoXSettingsActivity implemen
                 } else {
                     NaConfig.INSTANCE.getDoubleTapActionOut().setConfigInt(types.get(i));
                 }
-                listAdapter.notifyItemChanged(position);
+                notifyRowChanged(position);
                 return Unit.INSTANCE;
             });
             builder.show();
@@ -758,11 +788,11 @@ public class NekoChatSettingsActivity extends BaseNekoXSettingsActivity implemen
         ((ConfigCellCheckBox) a).onClick((CheckBoxCell) view);
         int toggleRowIndex = cellGroup.rows.indexOf(premiumElementsToggleRow);
         if (position > toggleRowIndex && position <= toggleRowIndex + premiumElementsRows.size()) {
-            listAdapter.notifyItemRangeChanged(toggleRowIndex, premiumElementsRows.size());
+            notifyRowRangeChanged(toggleRowIndex, premiumElementsRows.size());
         }
         toggleRowIndex = cellGroup.rows.indexOf(disableSwipeToNextRow);
         if (position > toggleRowIndex && position <= toggleRowIndex + disableSwipeToNextRows.size()) {
-            listAdapter.notifyItemChanged(toggleRowIndex);
+            notifyRowChanged(toggleRowIndex);
         }
     }
 
@@ -800,14 +830,14 @@ public class NekoChatSettingsActivity extends BaseNekoXSettingsActivity implemen
     @Override
     public void emojiPacksLoaded(String error) {
         if (listAdapter != null) {
-            listAdapter.notifyItemChanged(cellGroup.rows.indexOf(emojiSetsRow));
+            notifyRowChanged(cellGroup.rows.indexOf(emojiSetsRow));
         }
     }
 
     @Override
     public void didReceivedNotification(int id, int account, Object... args) {
         if (id == NotificationCenter.emojiLoaded && listAdapter != null) {
-            listAdapter.notifyItemChanged(cellGroup.rows.indexOf(emojiSetsRow));
+            notifyRowChanged(cellGroup.rows.indexOf(emojiSetsRow));
         }
     }
 
@@ -1142,13 +1172,13 @@ public class NekoChatSettingsActivity extends BaseNekoXSettingsActivity implemen
             final int index = cellGroup.rows.indexOf(headerConfirmation);
             if (!cellGroup.rows.contains(skipOpenLinkConfirmRow)) {
                 cellGroup.rows.add(index + 1, skipOpenLinkConfirmRow);
-                listAdapter.notifyItemInserted(index + 1);
+                notifyRowInserted(index + 1);
             }
         } else {
             int rowIndex = cellGroup.rows.indexOf(skipOpenLinkConfirmRow);
             if (rowIndex != -1) {
                 cellGroup.rows.remove(skipOpenLinkConfirmRow);
-                listAdapter.notifyItemRemoved(rowIndex);
+                notifyRowRemoved(rowIndex);
             }
         }
         addRowsToMap(cellGroup);
@@ -1166,13 +1196,13 @@ public class NekoChatSettingsActivity extends BaseNekoXSettingsActivity implemen
             final int index = cellGroup.rows.indexOf(disableClickCommandToSendRow);
             if (!cellGroup.rows.contains(confirmAVRow)) {
                 cellGroup.rows.add(index + 1, confirmAVRow);
-                listAdapter.notifyItemInserted(index + 1);
+                notifyRowInserted(index + 1);
             }
         } else {
             int rowIndex = cellGroup.rows.indexOf(confirmAVRow);
             if (rowIndex != -1) {
                 cellGroup.rows.remove(confirmAVRow);
-                listAdapter.notifyItemRemoved(rowIndex);
+                notifyRowRemoved(rowIndex);
             }
         }
         addRowsToMap(cellGroup);

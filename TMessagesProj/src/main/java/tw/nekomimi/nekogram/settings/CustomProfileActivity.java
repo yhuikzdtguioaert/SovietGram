@@ -60,7 +60,6 @@ public class CustomProfileActivity extends BaseNekoXSettingsActivity {
 
     private static final int REQUEST_BANNER = 1611;
     private static final int REQUEST_BACKGROUND = 1612;
-    private static final int REQUEST_PROFILE_MUSIC = 1615;
     private static final int REQUEST_NAME_FONT = 1613;
     private static final int REQUEST_THOUGHT_FONT = 1614;
 
@@ -215,10 +214,6 @@ public class CustomProfileActivity extends BaseNekoXSettingsActivity {
             () -> getString(R.string.CustomProfileFrameClear),
             () -> frameSummary(), this::clearFrame);
 
-    // The song under the avatar. Telegram keeps it on the account, so this is a shortcut to the two
-    // steps it takes there (send the file to Saved Messages, save it to the profile).
-    private final AbstractConfigCell profileMusicRow = new ConfigCellText("CustomProfileMusic", null, this::showMusicMenu);
-
     private final AbstractConfigCell headerLayoutRow = new ConfigCellText("CustomProfileHeaderLayout",
             () -> presentFragment(new CustomProfileHeaderActivity()));
     private final AbstractConfigCell paletteRow = new ConfigCellText("CustomProfilePalette",
@@ -259,6 +254,8 @@ public class CustomProfileActivity extends BaseNekoXSettingsActivity {
             getString(R.string.CustomProfileFontBundled),
     }, null);
 
+    private final AbstractConfigCell presetsRow = new ConfigCellText("CustomProfilePresets", null,
+            () -> presentFragment(new CustomProfilePresetsActivity()));
     private final AbstractConfigCell exportRow = new ConfigCellText("CustomProfileExport", null, this::exportSettings);
     private final AbstractConfigCell importRow = new ConfigCellText("CustomProfileImport", null, this::importSettings);
     private final AbstractConfigCell resetRow = new ConfigCellText("CustomProfileReset", null, this::resetSettings);
@@ -282,6 +279,12 @@ public class CustomProfileActivity extends BaseNekoXSettingsActivity {
         buildRows();
     }
 
+    @Override
+    public void onResume() {
+        super.onResume();
+        rebuild();
+    }
+
     private static String[] fadeOptions() {
         return new String[]{
                 getString(R.string.CustomProfileFadeNone),
@@ -297,6 +300,8 @@ public class CustomProfileActivity extends BaseNekoXSettingsActivity {
      */
     private void buildRows() {
         cellGroup.rows.clear();
+        cellGroup.appendCell(presetsRow);
+        cellGroup.appendCell(new ConfigCellDivider());
 
         final int bannerType = NekoConfig.customProfileBannerType.Int();
         cellGroup.appendCell(headerBanner);
@@ -423,9 +428,6 @@ public class CustomProfileActivity extends BaseNekoXSettingsActivity {
         }
         cellGroup.appendCell(new ConfigCellDivider());
 
-        cellGroup.appendCell(profileMusicRow);
-        cellGroup.appendCell(new ConfigCellDivider());
-
         cellGroup.appendCell(headerFrame);
         cellGroup.appendCell(frameGalleryRow);
         cellGroup.appendCell(frameStudioRow);
@@ -545,39 +547,37 @@ public class CustomProfileActivity extends BaseNekoXSettingsActivity {
 
     @SuppressLint("NotifyDataSetChanged")
     private void rebuild() {
-        if (listView != null && listView.isComputingLayout()) {
-            listView.post(this::rebuild);
-            return;
-        }
-        final java.util.List<tw.nekomimi.nekogram.config.cell.AbstractConfigCell> before =
-                new java.util.ArrayList<>(cellGroup.rows);
-        buildRows();
-        if (listAdapter == null) {
-            return;
-        }
-        if (before.isEmpty() || listView == null || listView.getChildCount() == 0) {
-            listAdapter.notifyDataSetChanged();
-            return;
-        }
-        // Rows a switch reveals or hides slide in and out instead of the whole list being replaced
-        // at once. The rows that stay are bound again afterwards (without a change animation, see
-        // the item animator) because nearly any value here can have moved.
-        final java.util.List<tw.nekomimi.nekogram.config.cell.AbstractConfigCell> after =
-                new java.util.ArrayList<>(cellGroup.rows);
-        androidx.recyclerview.widget.DiffUtil.calculateDiff(
-                new androidx.recyclerview.widget.DiffUtil.Callback() {
-                    @Override public int getOldListSize() { return before.size(); }
-                    @Override public int getNewListSize() { return after.size(); }
-                    @Override public boolean areItemsTheSame(int oldPosition, int newPosition) {
-                        final tw.nekomimi.nekogram.config.cell.AbstractConfigCell a = before.get(oldPosition);
-                        final tw.nekomimi.nekogram.config.cell.AbstractConfigCell b = after.get(newPosition);
-                        return a == b || (a instanceof ConfigCellDivider && b instanceof ConfigCellDivider);
-                    }
-                    @Override public boolean areContentsTheSame(int oldPosition, int newPosition) {
-                        return true;
-                    }
-                }, false).dispatchUpdatesTo(listAdapter);
-        listAdapter.notifyItemRangeChanged(0, after.size());
+        runWhenListIdle(() -> {
+            final java.util.List<tw.nekomimi.nekogram.config.cell.AbstractConfigCell> before =
+                    new java.util.ArrayList<>(cellGroup.rows);
+            buildRows();
+            if (listAdapter == null) {
+                return;
+            }
+            if (before.isEmpty() || listView == null || listView.getChildCount() == 0) {
+                listAdapter.notifyDataSetChanged();
+                return;
+            }
+            // Rows a switch reveals or hides slide in and out instead of the whole list being replaced
+            // at once. The rows that stay are bound again afterwards (without a change animation, see
+            // the item animator) because nearly any value here can have moved.
+            final java.util.List<tw.nekomimi.nekogram.config.cell.AbstractConfigCell> after =
+                    new java.util.ArrayList<>(cellGroup.rows);
+            androidx.recyclerview.widget.DiffUtil.calculateDiff(
+                    new androidx.recyclerview.widget.DiffUtil.Callback() {
+                        @Override public int getOldListSize() { return before.size(); }
+                        @Override public int getNewListSize() { return after.size(); }
+                        @Override public boolean areItemsTheSame(int oldPosition, int newPosition) {
+                            final tw.nekomimi.nekogram.config.cell.AbstractConfigCell a = before.get(oldPosition);
+                            final tw.nekomimi.nekogram.config.cell.AbstractConfigCell b = after.get(newPosition);
+                            return a == b || (a instanceof ConfigCellDivider && b instanceof ConfigCellDivider);
+                        }
+                        @Override public boolean areContentsTheSame(int oldPosition, int newPosition) {
+                            return true;
+                        }
+                    }, false).dispatchUpdatesTo(listAdapter);
+            listAdapter.notifyItemRangeChanged(0, after.size());
+        });
     }
 
     private void pickMedia(int requestCode) {
@@ -650,32 +650,9 @@ public class CustomProfileActivity extends BaseNekoXSettingsActivity {
         rebuild();
     }
 
-    private void showMusicMenu() {
-        if (getParentActivity() == null) {
-            return;
-        }
-        final org.telegram.ui.ActionBar.AlertDialog.Builder builder = new org.telegram.ui.ActionBar.AlertDialog.Builder(getParentActivity(), getResourceProvider());
-        builder.setTitle(getString(R.string.CustomProfileMusic));
-        builder.setItems(new CharSequence[]{
-                getString(R.string.CustomProfileMusicChoose),
-                getString(R.string.CustomProfileMusicRemove)
-        }, (dialog, which) -> {
-            if (which == 0) {
-                tw.nekomimi.nekogram.helpers.ProfileMusicHelper.pick(this, REQUEST_PROFILE_MUSIC);
-            } else {
-                tw.nekomimi.nekogram.helpers.ProfileMusicHelper.removeCurrent(this);
-            }
-        });
-        showDialog(builder.create());
-    }
-
     @Override
     public void onActivityResultFragment(int requestCode, int resultCode, Intent data) {
         if (resultCode != android.app.Activity.RESULT_OK || data == null || data.getData() == null) {
-            return;
-        }
-        if (requestCode == REQUEST_PROFILE_MUSIC) {
-            tw.nekomimi.nekogram.helpers.ProfileMusicHelper.upload(this, data.getData());
             return;
         }
         if (requestCode == REQUEST_NAME_FONT || requestCode == REQUEST_THOUGHT_FONT) {

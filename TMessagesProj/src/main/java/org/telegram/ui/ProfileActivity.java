@@ -917,6 +917,17 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         @Override
         public void willHidePhotoViewer() {
             avatarImage.getImageReceiver().setVisible(true, true);
+            debugAvatarRenderState("viewer-hide");
+            // Opt-in snapshots only: observe the settled state, never change visibility/transforms.
+            if (android.util.Log.isLoggable("SGRender", android.util.Log.DEBUG)) {
+                final AvatarImageView expected = avatarImage;
+                expected.postOnAnimation(() -> {
+                    if (!isFinished && avatarImage == expected) debugAvatarRenderState("viewer-hide-next-frame");
+                });
+                expected.postDelayed(() -> {
+                    if (!isFinished && avatarImage == expected) debugAvatarRenderState("viewer-hide-250ms");
+                }, 250);
+            }
         }
 
         @Override
@@ -7297,7 +7308,37 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     private void openAvatar() {
         openAvatar(false);
     }
+    /** Opt-in, image-free diagnostics: adb shell setprop log.tag.SGRender DEBUG. */
+    private void debugAvatarRenderState(String phase) {
+        if (!android.util.Log.isLoggable("SGRender", android.util.Log.DEBUG) || avatarImage == null) return;
+        ImageReceiver receiver = avatarImage.getImageReceiver();
+        ImageReceiver foreground = avatarImage.foregroundImageReceiver;
+        StringBuilder state = new StringBuilder(phase);
+        state.append(" pullUp=").append(pullUpProgress).append(" expand=").append(expandProgress)
+                .append(" pulledDown=").append(isPulledDown).append(" animatorValue=").append(currentExpandAnimatorValue)
+                .append(" animatorRunning=").append(expandAnimator != null && expandAnimator.isRunning())
+                .append(" receiverVisible=").append(receiver.getVisible()).append(" receiverAlpha=").append(receiver.getAlpha())
+                .append(" drawable=").append(receiver.getDrawable() != null)
+                .append(" foregroundAlpha=").append(avatarImage.foregroundAlpha)
+                .append(" foregroundVisible=").append(foreground.getVisible())
+                .append(" foregroundDrawable=").append(foreground.getDrawable() != null)
+                .append(" drawAvatar=").append(avatarImage.drawAvatar).append(" drawForeground=").append(avatarImage.drawForeground);
+        for (View walk = avatarImage; walk != null; ) {
+            state.append(" ancestor[").append(walk.getClass().getSimpleName())
+                    .append(" vis=").append(walk.getVisibility()).append(" alpha=").append(walk.getAlpha())
+                    .append(" bounds=").append(walk.getLeft()).append(',').append(walk.getTop())
+                    .append(',').append(walk.getWidth()).append(',').append(walk.getHeight())
+                    .append(" translate=").append(walk.getTranslationX()).append(',').append(walk.getTranslationY())
+                    .append(" scale=").append(walk.getScaleX()).append(',').append(walk.getScaleY())
+                    .append(" rotation=").append(walk.getRotation()).append(']');
+            android.view.ViewParent parent = walk.getParent();
+            walk = parent instanceof View ? (View) parent : null;
+        }
+        android.util.Log.d("SGRender", state.toString());
+    }
+
     private void openAvatar(boolean ignoreDragging) {
+        debugAvatarRenderState("viewer-open-request");
         if (listView.getScrollState() == RecyclerView.SCROLL_STATE_DRAGGING && !ignoreDragging) {
             return;
         }
@@ -11757,25 +11798,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 sharedMediaRow = rowCount++;
             }
         }
-        // The look's own rows, immediately above the shared media — the place the reference puts
-        // them, and the only place they can be seen: the media pager fills the rest of the screen,
-        // so a row numbered after it exists in the list and can never be scrolled to.
-        customBlocksStartRow = -1;
-        customBlocksEndRow = -1;
-        final int customBlocks = customProfileBlocks().size();
-        if (customBlocks > 0) {
-            if (sharedMediaRow != -1) {
-                // Take the media row's number and hand it back out after ours.
-                customBlocksStartRow = sharedMediaRow;
-                customBlocksEndRow = customBlocksStartRow + customBlocks;
-                sharedMediaRow = customBlocksEndRow;
-                rowCount += customBlocks;
-            } else {
-                customBlocksStartRow = rowCount;
-                rowCount += customBlocks;
-                customBlocksEndRow = rowCount;
-            }
-        }
+        // This client has no native ProfileWorkshopRow; use the original username/fallback
+        // anchor. Keep the workshop-aware seam for a native workshop row if one is added.
+        insertCustomProfileRows(-1);
         if (sharedMediaRow == -1) {
             bottomPaddingRow = rowCount++;
         }
@@ -11815,10 +11840,148 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         }
     }
 
-    /**
-     * Acts on a tap on one of the look's own rows: open its address, copy it, or pass it to a share
-     * sheet. A block that asks for nothing is simply not clickable.
-     */
+    /** Original v1.9 anchor priority; workshopRow is -1 in this client's native profile. */
+    private void insertCustomProfileRows(int workshopRow) {
+        customBlocksStartRow = -1;
+        customBlocksEndRow = -1;
+        final int customBlocks = customProfileBlocks().size();
+        if (customBlocks == 0) {
+            return;
+        }
+        int anchor;
+        if (workshopRow >= 0) {
+            anchor = workshopRow + 1;
+        } else if (usernameRow >= 0) {
+            anchor = usernameRow + 1;
+        } else {
+            int lastInfoRow = -1;
+            for (int row : new int[]{usernameRow, setUsernameRow, bioRow, phoneRow,
+                    numberRow, birthdayRow, userInfoRow, bizHoursRow, bizLocationRow,
+                    locationRow, noteRow}) {
+                lastInfoRow = Math.max(lastInfoRow, row);
+            }
+            anchor = lastInfoRow >= 0 ? lastInfoRow + 1 : rowCount;
+        }
+        // Shift every native index, not only shared media. Range boundaries also move;
+        // -1 sentinels stay absent. Explicit fields avoid reflection/release-name coupling.
+        setAvatarRow = shiftCustomProfileRow(setAvatarRow, anchor, customBlocks);
+        setAvatarSectionRow = shiftCustomProfileRow(setAvatarSectionRow, anchor, customBlocks);
+        numberSectionRow = shiftCustomProfileRow(numberSectionRow, anchor, customBlocks);
+        numberRow = shiftCustomProfileRow(numberRow, anchor, customBlocks);
+        birthdayRow = shiftCustomProfileRow(birthdayRow, anchor, customBlocks);
+        setUsernameRow = shiftCustomProfileRow(setUsernameRow, anchor, customBlocks);
+        idDcRow = shiftCustomProfileRow(idDcRow, anchor, customBlocks);
+        bioRow = shiftCustomProfileRow(bioRow, anchor, customBlocks);
+        channelRow = shiftCustomProfileRow(channelRow, anchor, customBlocks);
+        channelDividerRow = shiftCustomProfileRow(channelDividerRow, anchor, customBlocks);
+        phoneSuggestionSectionRow = shiftCustomProfileRow(phoneSuggestionSectionRow, anchor, customBlocks);
+        phoneSuggestionRow = shiftCustomProfileRow(phoneSuggestionRow, anchor, customBlocks);
+        passwordSuggestionSectionRow = shiftCustomProfileRow(passwordSuggestionSectionRow, anchor, customBlocks);
+        graceSuggestionRow = shiftCustomProfileRow(graceSuggestionRow, anchor, customBlocks);
+        graceSuggestionSectionRow = shiftCustomProfileRow(graceSuggestionSectionRow, anchor, customBlocks);
+        passwordSuggestionRow = shiftCustomProfileRow(passwordSuggestionRow, anchor, customBlocks);
+        settingsSectionRow = shiftCustomProfileRow(settingsSectionRow, anchor, customBlocks);
+        settingsSectionRow2 = shiftCustomProfileRow(settingsSectionRow2, anchor, customBlocks);
+        notificationRow = shiftCustomProfileRow(notificationRow, anchor, customBlocks);
+        nekoRow = shiftCustomProfileRow(nekoRow, anchor, customBlocks);
+        nekoSectionRow = shiftCustomProfileRow(nekoSectionRow, anchor, customBlocks);
+        languageRow = shiftCustomProfileRow(languageRow, anchor, customBlocks);
+        premiumRow = shiftCustomProfileRow(premiumRow, anchor, customBlocks);
+        starsRow = shiftCustomProfileRow(starsRow, anchor, customBlocks);
+        tonRow = shiftCustomProfileRow(tonRow, anchor, customBlocks);
+        businessRow = shiftCustomProfileRow(businessRow, anchor, customBlocks);
+        premiumGiftingRow = shiftCustomProfileRow(premiumGiftingRow, anchor, customBlocks);
+        premiumSectionsRow = shiftCustomProfileRow(premiumSectionsRow, anchor, customBlocks);
+        privacyRow = shiftCustomProfileRow(privacyRow, anchor, customBlocks);
+        dataRow = shiftCustomProfileRow(dataRow, anchor, customBlocks);
+        chatRow = shiftCustomProfileRow(chatRow, anchor, customBlocks);
+        filtersRow = shiftCustomProfileRow(filtersRow, anchor, customBlocks);
+        liteModeRow = shiftCustomProfileRow(liteModeRow, anchor, customBlocks);
+        devicesRow = shiftCustomProfileRow(devicesRow, anchor, customBlocks);
+        devicesSectionRow = shiftCustomProfileRow(devicesSectionRow, anchor, customBlocks);
+        helpHeaderRow = shiftCustomProfileRow(helpHeaderRow, anchor, customBlocks);
+        questionRow = shiftCustomProfileRow(questionRow, anchor, customBlocks);
+        faqRow = shiftCustomProfileRow(faqRow, anchor, customBlocks);
+        policyRow = shiftCustomProfileRow(policyRow, anchor, customBlocks);
+        helpSectionCell = shiftCustomProfileRow(helpSectionCell, anchor, customBlocks);
+        debugHeaderRow = shiftCustomProfileRow(debugHeaderRow, anchor, customBlocks);
+        sendLogsRow = shiftCustomProfileRow(sendLogsRow, anchor, customBlocks);
+        sendLastLogsRow = shiftCustomProfileRow(sendLastLogsRow, anchor, customBlocks);
+        clearLogsRow = shiftCustomProfileRow(clearLogsRow, anchor, customBlocks);
+        switchBackendRow = shiftCustomProfileRow(switchBackendRow, anchor, customBlocks);
+        versionRow = shiftCustomProfileRow(versionRow, anchor, customBlocks);
+        botAppRow = shiftCustomProfileRow(botAppRow, anchor, customBlocks);
+        botPermissionsHeader = shiftCustomProfileRow(botPermissionsHeader, anchor, customBlocks);
+        botPermissionBiometry = shiftCustomProfileRow(botPermissionBiometry, anchor, customBlocks);
+        botPermissionEmojiStatus = shiftCustomProfileRow(botPermissionEmojiStatus, anchor, customBlocks);
+        botPermissionLocation = shiftCustomProfileRow(botPermissionLocation, anchor, customBlocks);
+        botPermissionsDivider = shiftCustomProfileRow(botPermissionsDivider, anchor, customBlocks);
+        unofficialSecurityRiskRow = shiftCustomProfileRow(unofficialSecurityRiskRow, anchor, customBlocks);
+        unofficialSecurityRiskDividerRow = shiftCustomProfileRow(unofficialSecurityRiskDividerRow, anchor, customBlocks);
+        linkedCommunityRow = shiftCustomProfileRow(linkedCommunityRow, anchor, customBlocks);
+        linkedCommunityDividerRow = shiftCustomProfileRow(linkedCommunityDividerRow, anchor, customBlocks);
+        sendMessageRow = shiftCustomProfileRow(sendMessageRow, anchor, customBlocks);
+        reportRow = shiftCustomProfileRow(reportRow, anchor, customBlocks);
+        reportReactionRow = shiftCustomProfileRow(reportReactionRow, anchor, customBlocks);
+        deleteReactionRow = shiftCustomProfileRow(deleteReactionRow, anchor, customBlocks);
+        addToContactsRow = shiftCustomProfileRow(addToContactsRow, anchor, customBlocks);
+        emptyRow = shiftCustomProfileRow(emptyRow, anchor, customBlocks);
+        emptyRow2 = shiftCustomProfileRow(emptyRow2, anchor, customBlocks);
+        infoHeaderRow = shiftCustomProfileRow(infoHeaderRow, anchor, customBlocks);
+        infoHeaderRowEmpty = shiftCustomProfileRow(infoHeaderRowEmpty, anchor, customBlocks);
+        infoEndRowEmpty = shiftCustomProfileRow(infoEndRowEmpty, anchor, customBlocks);
+        phoneRow = shiftCustomProfileRow(phoneRow, anchor, customBlocks);
+        noteRow = shiftCustomProfileRow(noteRow, anchor, customBlocks);
+        userInfoRow = shiftCustomProfileRow(userInfoRow, anchor, customBlocks);
+        locationRow = shiftCustomProfileRow(locationRow, anchor, customBlocks);
+        channelInfoRow = shiftCustomProfileRow(channelInfoRow, anchor, customBlocks);
+        usernameRow = shiftCustomProfileRow(usernameRow, anchor, customBlocks);
+        restrictionReasonRow = shiftCustomProfileRow(restrictionReasonRow, anchor, customBlocks);
+        settingsTimerRow = shiftCustomProfileRow(settingsTimerRow, anchor, customBlocks);
+        settingsKeyRow = shiftCustomProfileRow(settingsKeyRow, anchor, customBlocks);
+        notificationsDividerRow = shiftCustomProfileRow(notificationsDividerRow, anchor, customBlocks);
+        reportDividerRow = shiftCustomProfileRow(reportDividerRow, anchor, customBlocks);
+        notificationsRow = shiftCustomProfileRow(notificationsRow, anchor, customBlocks);
+        bizLocationRow = shiftCustomProfileRow(bizLocationRow, anchor, customBlocks);
+        bizHoursRow = shiftCustomProfileRow(bizHoursRow, anchor, customBlocks);
+        infoSectionRow = shiftCustomProfileRow(infoSectionRow, anchor, customBlocks);
+        affiliateRow = shiftCustomProfileRow(affiliateRow, anchor, customBlocks);
+        infoAffiliateRow = shiftCustomProfileRow(infoAffiliateRow, anchor, customBlocks);
+        secretSettingsSectionRow = shiftCustomProfileRow(secretSettingsSectionRow, anchor, customBlocks);
+        bottomPaddingRow = shiftCustomProfileRow(bottomPaddingRow, anchor, customBlocks);
+        addToGroupButtonRow = shiftCustomProfileRow(addToGroupButtonRow, anchor, customBlocks);
+        addToGroupInfoRow = shiftCustomProfileRow(addToGroupInfoRow, anchor, customBlocks);
+        infoStartRow = shiftCustomProfileRow(infoStartRow, anchor, customBlocks);
+        infoEndRow = shiftCustomProfileRow(infoEndRow, anchor, customBlocks);
+        membersHeaderRow = shiftCustomProfileRow(membersHeaderRow, anchor, customBlocks);
+        membersStartRow = shiftCustomProfileRow(membersStartRow, anchor, customBlocks);
+        membersEndRow = shiftCustomProfileRow(membersEndRow, anchor, customBlocks);
+        addMemberRow = shiftCustomProfileRow(addMemberRow, anchor, customBlocks);
+        subscribersRow = shiftCustomProfileRow(subscribersRow, anchor, customBlocks);
+        subscribersRequestsRow = shiftCustomProfileRow(subscribersRequestsRow, anchor, customBlocks);
+        administratorsRow = shiftCustomProfileRow(administratorsRow, anchor, customBlocks);
+        blockedUsersRow = shiftCustomProfileRow(blockedUsersRow, anchor, customBlocks);
+        membersSectionRow = shiftCustomProfileRow(membersSectionRow, anchor, customBlocks);
+        channelBalanceSectionRow = shiftCustomProfileRow(channelBalanceSectionRow, anchor, customBlocks);
+        sharedMediaRow = shiftCustomProfileRow(sharedMediaRow, anchor, customBlocks);
+        notificationsSimpleRow = shiftCustomProfileRow(notificationsSimpleRow, anchor, customBlocks);
+        settingsRow = shiftCustomProfileRow(settingsRow, anchor, customBlocks);
+        botStarsBalanceRow = shiftCustomProfileRow(botStarsBalanceRow, anchor, customBlocks);
+        botTonBalanceRow = shiftCustomProfileRow(botTonBalanceRow, anchor, customBlocks);
+        channelBalanceRow = shiftCustomProfileRow(channelBalanceRow, anchor, customBlocks);
+        balanceDividerRow = shiftCustomProfileRow(balanceDividerRow, anchor, customBlocks);
+        unblockRow = shiftCustomProfileRow(unblockRow, anchor, customBlocks);
+        joinRow = shiftCustomProfileRow(joinRow, anchor, customBlocks);
+        lastSectionRow = shiftCustomProfileRow(lastSectionRow, anchor, customBlocks);
+        customBlocksStartRow = anchor;
+        customBlocksEndRow = anchor + customBlocks;
+        rowCount += customBlocks;
+    }
+
+    private static int shiftCustomProfileRow(int row, int anchor, int count) {
+        return row >= anchor ? row + count : row;
+    }
+
     private java.util.List<CustomProfileExtraRows.Block> customProfileBlocks() {
         java.util.List<CustomProfileExtraRows.Block> blocks = CustomProfileExtraRows.blocks();
         if (profileCommentsBlock == null || userId <= 0 || !CustomProfileHelper.isEnabled()) return blocks;
@@ -11833,20 +11996,32 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         tw.nekomimi.nekogram.helpers.SovietGramApiClient.get(currentAccount,
                 "/v1/profile-social/" + userId, (body, error) -> {
                     if (isFinished || request != profileCommentsRequest || body == null) return;
+                    final CustomProfileExtraRows.Block block;
                     if (!body.optBoolean("comments_preview", true)) {
-                        profileCommentsBlock = null;
+                        block = null;
                     } else {
-                        CustomProfileExtraRows.Block block = CustomProfileExtraRows.create(CustomProfileExtraRows.TYPE_LINK);
+                        block = CustomProfileExtraRows.create(CustomProfileExtraRows.TYPE_LINK);
                         block.title = LocaleController.getString(R.string.CustomProfileComments);
                         block.text = body.optInt("comments") + " · " + LocaleController.getString(R.string.CustomProfileComments)
                                 + "    ♥ " + body.optInt("likes");
                         block.action = CustomProfileExtraRows.ACTION_OPEN;
                         block.url = "sovietgram://profile-comments/" + userId;
-                        profileCommentsBlock = block;
                     }
-                    updateRowsIds();
-                    if (listAdapter != null) listAdapter.notifyDataSetChanged();
+                    // A cached response can arrive inside a RecyclerView layout pass. Defer the
+                    // row source, row ids and adapter notification as one transaction.
+                    if (listView != null) listView.post(() -> applyProfileComments(request, block));
                 });
+    }
+
+    private void applyProfileComments(int request, @Nullable CustomProfileExtraRows.Block block) {
+        if (isFinished || request != profileCommentsRequest || listView == null || listAdapter == null) return;
+        if (listView.isComputingLayout()) {
+            listView.post(() -> applyProfileComments(request, block));
+            return;
+        }
+        profileCommentsBlock = block;
+        updateRowsIds();
+        listAdapter.notifyDataSetChanged();
     }
 
     private void onCustomBlockClick(@Nullable CustomProfileExtraRows.Block block) {
@@ -14157,6 +14332,12 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 case VIEW_TYPE_ABOUT_LINK: {
                     view = aboutLinkCell = new AboutLinkCell(mContext, ProfileActivity.this, resourcesProvider) {
                         @Override
+                        public void draw(Canvas canvas) {
+                            CustomProfileHelper.syncBioFade(this);
+                            super.draw(canvas);
+                        }
+
+                        @Override
                         protected void didPressUrl(String url, Browser.Progress progress) {
                             openUrl(url, progress);
                         }
@@ -14607,7 +14788,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         long id = getId(true);
                         int dc = getDc();
                         boolean isUserSelf = userId == UserConfig.getInstance(currentAccount).getClientUserId();
-                        detailCell.setTextAndValue(id + "", dc != 0 ? String.format(Locale.US, "DC%d %s, %s", dc, getDCName(dc), getDCLocation(dc)) : "DC " + getString(R.string.NumberUnknown), isUserSelf);
+                        detailCell.setTextAndValue(id + "", dc != 0 ? String.format(Locale.US, "DC%d %s, %s", dc, getDCName(dc), getDCLocation(dc)) : "DC " + getString(R.string.NumberUnknown), isUserSelf && !CustomProfileHelper.hasBackground());
                     } else if (position == restrictionReasonRow) {
                         ArrayList<TLRPC.RestrictionReason> reasons = new ArrayList<>();
                         if (userId != 0) {
@@ -16857,11 +17038,12 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             // installed while the profile is open never gets its rows inserted.
             if (customBlocksStartRow != -1) {
                 for (int i = customBlocksStartRow; i < customBlocksEndRow; i++) {
-                    put(++pointer, i, sparseIntArray);
+                    put(pointer + 1 + i - customBlocksStartRow, i, sparseIntArray);
                 }
-            } else {
-                pointer += CustomProfileExtraRows.MAX_BLOCKS + 1;
             }
+            // Reserve 64 blocks plus the optional comments row even when absent, so every
+            // following native identity is independent of the current custom row count.
+            pointer += CustomProfileExtraRows.MAX_BLOCKS + 1;
             put(++pointer, sharedMediaRow, sparseIntArray);
             put(++pointer, unblockRow, sparseIntArray);
             put(++pointer, addToGroupButtonRow, sparseIntArray);

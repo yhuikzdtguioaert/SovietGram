@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="CustomProfilePresets">Change appearance</string>
+    <string name="CustomProfilePresetSlots">Saved appearances</string>
+    <string name="CustomProfilePresetSlot">Slot %1$d</string>
+    <string name="CustomProfilePresetSaved">Saved · tap to apply</string>
+    <string name="CustomProfilePresetEmpty">Empty · tap to save</string>
+    <string name="CustomProfilePresetBusy">Please wait…</string>
+    <string name="CustomProfilePresetApply">Apply appearance</string>
+    <string name="CustomProfilePresetSave">Save current appearance</string>
+    <string name="CustomProfilePresetClear">Clear slot</string>
+    <string name="CustomProfilePresetOverwriteInfo">Replace this saved appearance with the current one? The other slots will not change.</string>
+    <string name="CustomProfilePresetClearInfo">Delete this saved appearance? Your current profile appearance will not change.</string>
+    <string name="CustomProfilePresetStored">Appearance saved</string>
+    <string name="CustomProfilePresetApplied">Appearance applied</string>
+    <string name="CustomProfilePresetCleared">Slot cleared</string>
+    <string name="CustomProfilePresetFailed">Could not save or apply this appearance. Check that its media is still available and your device has free storage.</string>
+    <string name="CustomProfilePresetInfo">Save your own appearance in an empty slot before installing a workshop profile. Then save the workshop appearance in another slot. Tap a saved slot to switch; hold it to replace or clear it. These three slots belong to this account and stay on this device. Workshop installs and profile resets do not erase them. Provider connections and credentials are not saved or restored.</string>
+</resources>

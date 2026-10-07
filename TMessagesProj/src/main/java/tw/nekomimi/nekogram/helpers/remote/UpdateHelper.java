@@ -110,10 +110,9 @@ public class UpdateHelper extends BaseRemoteHelper {
         String fileName = FileLoader.getDocumentFileName(document);
         int remoteVersionCode = parseVersionCode(fileName);
         String remoteVersionName = extractVersionName(fileName);
-        // SovietGram has two independent release counters: the monotonically increasing app build
-        // (1258, 1259, ...) and the Telegram source version (12.10.1, 12.10.2, ...).  Treating the
-        // pair as one compound version meant a publisher had to bump both fields at once.  A newer
-        // value in either dimension is now enough, exactly like two independent update tracks.
+        // Android versionCode orders installable builds. The Telegram source version is only
+        // a display label and cannot override an equal/older app build. Filename metadata is
+        // a publisher claim: renaming an APK does not change its embedded versionCode.
         boolean shouldUpdate = IndependentVersionComparator.isUpdate(
                 remoteVersionCode, remoteVersionName,
                 BuildConfig.VERSION_CODE, BuildConfig.BUILD_VERSION_STRING);

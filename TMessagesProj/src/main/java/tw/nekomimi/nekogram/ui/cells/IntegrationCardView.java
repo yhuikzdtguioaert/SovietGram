@@ -53,6 +53,8 @@ public class IntegrationCardView extends View {
     private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final TextPaint text = new TextPaint(Paint.ANTI_ALIAS_FLAG);
     private final RectF rect = new RectF();
+    // The cover, progress bar and graph cells reuse rect; never pass it as card bounds.
+    private final RectF cardBounds = new RectF();
 
     @Nullable
     private CustomProfileExtraRows.Block block;
@@ -184,13 +186,13 @@ public class IntegrationCardView extends View {
             return;
         }
         final int width = getMeasuredWidth();
-        rect.set(dp(16), dp(6), width - dp(16), getMeasuredHeight() - dp(6));
+        cardBounds.set(dp(16), dp(6), width - dp(16), getMeasuredHeight() - dp(6));
         fill.setColor(cardColor());
-        canvas.drawRoundRect(rect, radius(), radius(), fill);
+        canvas.drawRoundRect(cardBounds, radius(), radius(), fill);
         if (rich.track != null) {
-            drawTrack(canvas, rect);
+            drawTrack(canvas, cardBounds);
         } else if (rich.graph != null) {
-            drawGraph(canvas, rect);
+            drawGraph(canvas, cardBounds);
         }
     }
 

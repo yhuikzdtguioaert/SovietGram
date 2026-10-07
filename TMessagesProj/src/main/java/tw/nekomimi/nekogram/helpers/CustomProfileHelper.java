@@ -824,6 +824,48 @@ public final class CustomProfileHelper {
         return fallback;
     }
 
+    // BEGIN BIO FADE
+    // AboutLinkCell has no public accessor for this client-owned gradient. Resolve only that
+    // field once, like ProfileBioFade in the original plugin, rather than altering shared cells.
+    private static java.lang.reflect.Field bioMoreFadeField;
+    private static boolean bioMoreFadeFieldResolved;
+    private static final java.util.WeakHashMap<View, android.graphics.drawable.Drawable> bioMoreFadeSaved =
+            new java.util.WeakHashMap<>();
+
+    /** Clear the native show-more scrim on translucent rows, not the text/button it contains. */
+    public static void syncBioFade(View cell) {
+        if (!bioMoreFadeFieldResolved) {
+            bioMoreFadeFieldResolved = true;
+            try {
+                bioMoreFadeField = org.telegram.ui.Cells.AboutLinkCell.class
+                        .getDeclaredField("showMoreTextBackgroundView");
+                bioMoreFadeField.setAccessible(true);
+            } catch (ReflectiveOperationException e) {
+                FileLog.e(e);
+            }
+        }
+        if (bioMoreFadeField == null) return;
+        try {
+            final View fade = (View) bioMoreFadeField.get(cell);
+            if (fade == null) return;
+            final boolean translucent = isEnabled() && android.graphics.Color.alpha(themedColor(
+                    Theme.key_windowBackgroundWhite, Theme.getColor(Theme.key_windowBackgroundWhite))) < 255;
+            if (translucent) {
+                final android.graphics.drawable.Drawable background = fade.getBackground();
+                if (background != null) {
+                    bioMoreFadeSaved.put(fade, background);
+                    fade.setBackground(null);
+                }
+            } else {
+                final android.graphics.drawable.Drawable saved = bioMoreFadeSaved.remove(fade);
+                if (saved != null && fade.getBackground() == null) fade.setBackground(saved);
+            }
+        } catch (IllegalAccessException e) {
+            FileLog.e(e);
+        }
+    }
+    // END BIO FADE
+
     /** The surfaces the profile's rows and section cards are painted on. */
     private static boolean isBlockKey(int key) {
         return key == Theme.key_windowBackgroundWhite

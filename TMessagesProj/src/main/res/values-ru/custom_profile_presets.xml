@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="CustomProfilePresets">Изменить оформление</string>
+    <string name="CustomProfilePresetSlots">Сохранённые оформления</string>
+    <string name="CustomProfilePresetSlot">Ячейка %1$d</string>
+    <string name="CustomProfilePresetSaved">Сохранено · нажмите для применения</string>
+    <string name="CustomProfilePresetEmpty">Пусто · нажмите для сохранения</string>
+    <string name="CustomProfilePresetBusy">Подождите…</string>
+    <string name="CustomProfilePresetApply">Применить оформление</string>
+    <string name="CustomProfilePresetSave">Сохранить текущее оформление</string>
+    <string name="CustomProfilePresetClear">Очистить ячейку</string>
+    <string name="CustomProfilePresetOverwriteInfo">Заменить сохранённое оформление текущим? Другие ячейки не изменятся.</string>
+    <string name="CustomProfilePresetClearInfo">Удалить сохранённое оформление? Текущее оформление профиля не изменится.</string>
+    <string name="CustomProfilePresetStored">Оформление сохранено</string>
+    <string name="CustomProfilePresetApplied">Оформление применено</string>
+    <string name="CustomProfilePresetCleared">Ячейка очищена</string>
+    <string name="CustomProfilePresetFailed">Не удалось сохранить или применить оформление. Проверьте доступность его медиафайлов и свободное место на устройстве.</string>
+    <string name="CustomProfilePresetInfo">Сохраните своё оформление в пустой ячейке перед установкой профиля из мастерской. Затем сохраните оформление из мастерской в другой ячейке. Нажмите сохранённую ячейку для переключения; удерживайте её для замены или очистки. Три ячейки принадлежат этому аккаунту и хранятся на этом устройстве. Установка из мастерской и сброс профиля не удаляют их. Подключения к сервисам и данные авторизации не сохраняются и не восстанавливаются.</string>
+</resources>

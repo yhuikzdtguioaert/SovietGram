@@ -1540,9 +1540,16 @@ public final class CustomProfileHeaderLayout {
             outputScaleY = baseScaleY * ((scaleY - 1f) * amount + 1f);
             if (Math.abs(nowX - outputScaleX) > 0.002f) {
                 view.setScaleX(outputScaleX);
+            } else {
+                // Track what is really on the View, as the original plugin does. The write
+                // threshold is wider than scaleBase's tolerance; remembering an unwritten
+                // value would recapture our custom scale as the native base on the next frame.
+                outputScaleX = nowX;
             }
             if (Math.abs(nowY - outputScaleY) > 0.002f) {
                 view.setScaleY(outputScaleY);
+            } else {
+                outputScaleY = nowY;
             }
         }
 

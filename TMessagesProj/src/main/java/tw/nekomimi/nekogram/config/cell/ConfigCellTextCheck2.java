@@ -22,6 +22,7 @@ public class ConfigCellTextCheck2 extends AbstractConfigCell implements WithKey 
     public TextCheckCell2 cell;
     private boolean enabled = true;
     private boolean collapsed = true;
+    private final ConfigCellListUpdate listUpdate = new ConfigCellListUpdate();
 
     public ConfigCellTextCheck2(String key, String title, ArrayList<ConfigCellCheckBox> checkbox, Runnable onCheckClick) {
         this(key, title, 0, checkbox, onCheckClick);
@@ -92,11 +93,13 @@ public class ConfigCellTextCheck2 extends AbstractConfigCell implements WithKey 
                 item.cell.setChecked(newValue, true);
             }
         }
-        if (cellGroup != null && cellGroup.getListAdapter() != null) {
-            int position = cellGroup.rows.indexOf(this);
-            if (position != -1) {
-                cellGroup.getListAdapter().notifyItemChanged(position);
-            }
+        if (cellGroup != null) {
+            listUpdate.run(cellGroup, () -> {
+                int position = cellGroup.rows.indexOf(this);
+                if (position >= 0 && cellGroup.getListAdapter() != null) {
+                    cellGroup.getListAdapter().notifyItemChanged(position);
+                }
+            });
         }
         return newValue;
     }
@@ -120,32 +123,44 @@ public class ConfigCellTextCheck2 extends AbstractConfigCell implements WithKey 
             }
             return;
         }
-        boolean newValue = toggleFullChecked();
-        cellGroup.runCallback(getKey() + "_check", newValue);
+        listUpdate.run(cellGroup, () -> {
+            if (!enabled || !cellGroup.rows.contains(this)) return;
+            boolean newValue = toggleFullChecked();
+            cellGroup.runCallback(getKey() + "_check", newValue);
+        });
     }
 
     public void onClick() {
         if (!enabled) return;
 
-        setCollapsed(!collapsed);
+        listUpdate.run(cellGroup, () -> {
+            int toggleRowIndex = cellGroup.rows.indexOf(this);
+            if (!enabled || toggleRowIndex < 0) return;
+            setCollapsed(!collapsed);
 
-        RecyclerListView.SelectionAdapter listAdapter = cellGroup.getListAdapter();
-        int toggleRowIndex = cellGroup.rows.indexOf(this);
-        if (!collapsed) {
-            List<AbstractConfigCell> boundNewRows = new ArrayList<>(getCheckBox().size());
-            for (AbstractConfigCell checkBoxItem : getCheckBox()) {
-                checkBoxItem.bindCellGroup(cellGroup);
-                boundNewRows.add(checkBoxItem);
+            RecyclerListView.SelectionAdapter listAdapter = cellGroup.getListAdapter();
+            if (!collapsed) {
+                List<AbstractConfigCell> boundNewRows = new ArrayList<>(getCheckBox().size());
+                for (AbstractConfigCell checkBoxItem : getCheckBox()) {
+                    checkBoxItem.bindCellGroup(cellGroup);
+                    boundNewRows.add(checkBoxItem);
+                }
+                cellGroup.rows.addAll(toggleRowIndex + 1, boundNewRows);
+                if (listAdapter != null && !boundNewRows.isEmpty()) {
+                    listAdapter.notifyItemRangeInserted(toggleRowIndex + 1, boundNewRows.size());
+                }
+            } else {
+                cellGroup.rows.removeAll(getCheckBox());
+                if (listAdapter != null && !getCheckBox().isEmpty()) {
+                    listAdapter.notifyItemRangeRemoved(toggleRowIndex + 1, getCheckBox().size());
+                }
             }
-            cellGroup.rows.addAll(toggleRowIndex + 1 , boundNewRows);
-            listAdapter.notifyItemRangeInserted(toggleRowIndex + 1, getCheckBox().size());
-        } else {
-            cellGroup.rows.removeAll(getCheckBox());
-            listAdapter.notifyItemRangeRemoved(toggleRowIndex + 1, getCheckBox().size());
-        }
-        listAdapter.notifyItemChanged(toggleRowIndex);
+            if (listAdapter != null) {
+                listAdapter.notifyItemChanged(toggleRowIndex);
+            }
 
-        cellGroup.runCallback(getKey(), collapsed);
+            cellGroup.runCallback(getKey(), collapsed);
+        });
     }
 
 }
