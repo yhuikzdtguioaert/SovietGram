@@ -151,7 +151,8 @@ public final class CustomProfilePresets {
     private static JSONObject capture() throws Exception {
         JSONObject values = new JSONObject();
         for (ConfigItem item : visualItems()) values.put(item.getKey(), item.value);
-        String raw = values.optString(NekoConfig.customProfileExtraBlocks.getKey(), "");
+        String raw = CustomProfileExtraRows.removeRetiredIntegrations(values.optString(NekoConfig.customProfileExtraBlocks.getKey(), ""));
+        values.put(NekoConfig.customProfileExtraBlocks.getKey(), raw);
         if (!raw.isEmpty()) {
             JSONArray blocks = new JSONArray(raw);
             for (int i = 0; i < blocks.length(); i++) {
@@ -248,7 +249,10 @@ public final class CustomProfilePresets {
         if (raw.isEmpty()) return null;
         JSONObject snapshot = new JSONObject(raw);
         if (snapshot.optInt("version") != 1) throw new IOException("Unsupported profile preset version");
-        return snapshot.getJSONObject("values");
+        JSONObject values = snapshot.getJSONObject("values");
+        String blocksKey = NekoConfig.customProfileExtraBlocks.getKey();
+        if (values.has(blocksKey)) values.put(blocksKey, CustomProfileExtraRows.removeRetiredIntegrations(values.optString(blocksKey)));
+        return values;
     }
 
     private static void validate(JSONObject values) throws Exception {
@@ -316,7 +320,7 @@ public final class CustomProfilePresets {
 
     /** Broken live editing data must not prevent recovery from a valid saved appearance. */
     private static JSONArray liveBlocks() {
-        String raw = NekoConfig.customProfileExtraBlocks.String();
+        String raw = CustomProfileExtraRows.removeRetiredIntegrations(NekoConfig.customProfileExtraBlocks.String());
         try {
             return raw.isEmpty() ? new JSONArray() : new JSONArray(raw);
         } catch (Exception e) {

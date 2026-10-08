@@ -142,6 +142,40 @@ public final class CustomProfileExtraRows {
         }
     }
 
+    /** Targeted upgrade: preserve every other block, extension field and ordinary URL. */
+    public static String removeRetiredIntegrations(String raw) {
+        if (raw == null || raw.isEmpty()) return raw;
+        try {
+            JSONArray source = new JSONArray(raw), kept = new JSONArray();
+            boolean changed = false;
+            for (int i = 0; i < source.length(); i++) {
+                Object value = source.opt(i);
+                JSONObject block = source.optJSONObject(i);
+                if (block != null && block.optInt("type") == TYPE_INTEGRATION) {
+                    int service = block.optInt("service");
+                    if (service >= 5 && service <= 7) { changed = true; continue; }
+                    JSONObject accounts = block.optJSONObject("accounts");
+                    if (accounts != null) {
+                        for (String key : new String[]{"soundcloud", "soundcloud-me", "soundcloud-live"}) {
+                            if (accounts.has(key)) { accounts.remove(key); changed = true; }
+                        }
+                    }
+                }
+                kept.put(value);
+            }
+            return changed ? (kept.length() == 0 ? "" : kept.toString()) : raw;
+        } catch (Exception ignored) { return raw; }
+    }
+
+    /** Clear all old device-consent owners. There is no reader, listener or publisher left. */
+    public static void migrateRemovedIntegrations() {
+        org.telegram.messenger.ApplicationLoader.applicationContext
+                .getSharedPreferences("soundcloud_device_rpc", android.content.Context.MODE_PRIVATE).edit().clear().apply();
+        String raw = NekoConfig.customProfileExtraBlocks.String();
+        String clean = removeRetiredIntegrations(raw);
+        if (!raw.equals(clean)) NekoConfig.customProfileExtraBlocks.setConfigString(clean);
+    }
+
     // ---------------------------------------------------------------- editing
 
     /** The look's own rows as stored, for the editor. A copy: editing one must not repaint anything. */
@@ -208,6 +242,7 @@ public final class CustomProfileExtraRows {
         if (block == null) {
             return null;
         }
+        if (block.type == TYPE_INTEGRATION && !CustomProfileIntegrations.isSupported(block.service)) return null;
         try {
             final JSONObject o = new JSONObject();
             o.put("id", block.id);
@@ -341,12 +376,11 @@ public final class CustomProfileExtraRows {
         b.viewY = clamp(o.optInt("view_y"), -4096, 4096);
         b.viewSpan = clamp(o.optInt("view_span", 32), 8, 256);
         final int storedService = o.optInt("service");
-        if (type == TYPE_INTEGRATION && storedService > 7) {
+        if (type == TYPE_INTEGRATION && (storedService < 0 || storedService > 4)) {
             // Unknown providers must not be interpreted as a supported account.
             return null;
         }
-        // Public profiles (5) and saved authenticated connections (6) are distinct.
-        b.service = clamp(storedService, 0, 7);
+        b.service = clamp(storedService, 0, 4);
         b.intStyle = clamp(o.optInt("int_style"), 0, 1);
         b.intRefresh = clamp(o.optInt("int_refresh"), 0, 3600);
         final int storedMode = o.optInt("mode");
@@ -362,7 +396,7 @@ public final class CustomProfileExtraRows {
         if (b.parts.length() == 0) b.parts.put(b.mode);
         JSONObject accounts = o.optJSONObject("accounts");
         if (accounts != null) {
-            for (int i = 0; i < 7; i++) {
+            for (int i = 0; i < 5; i++) {
                 try { b.accounts.put(CustomProfileIntegrations.key(i), trim(accounts.optString(CustomProfileIntegrations.key(i)), 64)); }
                 catch (org.json.JSONException ignore) { }
             }

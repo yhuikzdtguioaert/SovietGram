@@ -99,53 +99,6 @@ public final class SovietGramApiClient {
         request(account, "DELETE", path, null, true, cb);
     }
 
-    /** Capture identity before logout/account-slot reuse. Never resolve a token later on a worker. */
-    public static MusicRpcAuth captureMusicRpcAuth(int account, long owner) {
-        if (owner <= 0 || SovietGramTokenStore.ownId(account) != owner) return null;
-        String token = SovietGramTokenStore.tokenForAccount(account);
-        String base = ApiServersHelper.baseUrl();
-        if (TextUtils.isEmpty(token) || TextUtils.isEmpty(base) || !base.startsWith("https://")) return null;
-        return new MusicRpcAuth(account, owner, base, token);
-    }
-    public static final class MusicRpcAuth {
-        private final int account;
-        private final long owner;
-        private final String base, token;
-        private MusicRpcAuth(int account, long owner, String base, String token) {
-            this.account = account; this.owner = owner; this.base = base; this.token = token;
-        }
-        public boolean isCurrentIdentity() {
-            return SovietGramTokenStore.ownId(account) == owner && token.equals(SovietGramTokenStore.tokenForAccount(account))
-                    && base.equals(ApiServersHelper.baseUrl());
-        }
-        public void write(SoundCloudRpcPolicy.Request request, java.util.function.BooleanSupplier allowed, Callback cb) {
-            if (request.owner != owner || request.account != account) { deliver(cb, null, "rpc_owner_changed"); return; }
-            final byte[] bytes;
-            try {
-                JSONObject body = new JSONObject();
-                if (!request.clear) {
-                    SoundCloudRpcPolicy.Snapshot s = request.snapshot;
-                    body.put("service", "soundcloud"); body.put("title", s.title); body.put("artist", s.artist);
-                    if (!s.album.isEmpty()) body.put("album", s.album);
-                    if (!s.trackUrl.isEmpty()) body.put("track_url", s.trackUrl);
-                    if (!s.coverUrl.isEmpty()) body.put("cover_url", s.coverUrl);
-                    body.put("duration_ms", s.durationMs); body.put("position_ms", s.positionMs); body.put("state", s.state);
-                }
-                bytes = request.clear ? null : body.toString().getBytes(StandardCharsets.UTF_8);
-            } catch (Throwable error) { deliver(cb, null, "rpc_invalid_snapshot"); return; }
-            EXECUTOR.execute(() -> {
-                // Disabling after enqueue must not leak one more song. Already-sent POSTs are
-                // serialized before the subsequent DELETE by the production publication policy.
-                if (!request.clear && !allowed.getAsBoolean()) { deliver(cb, null, "rpc_cancelled"); return; }
-                try {
-                    JSONObject json = readJson(account, executeWithIdentity(account, request.clear ? "DELETE" : "POST",
-                            "/v1/music-rpc", bytes, true, HttpClient.INSTANCE.getInstance(), base, token), true);
-                    deliver(cb, json, null);
-                } catch (Throwable error) { deliver(cb, null, error.getMessage()); }
-            });
-        }
-    }
-
     /**
      * Unauthenticated POST, used only for the bootstrap {@code POST /v1/auth/challenge} call the
      * client makes before it owns a token. Sends no Authorization header and no write signature;

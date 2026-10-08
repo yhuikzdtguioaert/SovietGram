@@ -119,7 +119,7 @@ public class PresetHarness {
   if(!args[1].equals("empty")) {
    Path original=ApplicationLoader.files.toPath().resolve("banner");Files.writeString(original,"MY BANNER");
    NekoConfig.customProfileBannerPath.setConfigString(original.toString());NekoConfig.color.setConfigInt(42);
-   NekoConfig.customProfileExtraBlocks.setConfigString("[{\\"id\\":\\"integrated\\",\\"type\\":12,\\"service\\":6,\\"accounts\\":{\\"soundcloud\\":\\"private-id\\"},\\"url\\":\\"identity\\",\\"int_style\\":3}]");
+   NekoConfig.customProfileExtraBlocks.setConfigString("[{\\"id\\":\\"integrated\\",\\"type\\":12,\\"service\\":4,\\"accounts\\":{\\"spotify\\":\\"private-id\\"},\\"url\\":\\"identity\\",\\"int_style\\":3}]");
    require(Boolean.TRUE.equals(call("save",0,0)),"save succeeds");
    require(CustomProfilePresets.has(0,0),"slot stored");
    String raw=ApplicationLoader.applicationContext.getSharedPreferences("custom_profile_visual_presets",0).getString("slot_100_0","");
@@ -141,6 +141,20 @@ public class PresetHarness {
      require(Boolean.TRUE.equals(call("apply",0,1))&&NekoConfig.color.Int()==99,"return later to saved workshop look");
      require(NekoConfig.customProfileBannerPath.String().isEmpty(),"workshop slot restores descriptor-only media state");
     }
+   }
+   if(args[1].equals("removed-providers")) {
+    JSONObject legacy=new JSONObject(raw);JSONArray rows=new JSONArray(legacy.getJSONObject("values").getString("customProfileExtraBlocks"));
+    for(int provider=5;provider<=7;provider++)rows.put(new JSONObject().put("type",12).put("service",provider).put("id","retired"+provider));
+    rows.put(new JSONObject().put("type",0).put("url","https://soundcloud.com/ordinary").put("id","normal"));
+    legacy.getJSONObject("values").put("customProfileExtraBlocks",rows.toString());
+    ApplicationLoader.applicationContext.getSharedPreferences("custom_profile_visual_presets",0).edit().putString("slot_100_0",legacy.toString()).commit();
+    require(Boolean.TRUE.equals(call("apply",0,0)),"old mixed preset applies");
+    JSONArray restored=new JSONArray(NekoConfig.customProfileExtraBlocks.String());
+    require(restored.length()==2&&restored.getJSONObject(0).getInt("service")==4&&restored.getJSONObject(1).getString("url").equals("https://soundcloud.com/ordinary"),"old preset drops only retired integrations, preserves Spotify and ordinary URLs");
+    NekoConfig.customProfileExtraBlocks.setConfigString(rows.toString());
+    require(Boolean.TRUE.equals(call("save",0,1)),"mixed live appearance saved");
+    JSONObject captured=new JSONObject(ApplicationLoader.applicationContext.getSharedPreferences("custom_profile_visual_presets",0).getString("slot_100_1",""));
+    require(new JSONArray(captured.getJSONObject("values").getString("customProfileExtraBlocks")).length()==2,"new visual capture cannot store retired integrations");
    }
    if(args[1].equals("all-slots")) {
     for(int slot=1;slot<3;slot++) {
@@ -206,7 +220,7 @@ public class PresetHarness {
    }
    if(args[1].equals("apply")) {
     NekoConfig.color.setConfigInt(99);NekoConfig.enabled.setConfigBool(true);
-    NekoConfig.customProfileExtraBlocks.setConfigString("[{\\"id\\":\\"workshop\\",\\"type\\":12,\\"service\\":6,\\"accounts\\":{\\"soundcloud\\":\\"current-owner\\"},\\"url\\":\\"current-url\\",\\"int_style\\":1}]");
+    NekoConfig.customProfileExtraBlocks.setConfigString("[{\\"id\\":\\"workshop\\",\\"type\\":12,\\"service\\":4,\\"accounts\\":{\\"spotify\\":\\"current-owner\\"},\\"url\\":\\"current-url\\",\\"int_style\\":1}]");
     require(Boolean.TRUE.equals(call("save",0,1)),"workshop saved separately");
     for(int n=0;n<3;n++) {
      require(Boolean.TRUE.equals(call("apply",0,0)),"own slot applies");
@@ -246,6 +260,12 @@ class CustomProfilePresetRuntime(unittest.TestCase):
         workshop_import = helper_source[start:end].replace('@Nullable ', '')
         workshop_import = workshop_import.replace('JSONObject', 'org.json.JSONObject')
         for relative, text in STUBS.items():
+            if relative.endswith('/CustomProfileExtraRows.java'):
+                # Replay the real retired-provider migration, not a fake implementation.
+                from test_soundcloud_protocol import method
+                cleanup=method(SOURCE.with_name('CustomProfileExtraRows.java').read_text(),
+                               'public static String removeRetiredIntegrations(String raw)')
+                text='package tw.nekomimi.nekogram.helpers;import org.json.*;public class CustomProfileExtraRows {public static final int TYPE_INTEGRATION=12;public static void releaseIntegrationAccounts(){}'+cleanup+'}'
             if relative.endswith('/CustomProfileHelper.java'):
                 # Compile the actual production workshop importer at its Android/config seam.
                 text = text.rstrip()[:-1] + workshop_import + '\n}'
@@ -266,6 +286,9 @@ class CustomProfilePresetRuntime(unittest.TestCase):
                                      'PresetHarness', folder, mode], text=True, capture_output=True, timeout=30)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertIn('PASS ' + mode, result.stdout)
+
+    def test_old_and_new_visual_presets_drop_only_removed_integrations(self):
+        self.run_harness('removed-providers')
 
     def test_three_empty_slots_and_owner_guards(self):
         self.run_harness('empty')

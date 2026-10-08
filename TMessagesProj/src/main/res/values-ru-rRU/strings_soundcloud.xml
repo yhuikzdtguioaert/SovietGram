@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="CustomProfileIntegrationSoundcloudUnavailable">Вход в аккаунт SoundCloud недоступен в этой сборке. На сервере нет зарегистрированных ключей приложения SoundCloud и обмена кода авторизации. Вход на сайте SoundCloud не подключает SovietGram; адрес с code/state не является токеном доступа. Не вставляйте этот адрес, пароль или cookies браузера.\n\nИспользуйте публичный профиль: укажите ссылку на профиль SoundCloud или его имя пользователя. Это не даёт доступа к аккаунту, закрытой истории прослушивания или текущему воспроизведению. Ранее сохранённые подключения не удаляются.</string>
-    <string name="CustomProfileIntegrationSoundcloudPublic">Публичный профиль SoundCloud</string>
-    <string name="CustomProfileIntegrationSoundcloudPrivate">Аккаунт SoundCloud (вход недоступен)</string>
-    <string name="CustomProfileIntegrationSoundcloudPublicInfo">Укажите полную ссылку на профиль SoundCloud или его имя пользователя, а не адрес после входа или токен. Запрашиваются только публичные данные профиля, без входа в аккаунт и текущего статуса прослушивания. Данные могут быть недоступны, если SoundCloud ограничит доступ. Вместо интеграции можно добавить обычный блок «Ссылка» на публичный профиль.</string>
-</resources>

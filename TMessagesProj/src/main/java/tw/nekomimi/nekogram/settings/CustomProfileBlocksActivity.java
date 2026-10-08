@@ -16,7 +16,6 @@ import tw.nekomimi.nekogram.helpers.CustomProfileHelper;
 import tw.nekomimi.nekogram.helpers.CustomProfileMedia;
 import tw.nekomimi.nekogram.helpers.CustomProfileIntegrations;
 import tw.nekomimi.nekogram.helpers.PopupHelper;
-import tw.nekomimi.nekogram.helpers.SoundCloudDeviceRpc;
 
 /**
  * The rows a look invents for itself — a link, a button, a heading, a line of text, a picture.
@@ -48,8 +47,8 @@ public class CustomProfileBlocksActivity extends CustomProfileListActivity {
             CustomProfileExtraRows.ACTION_SHARE,
     };
 
-    // Provider IDs, not menu positions: public SoundCloud (5) never needs user login.
-    private static final int[] SERVICES = {0, 1, 2, 3, 4, 5, 6, 7};
+    // Persisted provider IDs stay unchanged.
+    private static final int[] SERVICES = {0, 1, 2, 3, 4};
 
     /** −1 for the list, otherwise the row being edited. */
     private final int index;
@@ -111,66 +110,6 @@ public class CustomProfileBlocksActivity extends CustomProfileListActivity {
                     CustomProfileExtraRows.store(blocks);
                     presentFragment(new CustomProfileBlocksActivity(blocks.size() - 1));
                 });
-    }
-
-    private void buildSoundcloudLiveSettings(CustomProfileExtraRows.Block block) {
-        info(getString(R.string.CustomProfileSoundcloudLiveDisclosure));
-        setting(getString(R.string.CustomProfileSoundcloudLivePermission),
-                getString(SoundCloudDeviceRpc.permissionGranted() ? R.string.CustomProfileSoundcloudLiveGranted : R.string.CustomProfileSoundcloudLiveNotGranted),
-                () -> {
-                    if (getParentActivity() == null) return;
-                    new AlertDialog.Builder(getParentActivity())
-                            .setTitle(getString(R.string.CustomProfileSoundcloudLivePermission))
-                            .setMessage(getString(R.string.CustomProfileSoundcloudLiveDisclosure))
-                            .setNegativeButton(getString(R.string.Cancel), null)
-                            .setPositiveButton(getString(R.string.CustomProfileSoundcloudLiveOpenSettings), (dialog, which) -> {
-                                try {
-                                    getParentActivity().startActivity(new android.content.Intent(android.provider.Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS));
-                                } catch (Exception unavailable) {
-                                    new AlertDialog.Builder(getParentActivity())
-                                            .setMessage(getString(R.string.CustomProfileSoundcloudLiveUnavailable))
-                                            .setPositiveButton(getString(R.string.OK), null).show();
-                                }
-                            }).show();
-                });
-        long owner = org.telegram.messenger.UserConfig.getInstance(currentAccount).getClientUserId();
-        check(org.telegram.messenger.LocaleController.formatString(R.string.CustomProfileSoundcloudLivePublishOwner, Long.toString(owner)),
-                SoundCloudDeviceRpc.isEnabled(currentAccount), () -> {
-                    if (!sameOwner(owner)) return;
-                    if (SoundCloudDeviceRpc.isEnabled(currentAccount)) {
-                        SoundCloudDeviceRpc.setEnabled(currentAccount, false);
-                        rebuild();
-                    } else confirmSoundcloudLive(block.id, owner);
-                });
-        info(getString(R.string.CustomProfileSoundcloudLiveLimits));
-    }
-
-    private void confirmSoundcloudLive(String blockId, long owner) {
-        if (!sameOwner(owner) || getParentActivity() == null) return;
-        new AlertDialog.Builder(getParentActivity())
-                .setTitle(getString(R.string.CustomProfileSoundcloudLive))
-                .setMessage(org.telegram.messenger.LocaleController.formatString(R.string.CustomProfileSoundcloudLiveConfirm, Long.toString(owner)))
-                .setNegativeButton(getString(R.string.Cancel), null)
-                .setPositiveButton(getString(R.string.CustomProfileSoundcloudLiveEnable), (dialog, which) -> enableSoundcloudLive(blockId, owner))
-                .show();
-    }
-
-    private void enableSoundcloudLive(String blockId, long owner) {
-        if (!sameOwner(owner)) return;
-        boolean exists = false;
-        for (CustomProfileExtraRows.Block candidate : CustomProfileExtraRows.stored()) {
-            if (candidate.id.equals(blockId) && candidate.type == CustomProfileExtraRows.TYPE_INTEGRATION && candidate.service == 7) {
-                exists = true; break;
-            }
-        }
-        if (!exists) return;
-        if (!SoundCloudDeviceRpc.setEnabled(currentAccount, true) && getParentActivity() != null) {
-            new AlertDialog.Builder(getParentActivity())
-                    .setTitle(getString(R.string.CustomProfileSoundcloudLive))
-                    .setMessage(getString(R.string.CustomProfileSoundcloudLiveUnavailable))
-                    .setPositiveButton(getString(R.string.OK), null).show();
-        }
-        rebuild();
     }
 
     private void order(List<CustomProfileExtraRows.Block> blocks, int at) {
@@ -240,9 +179,7 @@ public class CustomProfileBlocksActivity extends CustomProfileListActivity {
                 final ArrayList<String> services = new ArrayList<>();
                 int selected = -1;
                 for (int i = 0; i < SERVICES.length; i++) {
-                    services.add(SERVICES[i] == 5 ? getString(R.string.CustomProfileIntegrationSoundcloudPublic)
-                            : SERVICES[i] == 6 ? getString(R.string.CustomProfileIntegrationSoundcloudPrivate)
-                            : CustomProfileIntegrations.serviceName(SERVICES[i]));
+                    services.add(CustomProfileIntegrations.serviceName(SERVICES[i]));
                     if (SERVICES[i] == block.service) selected = i;
                 }
                 PopupHelper.show(services, getString(R.string.CustomProfileIntegrationService),
@@ -255,32 +192,15 @@ public class CustomProfileBlocksActivity extends CustomProfileListActivity {
                             if (defaultTitle) block.title = CustomProfileIntegrations.serviceName(service);
                             block.url = block.accounts.optString(CustomProfileIntegrations.key(service));
                             block.parts = new org.json.JSONArray(); block.parts.put(0); block.mode = 0;
-                            if (service == 7) block.intStyle = 1; // Independent real-source card, no second integration required.
                             CustomProfileExtraRows.store(blocks);
                             rebuild();
                         });
             });
-            if (block.service == 5) info(getString(R.string.CustomProfileIntegrationSoundcloudPublicInfo));
-            if (block.service == 6) info(getString(R.string.CustomProfileIntegrationSoundcloudUnavailable));
-            if (block.service != 7 && block.url.isEmpty()) info(getString(R.string.CustomProfileIntegrationNeedsBinding));
-            if (block.service == 7) {
-                buildSoundcloudLiveSettings(block);
-            } else if (!CustomProfileIntegrations.isConnected(block.service)) {
+            if (block.url.isEmpty()) info(getString(R.string.CustomProfileIntegrationNeedsBinding));
+            if (!CustomProfileIntegrations.isConnected(block.service)) {
                 setting(getString(R.string.CustomProfileIntegrationAccount), preview(block.url),
                         () -> askText(getString(R.string.CustomProfileIntegrationAccount), block.url, 128, value -> {
-                            if (block.service == 5) {
-                                final String name = CustomProfileIntegrations.publicSoundcloudAccount(value);
-                                if (!value.trim().isEmpty() && name.isEmpty()) {
-                                    new AlertDialog.Builder(getParentActivity())
-                                            .setTitle(getString(R.string.CustomProfileIntegrationSoundcloudPublic))
-                                            .setMessage(getString(R.string.CustomProfileIntegrationSoundcloudPublicInfo))
-                                            .setPositiveButton(getString(R.string.OK), null).show();
-                                    return;
-                                }
-                                block.url = name; // Store only public identity, never query/fragment credentials.
-                            } else {
-                                block.url = value;
-                            }
+                            block.url = value;
                             CustomProfileExtraRows.store(blocks);
                         }));
             } else {
@@ -450,7 +370,7 @@ public class CustomProfileBlocksActivity extends CustomProfileListActivity {
         }
         if (!targetExists) return;
         // The backend holds one connection per owner/provider, not per block. Relinking
-        // one Spotify/Yandex/SoundCloud block must not leave the others bound to its old id.
+        // one Spotify/Yandex block must not leave the others bound to its old id.
         for (CustomProfileExtraRows.Block block : fresh) {
             if (block.type != CustomProfileExtraRows.TYPE_INTEGRATION) continue;
             if (block.service == service) block.url = providerId;
@@ -468,14 +388,6 @@ public class CustomProfileBlocksActivity extends CustomProfileListActivity {
         final long owner = org.telegram.messenger.UserConfig.getInstance(currentAccount).getClientUserId();
         final String id = block.id;
         final int service = block.service;
-        if (service == 6) {
-            new AlertDialog.Builder(getParentActivity()).setTitle(CustomProfileIntegrations.serviceName(service))
-                    .setMessage(getString(R.string.CustomProfileIntegrationSoundcloudUnavailable))
-                    .setPositiveButton(getString(R.string.CustomProfileIntegrationSoundcloudPublic),
-                            (dialog, which) -> usePublicSoundcloud(id, owner))
-                    .setNegativeButton(getString(R.string.Cancel), null).show();
-            return;
-        }
         if (!tw.nekomimi.nekogram.helpers.SovietGramApiClient.isReady(currentAccount)) {
             new AlertDialog.Builder(getParentActivity()).setTitle(CustomProfileIntegrations.serviceName(service))
                     .setMessage(getString(R.string.CustomProfileIntegrationUnavailable))
@@ -489,26 +401,6 @@ public class CustomProfileBlocksActivity extends CustomProfileListActivity {
                             currentAccount, service, saved -> linkedBlock(id, service, owner, saved.optString("id")));
                 })
                 .setNegativeButton(getString(R.string.Cancel), null).show();
-    }
-
-    private void usePublicSoundcloud(String id, long owner) {
-        if (!sameOwner(owner)) return;
-        final List<CustomProfileExtraRows.Block> fresh = CustomProfileExtraRows.stored();
-        for (CustomProfileExtraRows.Block block : fresh) {
-            if (!block.id.equals(id) || block.type != CustomProfileExtraRows.TYPE_INTEGRATION || block.service != 6) continue;
-            // This changes only the selected block, never deletes a saved server connection.
-            try { block.accounts.put(CustomProfileIntegrations.key(6), block.url); }
-            catch (org.json.JSONException ignored) { }
-            block.service = 5;
-            block.url = block.accounts.optString(CustomProfileIntegrations.key(5));
-            block.mode = 0;
-            block.parts = new org.json.JSONArray();
-            block.parts.put(0);
-            CustomProfileIntegrations.clearCache();
-            CustomProfileExtraRows.store(fresh);
-            rebuild();
-            return;
-        }
     }
 
     private void disconnect(CustomProfileExtraRows.Block block) {

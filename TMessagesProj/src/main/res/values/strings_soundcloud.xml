@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="CustomProfileIntegrationSoundcloudUnavailable">SoundCloud account login is unavailable in this build. The server has no registered SoundCloud application credentials or authorization-code exchange. Signing in on the SoundCloud website does not connect SovietGram; its code/state URL is not an access token. Do not paste that URL, your password or browser cookies.\n\nUse a public profile instead: enter your SoundCloud profile URL or username. This does not grant account access or show private listening history or live playback. Existing saved connections are not deleted.</string>
-    <string name="CustomProfileIntegrationSoundcloudPublic">SoundCloud public profile</string>
-    <string name="CustomProfileIntegrationSoundcloudPrivate">SoundCloud account (login unavailable)</string>
-    <string name="CustomProfileIntegrationSoundcloudPublicInfo">Enter a full SoundCloud profile URL or its username, not a sign-in redirect or token. Only public profile data is requested; no account login or live listening status. Data may be unavailable if SoundCloud restricts access. You can always add a normal Link block to your public profile instead.</string>
-</resources>

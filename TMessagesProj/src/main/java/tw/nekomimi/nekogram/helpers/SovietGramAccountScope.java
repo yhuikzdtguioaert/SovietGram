@@ -109,7 +109,9 @@ public final class SovietGramAccountScope {
      * right values.
      */
     public static synchronized void syncTo(int account) {
-        SoundCloudDeviceRpc.onAccountChanging(account);
+        CustomProfileExtraRows.migrateRemovedIntegrations();
+        final JSONObject migrated = root();
+        write(migrated);
         final long incoming = SovietGramTokenStore.ownId(account);
         if (incoming <= 0) {
             return;
@@ -201,6 +203,8 @@ public final class SovietGramAccountScope {
         for (ConfigItem item : items) {
             if (!appearance.has(item.getKey()) || appearance.isNull(item.getKey())) continue;
             Object value = item.checkConfigFromString(String.valueOf(appearance.opt(item.getKey())));
+            if (item == NekoConfig.customProfileExtraBlocks && value instanceof String)
+                value = CustomProfileExtraRows.removeRetiredIntegrations((String) value);
             if (value == null) continue;
             try { snapshot.put(item.getKey(), value); } catch (Exception e) { FileLog.e(e); }
             if (live) write(item, value);
@@ -333,7 +337,8 @@ public final class SovietGramAccountScope {
             case ConfigItem.configTypeFloat:
                 return (double) item.Float();
             default:
-                return item.String();
+                return item == NekoConfig.customProfileExtraBlocks
+                        ? CustomProfileExtraRows.removeRetiredIntegrations(item.String()) : item.String();
         }
     }
 
@@ -351,7 +356,9 @@ public final class SovietGramAccountScope {
             case ConfigItem.configTypeFloat:
                 return snapshot.optDouble(key, item.defaultValue instanceof Number ? ((Number) item.defaultValue).doubleValue() : 0d);
             default:
-                return snapshot.optString(key, item.defaultValue == null ? "" : item.defaultValue.toString());
+                String value = snapshot.optString(key, item.defaultValue == null ? "" : item.defaultValue.toString());
+                return item == NekoConfig.customProfileExtraBlocks
+                        ? CustomProfileExtraRows.removeRetiredIntegrations(value) : value;
         }
     }
 
@@ -431,7 +438,18 @@ public final class SovietGramAccountScope {
     }
 
     private static JSONObject root() {
-        return parse(NaConfig.INSTANCE.getSovietGramAccountScopes().String());
+        JSONObject root = parse(NaConfig.INSTANCE.getSovietGramAccountScopes().String());
+        Iterator<String> owners = root.keys();
+        while (owners.hasNext()) {
+            JSONObject snapshot = root.optJSONObject(owners.next());
+            if (snapshot == null) continue;
+            String key = NekoConfig.customProfileExtraBlocks.getKey();
+            if (!snapshot.has(key)) continue;
+            String raw = snapshot.optString(key);
+            String clean = CustomProfileExtraRows.removeRetiredIntegrations(raw);
+            if (!raw.equals(clean)) try { snapshot.put(key, clean); } catch (JSONException e) { FileLog.e(e); }
+        }
+        return root;
     }
 
     /**

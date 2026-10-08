@@ -33,9 +33,6 @@ import java.util.regex.Pattern;
  * server exchanges the authorization code and stores the provider token bundle.
  *
  * <p>Yandex Music uses a manual token, previewed and saved only after confirmation.
- * New SoundCloud sign-in is unavailable: this server has no registered SoundCloud
- * OAuth credentials, code exchange or refresh implementation. Public profile blocks
- * remain available without user authorization; existing connections are preserved.
  */
 public final class CustomProfileIntegrationOAuth {
     // UI-thread only: providers may coexist as saved integrations, but only one
@@ -64,7 +61,7 @@ public final class CustomProfileIntegrationOAuth {
         this.connected = connected;
     }
 
-    /** Starts the sign-in for {@code service} (3 Yandex Music, 4 Spotify, 6 SoundCloud). */
+    /** Starts the sign-in for {@code service} (3 Yandex Music, 4 Spotify). */
     public static void begin(BaseFragment fragment, int account, int service, Consumer<JSONObject> connected) {
         if (fragment == null || fragment.isFinished || fragment.getParentActivity() == null) return;
         final CustomProfileIntegrationOAuth previous = ACTIVE.get(account);
@@ -91,11 +88,8 @@ public final class CustomProfileIntegrationOAuth {
     }
 
     private void start() {
-        // Website sign-in is not our OAuth grant. This server has no registered
-        // SoundCloud app credentials, callback exchange or refresh implementation.
-        // Never open a dead-end website login or ask users to extract a session cookie.
-        if (service == 6) {
-            fail(getString(R.string.CustomProfileIntegrationSoundcloudUnavailable));
+        if (service != 3 && service != 4) {
+            fail(getString(R.string.CustomProfileIntegrationUnavailable));
             return;
         }
         final JSONObject body = new JSONObject();
@@ -113,8 +107,7 @@ public final class CustomProfileIntegrationOAuth {
             }
             final String url = response == null ? null : response.optString("url", null);
             if (error != null || url == null || !url.startsWith("https://")) {
-                fail(error != null && (error.contains("oauth_not_configured")
-                        || (service == 6 && error.contains("bad_request")))
+                fail(error != null && error.contains("oauth_not_configured")
                         ? getString(R.string.CustomProfileIntegrationNotConfigured)
                         : getString(R.string.CustomProfileIntegrationUnavailable));
                 return;

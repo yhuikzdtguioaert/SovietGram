@@ -689,8 +689,6 @@
     <string name="CustomProfileIntegrationLikedTracks">Улюблені треки</string>
     <string name="CustomProfileIntegrationPlaylists">Плейлисти</string>
     <string name="CustomProfileIntegrationLastTrack">Останній трек</string>
-    <string name="CustomProfileIntegrationTracks">Треки</string>
-    <string name="CustomProfileIntegrationLikes">Вподобайки</string>
     <string name="CustomProfileIntegrationFriends">Друзі</string>
     <string name="CustomProfileIntegrationStatus">Статус</string>
     <string name="CustomProfileIntegrationConnect">Підключити обліковий запис</string>
@@ -791,7 +789,6 @@
     <string name="CustomProfileIntegrationListening">Слухає в %s</string>
     <string name="CustomProfileIntegrationPaused">Пауза в %s</string>
     <string name="CustomProfileIntegrationLastPlayed">Нещодавно слухав у %s</string>
-    <string name="CustomProfileIntegrationLatestOn">Останній трек на %s</string>
     <string name="CustomProfileIntegrationGamePlaying">Грає в %s</string>
     <string name="CustomProfileIntegrationContribs">%s контриб\'юцій за останній рік</string>
     <string name="CustomProfileIntegrationLess">Менше</string>
@@ -799,10 +796,5 @@
     <string name="CustomProfileIntegrationStyleInfo">Картка показує обкладинку і прогрес того, що грає, а для GitHub — календар контриб\'юцій. Інтервал — як часто відкритий профіль запитує свіжі дані.</string>
     <string name="CustomProfileHeaderStatusFollow">Тримати «Був(ла) в мережі» під іменем</string>
     <string name="CustomProfileHeaderStatusFollowInfo">Якщо ввімкнено, «Був(ла) в мережі» йде за іменем, куди б його не поставили числа вище, і не відлітає на своєму зсуві. Якір, який ви задали статусу самі, важливіший.</string>
-    <string name="CustomProfileIntegrationLatestTrack">Останній трек</string>
     <string name="CustomProfileIntegrationLikedOn">Лайк на %s</string>
-    <string name="CustomProfileIntegrationSoundcloudAccount">SoundCloud</string>
-    <string name="CustomProfileIntegrationCopyScript">Скопіювати рядок</string>
-    <string name="CustomProfileIntegrationPasteTokenSoundcloud">У SoundCloud немає свого токена, тому він береться з вашої відкритої сесії:\n1. Увійдіть на soundcloud.com у браузері, що відкрився.\n2. Натисніть тут «Скопіювати рядок», потім в адресному рядку того браузера наберіть javascript: і одразу після нього вставте рядок. Натисніть «Перейти».\n3. З\'явиться віконце з токеном: скопіюйте його. SovietGram підхопить його, коли ви повернетесь, або вставте нижче.\nТокен зберігається на сервері в зашифрованому вигляді й потрібен лише щоб читати, що ви слухаєте й лайкаєте.</string>
-    <string name="CustomProfileIntegrationEnterManually">Ввести токен вручну</string>
 </resources>

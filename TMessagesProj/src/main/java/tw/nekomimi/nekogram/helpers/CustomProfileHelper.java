@@ -1025,7 +1025,8 @@ public final class CustomProfileHelper {
                     case ConfigItem.configTypeInt -> json.put(item.getKey(), item.Int());
                     case ConfigItem.configTypeLong -> json.put(item.getKey(), (long) item.Long());
                     case ConfigItem.configTypeFloat -> json.put(item.getKey(), (double) item.Float());
-                    default -> json.put(item.getKey(), item.String());
+                    default -> json.put(item.getKey(), item == NekoConfig.customProfileExtraBlocks
+                            ? CustomProfileExtraRows.removeRetiredIntegrations(item.String()) : item.String());
                 }
             } catch (JSONException e) {
                 FileLog.e(e);
@@ -1470,6 +1471,8 @@ public final class CustomProfileHelper {
     }
 
     private static boolean apply(ConfigItem item, String value) {
+        if (item == NekoConfig.customProfileExtraBlocks) value = CustomProfileExtraRows.removeRetiredIntegrations(value);
+
         final Object parsed = item.checkConfigFromString(value);
         if (parsed == null) {
             return false;

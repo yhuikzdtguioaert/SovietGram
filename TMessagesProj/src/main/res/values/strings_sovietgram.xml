@@ -764,8 +764,6 @@
     <string name="CustomProfileIntegrationLikedTracks">Liked tracks</string>
     <string name="CustomProfileIntegrationPlaylists">Playlists</string>
     <string name="CustomProfileIntegrationLastTrack">Last played track</string>
-    <string name="CustomProfileIntegrationTracks">Tracks</string>
-    <string name="CustomProfileIntegrationLikes">Likes</string>
     <string name="CustomProfileIntegrationFriends">Friends</string>
     <string name="CustomProfileIntegrationStatus">Status</string>
     <string name="CustomProfileIntegrationConnect">Connect account</string>
@@ -869,7 +867,6 @@
     <string name="CustomProfileIntegrationListening">Listening to %s</string>
     <string name="CustomProfileIntegrationPaused">Paused on %s</string>
     <string name="CustomProfileIntegrationLastPlayed">Last listened on %s</string>
-    <string name="CustomProfileIntegrationLatestOn">Latest track on %s</string>
     <string name="CustomProfileIntegrationGamePlaying">Playing on %s</string>
     <string name="CustomProfileIntegrationContribs">%s contributions in the last year</string>
     <string name="CustomProfileIntegrationLess">Less</string>
@@ -877,21 +874,5 @@
     <string name="CustomProfileIntegrationStyleInfo">A card shows the cover and the progress of what is playing, or the contribution calendar for GitHub. The update interval is how often the profile asks for fresh data while it is open.</string>
     <string name="CustomProfileHeaderStatusFollow">Keep Last Seen under the name</string>
     <string name="CustomProfileHeaderStatusFollowInfo">With this on, Last Seen follows the name wherever the numbers above put it, instead of flying off on its own offset. An anchor you set for the status yourself takes precedence.</string>
-    <string name="CustomProfileIntegrationLatestTrack">Latest track</string>
     <string name="CustomProfileIntegrationLikedOn">Liked on %s</string>
-    <string name="CustomProfileIntegrationSoundcloudAccount">SoundCloud</string>
-    <string name="CustomProfileIntegrationCopyScript">Copy line</string>
-    <string name="CustomProfileIntegrationPasteTokenSoundcloud">SoundCloud gives no token of its own, so it is read from your signed-in session:\n1. Sign in at soundcloud.com in the browser that opened.\n2. Tap \"Copy line\" here, then in that browser\'s address bar type javascript: and paste the line right after it. Press Go.\n3. A box shows the token: copy it. SovietGram picks it up when you come back, or paste it below.\nThe token is kept encrypted on the server and only used to read what you play and like.</string>
-    <string name="CustomProfileIntegrationEnterManually">Enter token manually</string>
-    <string name="CustomProfileSoundcloudLive">SoundCloud live (this device)</string>
-    <string name="CustomProfileSoundcloudLiveDisclosure">This source reads the SoundCloud Android app’s active media session on this device, not your listening history or public profile. Android requires notification access for media sessions and grants broad access. SovietGram does not read notification contents, messages or other apps’ media metadata. Permission alone does not publish anything. Publishing is off by default and requires separate consent for the selected Telegram owner.</string>
-    <string name="CustomProfileSoundcloudLivePermission">Android notification access</string>
-    <string name="CustomProfileSoundcloudLiveGranted">Granted by you</string>
-    <string name="CustomProfileSoundcloudLiveNotGranted">Not granted</string>
-    <string name="CustomProfileSoundcloudLiveOpenSettings">Open Android settings</string>
-    <string name="CustomProfileSoundcloudLivePublishOwner">Publish for Telegram owner %1$s</string>
-    <string name="CustomProfileSoundcloudLiveConfirm">Publish SoundCloud music metadata and playback state from this device to the SovietGram server for Telegram owner %1$s? A public live card lets others see it, including while SovietGram is in the background. Only SoundCloud media-session title, artist, album, exposed cover/track links and playback timing are sent. No messages, notifications or SoundCloud login credentials are sent. Switching Telegram accounts, logging out, turning this off or losing notification access stops publishing and requests deletion. Offline/process termination cleanup relies on a 90-second server expiry.</string>
-    <string name="CustomProfileSoundcloudLiveEnable">Enable publishing</string>
-    <string name="CustomProfileSoundcloudLiveUnavailable">Grant notification access yourself in Android settings and connect this Telegram account to the SovietGram server first. Publishing also needs the Android media-session listener to be available on this device.</string>
-    <string name="CustomProfileSoundcloudLiveLimits">Only the SoundCloud Android app on this device is supported, and only metadata it exposes. Browser playback, another device, remote account history and a SoundCloud account login are not supported. Missing covers or links stay empty; unknown timing has no progress bar. State changes are coalesced, with a heartbeat every 25 seconds while the Android service can run. Background restrictions or network loss can delay updates; server snapshots expire after 90 seconds without updates. Permission regrant or account switching never silently enables publishing.</string>
 </resources>

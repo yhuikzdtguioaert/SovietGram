@@ -21,7 +21,7 @@ def method(source, signature):
 
 
 class SoundCloudProtocol(unittest.TestCase):
-    def test_soundcloud_login_is_blocked_without_credentials_other_providers_still_work(self):
+    def test_removed_provider_rejected_other_providers_still_work(self):
         start = method(SOURCE.read_text(), 'private void start()')
         code = r'''
 import java.util.*;
@@ -63,15 +63,15 @@ public class OAuthStartSeam {
  void showWaiting() { waiting++; }
  START_METHOD
  public static void main(String[] args) {
-  for (int service : new int[]{3,6,4}) {
+  for (int service : new int[]{3,5,6,7,4}) {
    OAuthStartSeam test = new OAuthStartSeam(); test.service=service;
-   JSONObject reply = new JSONObject(); reply.put("url", "https://soundcloud.com/signin");
+   JSONObject reply = new JSONObject(); reply.put("url", "https://example.invalid/authorize");
    reply.put("manual", service!=4);
    if (service==4) reply.put("state", "a".repeat(43));
    SovietGramApiClient.response=reply; AndroidUtilities.polls=0; SovietGramApiClient.posts=0; test.start();
-   if (service==6) {
+   if (service!=3 && service!=4) {
     if (test.failures!=1 || test.browsers!=0 || test.tokenCalls!=0 || SovietGramApiClient.posts!=0 || AndroidUtilities.polls!=0)
-     throw new AssertionError("Unconfigured SoundCloud must explain the limitation, not open website login or request a session token");
+     throw new AssertionError("Removed providers must fail without transport, browser or token prompt");
     continue;
    }
    if (test.failures!=0) throw new AssertionError("service "+service+" rejected its supported contract");
@@ -82,7 +82,7 @@ public class OAuthStartSeam {
   SovietGramApiClient.deletes=0; abandoned.start();
   if (SovietGramApiClient.deletes!=1 || !("/v1/integration-accounts/oauth/"+"a".repeat(43)).equals(SovietGramApiClient.deleted))
    throw new AssertionError("state returned after cancellation must be revoked, not silently orphaned");
-  System.out.println("Unconfigured SoundCloud blocked; Yandex manual + Spotify browser OAuth contract passed");
+  System.out.println("Removed providers blocked; Yandex manual + Spotify browser OAuth passed");
  }
 }
 '''.replace('START_METHOD', start).replace('android.os.SystemClock.elapsedRealtime()', '1000L')
@@ -154,13 +154,11 @@ public class OAuthCancelSeam {
     def test_failed_attempt_uses_the_same_server_state_cancellation(self):
         self.assertIn('cancel();', method(SOURCE.read_text(), 'private void fail(String message)'))
 
-    def test_soundcloud_entry_is_explicit_and_does_not_scrape_credentials(self):
-        source = SOURCE.read_text()
-        self.assertIn('R.string.CustomProfileIntegrationSoundcloudUnavailable', source)
-        self.assertNotIn('R.string.CustomProfileIntegrationSessionTokenSoundcloud', source)
-        self.assertIn('if (service == 6)', method(source, 'private void start()'))
-        self.assertNotIn('SOUNDCLOUD_SCRIPT', source)
-        self.assertNotIn('CookieManager', source)
+    def test_only_supported_oauth_entries_without_cookie_scraping(self):
+        source=SOURCE.read_text()
+        self.assertNotIn('soundcloud',source.lower())
+        self.assertIn('if (service != 3 && service != 4)',method(source,'private void start()'))
+        self.assertNotIn('CookieManager',source)
 
 if __name__ == '__main__':
     unittest.main()

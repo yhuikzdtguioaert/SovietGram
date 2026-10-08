@@ -16,18 +16,14 @@ import java.util.function.Consumer;
 
 /** Integration metadata travels with the profile; credentials never belong in a block. */
 public final class CustomProfileIntegrations {
-    private static final String[] KEYS = {"lastfm", "github", "steam", "yamusic", "spotify", "soundcloud", "soundcloud-me", "soundcloud-live"};
-    private static final String[] NAMES = {"Last.fm", "GitHub", "Steam", "Yandex Music", "Spotify", "SoundCloud", "SoundCloud", "SoundCloud live (this device)"};
+    private static final String[] KEYS = {"lastfm", "github", "steam", "yamusic", "spotify"};
+    private static final String[] NAMES = {"Last.fm", "GitHub", "Steam", "Yandex Music", "Spotify"};
     private static final int[][] MODES = {
         {R.string.CustomProfileIntegrationNow, R.string.CustomProfileIntegrationScrobbles, R.string.CustomProfileIntegrationArtist, R.string.CustomProfileIntegrationAlbum},
         {R.string.CustomProfileIntegrationRepos, R.string.CustomProfileIntegrationStars, R.string.CustomProfileIntegrationFollowers, R.string.CustomProfileIntegrationFollowing, R.string.CustomProfileIntegrationSince, R.string.CustomProfileIntegrationContributions},
         {R.string.CustomProfileIntegrationPlaying, R.string.CustomProfileIntegrationSince, R.string.CustomProfileIntegrationHoursRecent, R.string.CustomProfileExtraRowTitle, R.string.CustomProfileIntegrationLevel, R.string.CustomProfileIntegrationGames, R.string.CustomProfileIntegrationHours, R.string.CustomProfileIntegrationLastGame},
         {R.string.CustomProfileIntegrationNow, R.string.CustomProfileIntegrationLastLike, R.string.CustomProfileIntegrationLikedTracks, R.string.CustomProfileIntegrationPlaylists},
-        {R.string.CustomProfileIntegrationNow, R.string.CustomProfileIntegrationLastTrack, R.string.CustomProfileIntegrationArtist, R.string.CustomProfileIntegrationFollowers},
-        {R.string.CustomProfileIntegrationLatestTrack, R.string.CustomProfileIntegrationFollowers, R.string.CustomProfileIntegrationTracks, R.string.CustomProfileIntegrationLikes, R.string.CustomProfileIntegrationLastLike},
-        // SoundCloud with the user's own session: what was played last and liked last come from their account.
-        {R.string.CustomProfileIntegrationNow, R.string.CustomProfileIntegrationLastLike, R.string.CustomProfileIntegrationFollowers, R.string.CustomProfileIntegrationLikes},
-        {R.string.CustomProfileIntegrationNow}
+        {R.string.CustomProfileIntegrationNow, R.string.CustomProfileIntegrationLastTrack, R.string.CustomProfileIntegrationArtist, R.string.CustomProfileIntegrationFollowers}
     };
     /** A track, a game or anything else that is "on right now", with what a card needs to draw it. */
     public static final class Track {
@@ -126,141 +122,40 @@ public final class CustomProfileIntegrations {
      * suits the service — what is playing changes within seconds, a profile's statistics within hours.
      */
     public static long refreshMs(CustomProfileExtraRows.Block block) {
-        if (block.service == 7) return block.intRefresh > 0 ? Math.min(30, Math.max(5, block.intRefresh)) * 1000L : 10_000L;
         if (block.intRefresh > 0) return Math.max(5, block.intRefresh) * 1000L;
         return switch (block.service) {
-            case 3, 4, 6 -> 10_000L;
+            case 3, 4 -> 10_000L;
             case 0 -> 15_000L;
             case 2 -> 30_000L;
-            case 5 -> 120_000L;
             default -> 300_000L;
         };
     }
     private static int cacheGeneration;
     private CustomProfileIntegrations() { }
 
-    // SoundCloud's own "share" links (on.soundcloud.com/XXXX) name no account: they redirect to the page that was
-    // shared. Each one is followed once and the account found there is remembered; "" means it led nowhere.
-    private static final Map<String, String> SHORT = new HashMap<>();
-    private static final Map<String, List<Consumer<String>>> SHORT_WAITING = new HashMap<>();
-
-    public static boolean isShortSoundcloud(String link) {
-        if (link == null) return false;
-        try {
-            Uri uri = Uri.parse(link.trim());
-            return "on.soundcloud.com".equalsIgnoreCase(uri.getHost()) && uri.getPathSegments().size() == 1;
-        } catch (Throwable ignore) {
-            return false;
-        }
-    }
-
-    /** UI thread. {@code done} gets the account the share link points to, or "" when it points to none. */
-    public static void resolveShort(String link, Consumer<String> done) {
-        final String key = link.trim();
-        final String known = SHORT.get(key);
-        if (known != null) {
-            done.accept(known);
-            return;
-        }
-        List<Consumer<String>> waiting = SHORT_WAITING.get(key);
-        if (waiting != null) {
-            waiting.add(done);
-            return;
-        }
-        waiting = new ArrayList<>();
-        waiting.add(done);
-        SHORT_WAITING.put(key, waiting);
-        org.telegram.messenger.Utilities.globalQueue.postRunnable(() -> {
-            String account = "";
-            try {
-                String next = key;
-                for (int hop = 0; hop < 6 && account.isEmpty(); hop++) {
-                    java.net.HttpURLConnection connection = (java.net.HttpURLConnection) new java.net.URL(next).openConnection();
-                    connection.setInstanceFollowRedirects(false);
-                    connection.setConnectTimeout(8000);
-                    connection.setReadTimeout(8000);
-                    connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/124 Mobile Safari/537.36");
-                    final int code = connection.getResponseCode();
-                    final String location = connection.getHeaderField("Location");
-                    connection.disconnect();
-                    if (code < 300 || code >= 400 || location == null) break;
-                    next = new java.net.URL(new java.net.URL(next), location).toString();
-                    Uri uri = Uri.parse(next);
-                    String host = uri.getHost();
-                    List<String> segments = uri.getPathSegments();
-                    if (host != null && (host.equals("soundcloud.com") || host.equals("www.soundcloud.com") || host.equals("m.soundcloud.com"))
-                            && !segments.isEmpty() && segments.get(0).matches("[a-zA-Z0-9._-]{1,64}")) {
-                        account = segments.get(0);
-                    }
-                }
-            } catch (Throwable ignore) {
-            }
-            final String result = account;
-            AndroidUtilities.runOnUIThread(() -> {
-                SHORT.put(key, result);
-                List<Consumer<String>> listeners = SHORT_WAITING.remove(key);
-                if (listeners != null) for (Consumer<String> listener : listeners) listener.accept(result);
-            });
-        });
-    }
     /** Services whose statistics come from the user's own signed-in account rather than a public name. */
-    public static boolean isConnected(int service) { return service == 3 || service == 4 || service == 6; }
-    public static String key(int service) { return KEYS[Math.max(0, Math.min(7, service))]; }
-    public static String serviceName(int service) { return service == 7 ? LocaleController.getString(R.string.CustomProfileSoundcloudLive) : NAMES[Math.max(0, Math.min(7, service))]; }
-    public static int modeCount(int service) { return MODES[Math.max(0, Math.min(7, service))].length; }
+    public static boolean isConnected(int service) { return service == 3 || service == 4; }
+    public static boolean isSupported(int service) { return service >= 0 && service < KEYS.length; }
+    public static String key(int service) { return isSupported(service) ? KEYS[service] : ""; }
+    public static String serviceName(int service) { return isSupported(service) ? NAMES[service] : ""; }
+    public static int modeCount(int service) { return isSupported(service) ? MODES[service].length : 0; }
     public static String modeName(int service, int mode) {
-        int[] modes = MODES[Math.max(0, Math.min(7, service))];
+        if (!isSupported(service)) return "";
+        int[] modes = MODES[service];
         return LocaleController.getString(modes[Math.max(0, Math.min(modes.length - 1, mode))]);
     }
-    /** Public profile identity only: never accept provider sign-in/callback URLs. */
-    public static String publicSoundcloudAccount(String value) {
-        String name = value == null ? "" : value.trim();
-        if (name.contains("://")) {
-            try {
-                final java.net.URI uri = new java.net.URI(name);
-                final String host = uri.getHost();
-                if (!"https".equalsIgnoreCase(uri.getScheme()) || host == null
-                        || !(host.equalsIgnoreCase("soundcloud.com") || host.equalsIgnoreCase("www.soundcloud.com")
-                        || host.equalsIgnoreCase("m.soundcloud.com"))
-                        || uri.getUserInfo() != null || uri.getPort() != -1 || uri.getFragment() != null) return "";
-                final String query = uri.getRawQuery();
-                if (query != null) {
-                    for (String field : query.split("&")) {
-                        final String key = field.split("=", 2)[0];
-                        if (!(key.equals("si") || key.equals("utm_source") || key.equals("utm_medium") || key.equals("utm_campaign"))) return "";
-                    }
-                }
-                final String path = uri.getPath();
-                if (path == null || !path.matches("/[A-Za-z0-9._-]{1,64}/?")) return "";
-                name = path.substring(1).replaceAll("/$", "");
-            } catch (java.net.URISyntaxException ignored) { return ""; }
-        }
-        if (!name.matches("[A-Za-z0-9._-]{1,64}")) return "";
-        return switch (name.toLowerCase(java.util.Locale.ROOT)) {
-            case "signin", "sign-in", "login", "logout", "discover", "you", "search", "stream", "upload", "settings", "oauth", "authorize", "connect" -> "";
-            default -> name;
-        };
-    }
-
     public static String account(CustomProfileExtraRows.Block block) {
-        if (block.service == 7) return ""; // Device telemetry has no provider account binding.
+        if (!isSupported(block.service)) return "";
         String name = block.url.trim();
         if (name.isEmpty()) name = block.accounts.optString(key(block.service));
-        if (block.service == 5 && !isShortSoundcloud(name)) return publicSoundcloudAccount(name);
         if (name.startsWith("https://") || name.startsWith("http://")) {
             Uri uri = Uri.parse(name);
             String host = uri.getHost();
             List<String> segments = uri.getPathSegments();
             if (host == null || segments.isEmpty()) return "";
-            if (block.service == 5 && isShortSoundcloud(name)) {
-                final String resolved = SHORT.get(name);
-                return resolved == null ? "" : resolved;
-            }
             if (block.service == 0 && (host.equals("last.fm") || host.equals("www.last.fm"))
                     && segments.size() == 2 && segments.get(0).equals("user")) return segments.get(1);
             if (block.service == 1 && host.equals("github.com") && segments.size() == 1) return segments.get(0);
-            if (block.service == 5 && (host.equals("soundcloud.com") || host.equals("www.soundcloud.com") || host.equals("m.soundcloud.com"))
-                    && segments.size() >= 1) return segments.get(0);
             if (block.service == 2 && host.equals("steamcommunity.com") && segments.size() == 2
                     && (segments.get(0).equals("id") || segments.get(0).equals("profiles"))) return segments.get(1);
             return "";
@@ -276,7 +171,6 @@ public final class CustomProfileIntegrations {
             case 2 -> "https://steamcommunity.com/" + (name.matches("[0-9]{17}") ? "profiles/" : "id/") + Uri.encode(name);
             case 3 -> "https://music.yandex.ru/";
             case 4 -> "https://open.spotify.com/user/" + Uri.encode(name);
-            case 5, 6 -> "https://soundcloud.com/" + Uri.encode(name);
             default -> "";
         };
     }
@@ -292,19 +186,18 @@ public final class CustomProfileIntegrations {
         loadRich(account, profileOwner, block, rich -> sink.accept(rich.text));
     }
     public static void loadRich(int account, long profileOwner, CustomProfileExtraRows.Block block, Consumer<Rich> sink) {
-        String name = account(block);
         final int service = block.service;
-        if (name.isEmpty() && block.service == 5 && isShortSoundcloud(block.url) && !SHORT.containsKey(block.url.trim())) {
-            // A share link: find the account it leads to first, then load as usual.
-            resolveShort(block.url, resolved -> loadRich(account, profileOwner, block, sink));
+        if (!isSupported(service)) {
+            sink.accept(Rich.plain(LocaleController.getString(R.string.CustomProfileIntegrationUnavailable), service));
             return;
         }
-        if (service != 7 && name.isEmpty() && profileOwner == UserConfig.getInstance(account).getClientUserId()) {
+        String name = account(block);
+        if (name.isEmpty() && profileOwner == UserConfig.getInstance(account).getClientUserId()) {
             // Typically a look installed from the Workshop: the row is there, the account is not yet.
             sink.accept(Rich.plain(LocaleController.getString(R.string.CustomProfileIntegrationNeedsBinding), service));
             return;
         }
-        if ((service != 7 && !name.matches("[a-zA-Z0-9._-]{1,64}")) || !SovietGramApiClient.isReady(account)) {
+        if (!name.matches("[a-zA-Z0-9._-]{1,64}") || !SovietGramApiClient.isReady(account)) {
             sink.accept(Rich.plain(LocaleController.getString(R.string.CustomProfileIntegrationUnavailable), service));
             return;
         }
@@ -351,7 +244,7 @@ public final class CustomProfileIntegrations {
         }));
     }
     private static String requestPath(int account, long profileOwner, CustomProfileExtraRows.Block block, String name, String modes) {
-        if (isConnected(block.service) || block.service == 7) {
+        if (isConnected(block.service)) {
             return profileOwner == UserConfig.getInstance(account).getClientUserId()
                     ? "/v1/integrations/self?service=" + key(block.service) + "&modes=" + modes
                     : "/v1/profile-integrations/" + profileOwner + "/" + Uri.encode(block.id);
@@ -386,7 +279,7 @@ public final class CustomProfileIntegrations {
                 track.stale = t.optBoolean("stale");
                 track.liked = t.optBoolean("liked");
                 track.receivedAt = android.os.SystemClock.elapsedRealtime();
-                track.trustMs = service == 7 ? Math.min(30_000L, trust) : trust;
+                track.trustMs = trust;
             }
             JSONObject g = part.optJSONObject("graph");
             if (graph == null && g != null && g.optString("levels").length() >= 28) {

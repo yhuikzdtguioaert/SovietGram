@@ -26,15 +26,11 @@ class ProfileMusicContracts(unittest.TestCase):
         self.assertTrue('attribute.voice' in source,
                         'Voice documents are not profile songs')
 
-    def test_soundcloud_uses_backend_oauth_not_website_cookie_registration(self):
-        source = (HELPERS / 'CustomProfileIntegrationOAuth.java').read_text()
-        self.assertFalse('startSoundcloud();' in source,
-                         'Website registration is not an app OAuth authorization')
-        self.assertTrue('path() + "/oauth/start"' in source)
-        self.assertTrue('error.contains("bad_request")' in source,
-                        'Unsupported SoundCloud backend must surface configuration failure')
-        self.assertFalse('SOUNDCLOUD_SCRIPT' in source,
-                         'Do not ask users to scrape a website session cookie')
+    def test_supported_oauth_retained_without_removed_provider_auth(self):
+        source=(HELPERS/'CustomProfileIntegrationOAuth.java').read_text()
+        self.assertNotIn('soundcloud',source.lower())
+        self.assertIn('path() + "/oauth/start"',source)
+        self.assertIn('oauth_not_configured',source)
 
     def test_replaced_oauth_attempt_cannot_publish_or_poll(self):
         source = (HELPERS / 'CustomProfileIntegrationOAuth.java').read_text()

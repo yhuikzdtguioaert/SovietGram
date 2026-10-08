@@ -689,8 +689,6 @@
     <string name="CustomProfileIntegrationLikedTracks">آهنگ‌های پسندیده</string>
     <string name="CustomProfileIntegrationPlaylists">فهرست‌های پخش</string>
     <string name="CustomProfileIntegrationLastTrack">آخرین آهنگ</string>
-    <string name="CustomProfileIntegrationTracks">آهنگ‌ها</string>
-    <string name="CustomProfileIntegrationLikes">پسندیدن‌ها</string>
     <string name="CustomProfileIntegrationFriends">دوستان</string>
     <string name="CustomProfileIntegrationStatus">وضعیت</string>
     <string name="CustomProfileIntegrationConnect">اتصال حساب</string>
@@ -791,7 +789,6 @@
     <string name="CustomProfileIntegrationListening">Listening to %s</string>
     <string name="CustomProfileIntegrationPaused">Paused on %s</string>
     <string name="CustomProfileIntegrationLastPlayed">Last listened on %s</string>
-    <string name="CustomProfileIntegrationLatestOn">Latest track on %s</string>
     <string name="CustomProfileIntegrationGamePlaying">Playing on %s</string>
     <string name="CustomProfileIntegrationContribs">%s contributions in the last year</string>
     <string name="CustomProfileIntegrationLess">Less</string>
@@ -799,10 +796,5 @@
     <string name="CustomProfileIntegrationStyleInfo">A card shows the cover and the progress of what is playing, or the contribution calendar for GitHub. The update interval is how often the profile asks for fresh data while it is open.</string>
     <string name="CustomProfileHeaderStatusFollow">Keep Last Seen under the name</string>
     <string name="CustomProfileHeaderStatusFollowInfo">With this on, Last Seen follows the name wherever the numbers above put it, instead of flying off on its own offset. An anchor you set for the status yourself takes precedence.</string>
-    <string name="CustomProfileIntegrationLatestTrack">Latest track</string>
     <string name="CustomProfileIntegrationLikedOn">Liked on %s</string>
-    <string name="CustomProfileIntegrationSoundcloudAccount">SoundCloud</string>
-    <string name="CustomProfileIntegrationCopyScript">Copy line</string>
-    <string name="CustomProfileIntegrationPasteTokenSoundcloud">SoundCloud gives no token of its own, so it is read from your signed-in session:\n1. Sign in at soundcloud.com in the browser that opened.\n2. Tap \"Copy line\" here, then in that browser\'s address bar type javascript: and paste the line right after it. Press Go.\n3. A box shows the token: copy it. SovietGram picks it up when you come back, or paste it below.\nThe token is kept encrypted on the server and only used to read what you play and like.</string>
-    <string name="CustomProfileIntegrationEnterManually">Enter token manually</string>
 </resources>
